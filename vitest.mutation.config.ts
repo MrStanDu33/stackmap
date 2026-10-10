@@ -6,6 +6,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['scripts/**/*.test.mjs', 'tests/unit/**/*.test.ts', 'shared/**/*.test.ts'],
+    include: ['scripts/**/*.test.mjs', 'tests/unit/**/*.test.ts', 'shared/**/*.test.ts', 'server/**/*.test.ts'],
+    exclude: ['**/*.integration.test.ts', 'node_modules/**'],
   },
 });

@@ -46,7 +46,19 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['tests/unit/**/*.test.ts', 'shared/**/*.test.ts'],
+          include: ['tests/unit/**/*.test.ts', 'shared/**/*.test.ts', 'server/**/*.test.ts'],
+          exclude: ['**/*.integration.test.ts'],
+        },
+      },
+      {
+        // Against real databases: every test runs on SQLite, and on Postgres when TEST_POSTGRES_URL is set.
+        test: {
+          name: 'integration',
+          environment: 'node',
+          include: ['**/*.integration.test.ts'],
+          exclude: ['node_modules/**'],
+          globalSetup: ['tests/support/integration-setup.ts'],
+          testTimeout: 20_000,
         },
       },
       ...storybookProjects,

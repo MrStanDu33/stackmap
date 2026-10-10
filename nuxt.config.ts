@@ -23,9 +23,9 @@ export default defineNuxtConfig({
 
   typescript: {
     strict: true,
-    // Root tool configs (vitest, playwright…) and Node-side unit tests are typechecked with the Node project.
+    // Root tool configs (vitest, playwright…) and Node-side tests and helpers are typechecked with the Node project.
     nodeTsConfig: {
-      include: ['../*.config.ts', '../tests/unit/**/*'],
+      include: ['../*.config.ts', '../tests/unit/**/*', '../tests/support/**/*', '../tests/smoke/**/*'],
     },
   },
 

@@ -18,6 +18,24 @@ services:
       - dev-nuxt:/app/.nuxt
       - dev-pnpm-store:/pnpm/store
 
+  # Postgres for the integration tests: `pnpm db:test:up` (not started by a plain `up`).
+  postgres-test:
+    image: postgres:18-alpine
+    profiles: [test]
+    ports:
+      - "55432:5432"
+    environment:
+      POSTGRES_USER: stackmap
+      POSTGRES_PASSWORD: stackmap
+      POSTGRES_DB: stackmap_test
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stackmap -d stackmap_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
 volumes:
   dev-node-modules:
   dev-nuxt:
