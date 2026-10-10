@@ -1,0 +1,62 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Security issues** must not be reported here: use a private
+        [security advisory](https://github.com/MrStanDu33/stackmap/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Stackmap version
+      description: Shown in Settings → About, or the image tag you run.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - Docker Compose with SQLite (default)
+        - Docker Compose with Postgres
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and assistive technology
+      description: Only if the issue is in the interface, e.g. "Firefox 145 with NVDA".
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Container logs around the issue (`docker compose logs stackmap`).
+      render: shell
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I removed private infrastructure data (IPs, domains, hostnames, credentials) from this report.
+          required: true

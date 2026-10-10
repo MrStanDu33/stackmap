@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest something Stackmap should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to document or understand about your stack, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: How could Stackmap solve it?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds you use today, or other tools that do it.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Graph and traces
+        - Inventory
+        - Plans, wizard and templates
+        - Extensions and custom types
+        - Accounts, workspaces and settings
+        - Accessibility
+        - Installation and upgrades
+        - Other
+    validations:
+      required: true
