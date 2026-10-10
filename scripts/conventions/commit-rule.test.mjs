@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkCommitMessage } from './commit-rule.mjs';
+import { checkCommitMessage, parseHeader } from './commit-rule.mjs';
 
 const expectValid = (message) => {
   expect(checkCommitMessage(message)).toEqual({ valid: true, errors: [] });
@@ -27,15 +27,15 @@ describe('commit rule', () => {
 
   describe('given a gitmoji written with or without the U+FE0F variation selector', () => {
     it('accepts the variant without U+FE0F', () => {
-      expectValid('♿ Improve keyboard focus in the detail panel');
+      expectValid('\u267F Improve keyboard focus in the detail panel');
     });
 
     it('accepts the variant with U+FE0F', () => {
-      expectValid('♿️ Improve keyboard focus in the detail panel');
+      expectValid('\u267F\uFE0F Improve keyboard focus in the detail panel');
     });
 
     it('accepts a gitmoji that the list stores without U+FE0F when written with it', () => {
-      expectValid('✅️ Add tests for the trace');
+      expectValid('\u2705\uFE0F Add tests for the trace');
     });
   });
 
@@ -146,5 +146,19 @@ describe('commit rule', () => {
     ])('accepts %s', (message) => {
       expectValid(message);
     });
+  });
+});
+
+describe('parseHeader', () => {
+  it('splits a header into its gitmoji, its semver level and its title', () => {
+    expect(parseHeader('✨ Add graph filters (#12)')).toEqual({ emoji: '✨', semver: 'minor', title: 'Add graph filters (#12)' });
+  });
+
+  it('matches gitmojis with or without U+FE0F', () => {
+    expect(parseHeader('\u267F Improve focus')?.semver).toBe(parseHeader('\u267F\uFE0F Improve focus')?.semver);
+  });
+
+  it('returns null for a header without a gitmoji', () => {
+    expect(parseHeader('Merge pull request #12 from MrStanDu33/develop')).toBeNull();
   });
 });
