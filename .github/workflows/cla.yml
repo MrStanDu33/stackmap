@@ -31,4 +31,6 @@ jobs:
           path-to-signatures: signatures/cla.json
           path-to-document: https://github.com/MrStanDu33/stackmap/blob/develop/docs/CLA.md
           branch: cla-signatures
-          allowlist: MrStanDu33,renovate[bot],github-actions[bot]
+          # GitHub counts "Co-Authored-By: Claude" trailers as the `claude` account. AI co-authors do not sign: the
+          # human author signs and stays responsible for the change (see the AI policy in CONTRIBUTING.md).
+          allowlist: MrStanDu33,claude,renovate[bot],github-actions[bot]
