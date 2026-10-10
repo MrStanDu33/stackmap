@@ -1,6 +1,7 @@
 # Stackmap built from this checkout: `docker compose up -d`, then open http://localhost:3000.
 # Every `up` rebuilds the image from the local code (cached layers keep it fast).
 # For Postgres: `docker compose -f compose.yaml -f compose.postgres.yaml up -d`.
+# For development with hot reload, use compose.dev.yaml instead.
 services:
   stackmap:
     build: .

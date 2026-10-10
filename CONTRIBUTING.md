@@ -20,6 +20,9 @@ pnpm dev                                # http://localhost:3000
 
 `pnpm install` also installs the Git hooks. A dev container (app + Postgres) is available in `.devcontainer/`.
 
+To run the app in Docker instead, with hot reload on your checkout: `docker compose -f compose.dev.yaml up`.
+`docker compose up -d` runs the production build of your checkout.
+
 Behind a TLS-inspecting proxy, downloads made by Node (such as `playwright install`) may fail with
 `SELF_SIGNED_CERT_IN_CHAIN`. Prefix the command with `NODE_OPTIONS=--use-system-ca` to trust your system certificates.
 
