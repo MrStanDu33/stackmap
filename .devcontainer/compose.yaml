@@ -1,0 +1,25 @@
+# Contributor environment: the app container (Node 24, pnpm) and Postgres for the integration tests.
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/typescript-node:24-bookworm
+    command: sleep infinity
+    volumes:
+      - ..:/workspaces/stackmap:cached
+    environment:
+      # Integration tests use this database; the app itself defaults to SQLite.
+      TEST_POSTGRES_URL: postgres://stackmap:stackmap@postgres:5432/stackmap_test
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stackmap
+      POSTGRES_PASSWORD: stackmap
+      POSTGRES_DB: stackmap_test
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+volumes:
+  postgres-data:

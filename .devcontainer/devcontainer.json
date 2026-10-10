@@ -1,0 +1,31 @@
+{
+  "name": "Stackmap",
+  "dockerComposeFile": "compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/stackmap",
+  "shutdownAction": "stopCompose",
+  "remoteUser": "node",
+  "containerEnv": {
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+  },
+  "postCreateCommand": "sudo corepack enable && pnpm install && pnpm exec playwright install --with-deps chromium",
+  "forwardPorts": [3000, 6006],
+  "portsAttributes": {
+    "3000": { "label": "App" },
+    "6006": { "label": "Storybook" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vue.volar",
+        "dbaeumer.vscode-eslint",
+        "stylelint.vscode-stylelint",
+        "bradlc.vscode-tailwindcss",
+        "editorconfig.editorconfig",
+        "vitest.explorer",
+        "ms-playwright.playwright",
+        "lokalise.i18n-ally"
+      ]
+    }
+  }
+}
