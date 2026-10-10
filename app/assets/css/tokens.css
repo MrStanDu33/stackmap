@@ -1,0 +1,123 @@
+/*
+ * Stackmap design tokens.
+ *
+ * Palettes are Tailwind colors (`bg-nebula-500`, `text-midnight-300`…). app.config.ts maps Nuxt UI's
+ * `primary` to nebula and `neutral` to midnight. The semantic `--ui-*` tokens below are set for every
+ * theme and checked for WCAG contrast by tests/unit/design/theme-tokens.test.ts.
+ *
+ * These rules are unlayered on purpose so they always beat Nuxt UI's `@layer theme` defaults. As a
+ * consequence, every token set for light must also be set for midnight, and the same for strict mode.
+ */
+
+@theme static {
+  --font-sans: system-ui, -apple-system, "Segoe UI", roboto, "Helvetica Neue", arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", menlo, consolas, "Liberation Mono", monospace;
+  --color-midnight-50: #f5f6fb;
+  --color-midnight-100: #e9ebf5;
+  --color-midnight-200: #d1d5e8;
+  --color-midnight-300: #aab1d0;
+  --color-midnight-400: #848db6;
+  --color-midnight-500: #5f6890;
+  --color-midnight-600: #4a5175;
+  --color-midnight-700: #363c5c;
+  --color-midnight-800: #242943;
+  --color-midnight-900: #171b30;
+  --color-midnight-950: #0c0f1f;
+  --color-nebula-50: #f6f3ff;
+  --color-nebula-100: #ede8ff;
+  --color-nebula-200: #ddd3ff;
+  --color-nebula-300: #c4b1ff;
+  --color-nebula-400: #a688ff;
+  --color-nebula-500: #8d5ffa;
+  --color-nebula-600: #7c43ee;
+  --color-nebula-700: #6b32d4;
+  --color-nebula-800: #5829ad;
+  --color-nebula-900: #47238a;
+  --color-nebula-950: #2b135e;
+}
+
+/* Light theme. */
+:root {
+  --ui-primary: var(--color-nebula-700);
+  --ui-secondary: var(--color-sky-700);
+  --ui-success: var(--color-emerald-700);
+  --ui-info: var(--color-blue-700);
+  --ui-warning: var(--color-amber-700);
+  --ui-error: var(--color-red-700);
+  --ui-bg: #fff;
+  --ui-bg-muted: var(--color-midnight-50);
+  --ui-bg-elevated: var(--color-midnight-100);
+  --ui-bg-accented: var(--color-midnight-200);
+  --ui-bg-inverted: var(--color-midnight-900);
+  --ui-text-dimmed: var(--color-midnight-500);
+  --ui-text-muted: var(--color-midnight-600);
+  --ui-text-toned: var(--color-midnight-700);
+  --ui-text: var(--color-midnight-800);
+  --ui-text-highlighted: var(--color-midnight-950);
+  --ui-text-inverted: #fff;
+  --ui-border: var(--color-midnight-200);
+  --ui-border-muted: var(--color-midnight-100);
+  --ui-border-accented: var(--color-midnight-500);
+  --ui-border-inverted: var(--color-midnight-900);
+}
+
+/* Midnight theme (default). */
+.dark {
+  --ui-primary: var(--color-nebula-400);
+  --ui-secondary: var(--color-sky-400);
+  --ui-success: var(--color-emerald-400);
+  --ui-info: var(--color-blue-400);
+  --ui-warning: var(--color-amber-400);
+  --ui-error: var(--color-red-400);
+  --ui-bg: var(--color-midnight-950);
+  --ui-bg-muted: var(--color-midnight-900);
+  --ui-bg-elevated: var(--color-midnight-900);
+  --ui-bg-accented: var(--color-midnight-800);
+  --ui-bg-inverted: var(--color-midnight-50);
+  --ui-text-dimmed: var(--color-midnight-400);
+  --ui-text-muted: var(--color-midnight-300);
+  --ui-text-toned: var(--color-midnight-200);
+  --ui-text: var(--color-midnight-100);
+  --ui-text-highlighted: #fff;
+  --ui-text-inverted: var(--color-midnight-950);
+  --ui-border: var(--color-midnight-800);
+  --ui-border-muted: var(--color-midnight-900);
+  --ui-border-accented: var(--color-midnight-500);
+  --ui-border-inverted: var(--color-midnight-50);
+}
+
+/* RGAA strict mode (WCAG AAA text contrast), light. */
+:root[data-contrast='strict'] {
+  --ui-primary: var(--color-nebula-800);
+  --ui-secondary: var(--color-sky-800);
+  --ui-success: var(--color-emerald-800);
+  --ui-info: var(--color-blue-800);
+  --ui-warning: var(--color-amber-800);
+  --ui-error: var(--color-red-800);
+  --ui-bg-elevated: var(--color-midnight-50);
+  --ui-text-dimmed: var(--color-midnight-700);
+  --ui-text-muted: var(--color-midnight-800);
+  --ui-text-toned: var(--color-midnight-900);
+  --ui-text: var(--color-midnight-950);
+  --ui-text-highlighted: #000;
+  --ui-border: var(--color-midnight-500);
+  --ui-border-accented: var(--color-midnight-600);
+}
+
+/* RGAA strict mode, midnight. */
+.dark[data-contrast='strict'] {
+  --ui-primary: var(--color-nebula-300);
+  --ui-secondary: var(--color-sky-300);
+  --ui-success: var(--color-emerald-300);
+  --ui-info: var(--color-blue-300);
+  --ui-warning: var(--color-amber-300);
+  --ui-error: var(--color-red-300);
+  --ui-bg-elevated: var(--color-midnight-900);
+  --ui-text-dimmed: var(--color-midnight-200);
+  --ui-text-muted: var(--color-midnight-100);
+  --ui-text-toned: var(--color-midnight-50);
+  --ui-text: #fff;
+  --ui-text-highlighted: #fff;
+  --ui-border: var(--color-midnight-500);
+  --ui-border-accented: var(--color-midnight-400);
+}
