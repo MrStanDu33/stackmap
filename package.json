@@ -72,6 +72,7 @@
     "playwright": "^1.64.0",
     "postcss": "^8.5.29",
     "postcss-html": "^2.0.0",
+    "remark-gfm": "^4.0.1",
     "storybook": "~10.6.1",
     "stylelint": "^17.16.0",
     "stylelint-config-recommended-vue": "^2.0.0",

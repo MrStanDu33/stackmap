@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 
 import ui from '@nuxt/ui/vite';
 import vue from '@vitejs/plugin-vue';
+import remarkGfm from 'remark-gfm';
 import { mergeConfig } from 'vite';
 
 import { UI_COLORS } from '../shared/design/ui-colors';
@@ -16,7 +17,16 @@ const shims = path('./nuxt-shims.ts');
 
 const config: StorybookConfig = {
   stories: ['./foundations/*.@(mdx|stories.ts)', '../app/components/**/*.@(mdx|stories.ts)'],
-  addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest', '@storybook/addon-mcp'],
+  addons: [
+    {
+      name: '@storybook/addon-docs',
+      // GitHub-flavored Markdown (tables, task lists) in the MDX foundation pages.
+      options: { mdxPluginOptions: { mdxCompileOptions: { remarkPlugins: [remarkGfm] } } },
+    },
+    '@storybook/addon-a11y',
+    '@storybook/addon-vitest',
+    '@storybook/addon-mcp',
+  ],
   core: { disableTelemetry: true },
   framework: {
     name: '@storybook/vue3-vite',
