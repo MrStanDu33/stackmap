@@ -47,3 +47,14 @@ jobs:
         run: |
           node scripts/release/release-notes.mjs "$VERSION" > release-notes.md
           gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" --notes-file release-notes.md
+
+  images:
+    name: Release images
+    needs: release
+    if: needs.release.outputs.released == 'true'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
