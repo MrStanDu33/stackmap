@@ -1,10 +1,16 @@
 <template>
-  <main class="mx-auto max-w-2xl p-8">
+  <main
+    id="main"
+    class="mx-auto max-w-2xl p-8"
+  >
     <h1 class="text-2xl font-semibold">
-      Stackmap
+      {{ $t('app.name') }}
     </h1>
-    <p class="mt-2 text-muted">
-      Work in progress.
+    <p class="mt-2">
+      {{ $t('app.tagline') }}
+    </p>
+    <p class="mt-1 text-muted">
+      {{ $t('app.status') }}
     </p>
   </main>
 </template>

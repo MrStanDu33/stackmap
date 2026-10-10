@@ -10,6 +10,13 @@ export default defineConfig({
           include: ['scripts/**/*.test.mjs'],
         },
       },
+      {
+        test: {
+          name: 'unit',
+          environment: 'node',
+          include: ['tests/unit/**/*.test.ts', 'shared/**/*.test.ts'],
+        },
+      },
     ],
     coverage: {
       provider: 'v8',

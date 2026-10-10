@@ -1,0 +1,10 @@
+{
+  "app": {
+    "name": "Stackmap",
+    "tagline": "Documentation auto-hébergée de votre infrastructure.",
+    "status": "Travail en cours."
+  },
+  "a11y": {
+    "skipToContent": "Aller au contenu principal"
+  }
+}
