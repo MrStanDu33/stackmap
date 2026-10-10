@@ -19,13 +19,16 @@
     "lint:css": "stylelint \"**/*.{css,vue}\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage --project scripts --project unit",
     "commit": "gitmoji -c",
     "prepare": "husky",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
     "test:unit": "vitest run --project scripts --project unit",
-    "test:stories": "vitest run --project 'storybook:*'"
+    "test:stories": "vitest run --project 'storybook:*'",
+    "release:prepare": "node scripts/release/prepare.mjs",
+    "check:stories": "node scripts/checks/check-story-coverage.mjs",
+    "test:mutation": "stryker run"
   },
   "gitmoji": {
     "autoAdd": false,
@@ -51,6 +54,7 @@
     "@storybook/addon-docs": "~10.6.1",
     "@storybook/addon-vitest": "~10.6.1",
     "@storybook/vue3-vite": "~10.6.1",
+    "@stryker-mutator/core": "^10.0.0",
     "@types/culori": "^4.0.1",
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.9",

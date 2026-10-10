@@ -53,7 +53,25 @@ export default defineConfig({
     ],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'lcov'],
+      reporter: ['text-summary', 'lcov'],
+      include: [
+        'shared/**/*.ts',
+        'server/**/*.ts',
+        'extensions/*/server/**/*.ts',
+        'packages/*/src/**/*.ts',
+        'scripts/**/*.mjs',
+      ],
+      exclude: ['**/*.test.*', '**/*.d.ts', 'scripts/**/check-*.mjs', 'scripts/conventions/pre-push.mjs', 'scripts/release/prepare.mjs', 'scripts/release/release-notes.mjs'],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+        // Domain logic.
+        'server/domain/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        'extensions/*/server/domain/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        'packages/*/src/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+      },
     },
   },
 });
