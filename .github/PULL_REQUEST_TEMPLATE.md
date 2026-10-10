@@ -9,7 +9,7 @@
 - [ ] Every new or changed component has a story covering its variants and states
 - [ ] Usable with the keyboard and a screen reader; no new axe violation
 - [ ] Every new string exists in English and French
-- [ ] Docs are updated when behavior or architecture changes (README, `docs/ARCHITECTURE.md`, an ADR)
+- [ ] Docs are updated when behavior or architecture changes (README, `docs/ARCHITECTURE.md`)
 - [ ] No secrets or private infrastructure data in code, fixtures or screenshots
 
 ## AI assistance

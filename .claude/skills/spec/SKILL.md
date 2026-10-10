@@ -6,7 +6,7 @@ argument-hint: <feature in a few words>
 
 # Write a feature spec
 
-1. Read the relevant parts of `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, the ADRs and the existing code.
+1. Read the relevant parts of `docs/ARCHITECTURE.md`, `docs/ROADMAP.md` and the existing code.
 2. Create `.ai/specs/<feature-slug>.md` (gitignored, never committed) with:
    - **Goal**: one or two sentences.
    - **Acceptance criteria**: numbered, in Given/When/Then. Each one becomes a test name.

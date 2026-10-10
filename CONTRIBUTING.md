@@ -67,7 +67,8 @@ bugs.
 Components follow atomic design in `app/components/{atoms,molecules,organisms,templates}/`. Every component has a
 `<Name>.stories.ts` next to it, covering its variants and states (loading, empty, error). Stories run as tests in both
 themes, both contrast modes and both locales, and fail on any axe violation. Components use Nuxt APIs only through
-auto-imports; see [ADR 1](docs/adr/0001-storybook-with-the-vue-vite-framework.md).
+auto-imports: stories render them with plain Vue and the small shims in `.storybook/nuxt-shims.ts`, not a full
+Nuxt app.
 
 ### Accessibility and translations
 

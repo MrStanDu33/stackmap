@@ -1,8 +1,8 @@
 # Agent instructions
 
 Stackmap is a self-hosted tool that documents infrastructure (hosts, services, DNS, proxies, VPNs, auth) and draws it
-as graphs. Nuxt 4 full-stack app, Nuxt UI 4, TypeScript strict, pnpm. Read `docs/ARCHITECTURE.md` and `docs/adr/`
-before structural changes; `docs/ROADMAP.md` says what is planned.
+as graphs. Nuxt 4 full-stack app, Nuxt UI 4, TypeScript strict, pnpm. Read `docs/ARCHITECTURE.md` before structural
+changes; `docs/ROADMAP.md` says what is planned.
 
 ## Commands
 
@@ -35,7 +35,7 @@ Never weaken, skip or delete a test to get green. A hook blocks edits to unteste
 
 - Components: atomic design in `app/components/{atoms,molecules,organisms,templates}/`, registered without path
   prefix. Each has a `<Name>.stories.ts` covering variants and states. Use Nuxt APIs through auto-imports only, never
-  explicit `#imports` (stories run without Nuxt, see ADR 1).
+  explicit `#imports` (stories render with plain Vue and the shims in `.storybook/nuxt-shims.ts`).
 - Styles: Nuxt UI components and semantic utilities (`text-muted`, `bg-elevated`, `text-primary`); never palette
   shades or raw colors. Tokens live in `app/assets/css/tokens.css`.
 - Strings: every user-facing string goes through i18n, in both `i18n/locales/en.json` and `fr.json`.

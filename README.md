@@ -29,7 +29,7 @@ knowledge in one place and draws it.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the commands and how we work (tests first, gitmoji commits).
 Components are documented in [Storybook](https://mrstandu33.github.io/stackmap/), and the design in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the [decision records](docs/adr/).
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Security
 

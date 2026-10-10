@@ -1,7 +1,7 @@
 # Architecture
 
 This is the target architecture. Parts that are not built yet are marked _(planned)_; the
-[roadmap](ROADMAP.md) says when they arrive, and the [decision records](adr/) explain the main choices.
+[roadmap](ROADMAP.md) says when they arrive.
 
 ## Overview
 
@@ -13,7 +13,7 @@ Stackmap is one Nuxt 4 application, shipped as one container:
 - **built-in extensions** (`extensions/<id>/`) _(planned)_: Nuxt layers that add entity types and features;
 - the **extension SDK** (`packages/extension-sdk/`) _(planned)_.
 
-Data lives in SQLite by default or in Postgres, through Kysely ([ADR 3](adr/0003-kysely-with-sqlite-by-default.md)).
+Data lives in SQLite by default or in Postgres, through Kysely, with one code path for both.
 
 ## Repository layout
 
@@ -28,7 +28,7 @@ Data lives in SQLite by default or in Postgres, through Kysely ([ADR 3](adr/0003
 | `tests/`             | Unit tests that are not next to their code, fixtures, end-to-end tests     |
 | `scripts/`           | Convention rules, release tooling and CI checks                            |
 | `.storybook/`        | Storybook configuration and foundation pages                               |
-| `docs/`              | Roadmap, architecture, decision records, CLA                               |
+| `docs/`              | Roadmap, architecture, CLA                                                 |
 
 ## Domain model _(planned)_
 
@@ -55,13 +55,13 @@ table.
 ## Workspaces and isolation _(planned)_
 
 Workspaces, members, roles (`owner`, `admin`, `editor`, `viewer`) and invitations come from Better Auth's organization
-plugin ([ADR 6](adr/0006-better-auth-organizations-as-workspaces.md)). All data access goes through repositories scoped
+plugin. All data access goes through repositories scoped
 to a workspace; tests prove that one workspace cannot read or change another's data. An entitlements service,
 `can(workspace, feature)`, allows everything in v1 and prepares paid plans.
 
 ## Extensions _(planned)_
 
-The core and the built-in extensions use the same SDK ([ADR 5](adr/0005-extensions-from-day-one.md)). An extension
+The core and the built-in extensions use the same SDK, which proves it is sufficient. An extension
 contributes entity types, fields, kinds, flow types, **flow derivers** (turn its entities into flows), **trace hop
 resolvers** (resolve the next hop through its entities), templates, wizard questions, themes, locales and, for
 built-in extensions, code such as connectors and checks.
@@ -82,8 +82,8 @@ contracts and served at `/api/docs`. CI fails when the document is stale.
 ## Interface
 
 - Components follow atomic design: atoms, molecules, organisms, templates; Nuxt pages are the pages level. Each
-  component has stories, run as tests in Chromium in every theme, contrast mode and locale
-  ([ADR 1](adr/0001-storybook-with-the-vue-vite-framework.md)).
+  component has stories, run as tests in Chromium in every theme, contrast mode and locale. Storybook uses the plain
+  Vue + Vite framework with small Nuxt shims, because the Nuxt Storybook framework does not support Nuxt 4.6 yet.
 - Design tokens live in `app/assets/css/tokens.css`: the nebula and midnight palettes and the semantic Nuxt UI tokens
   for the midnight (default), light and strict themes. `shared/design/contrast.ts` defines the contrast requirements,
   checked by tests.

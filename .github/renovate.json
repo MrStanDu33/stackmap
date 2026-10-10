@@ -28,7 +28,7 @@
       "schedule": ["before 6am on monday"]
     },
     {
-      "description": "typescript-eslint and vue-tsc do not support TypeScript 7 yet (see docs/adr/0002).",
+      "description": "typescript-eslint and vue-tsc do not support TypeScript 7 yet.",
       "matchPackageNames": ["typescript"],
       "allowedVersions": "<6.1"
     }
