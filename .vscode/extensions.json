@@ -7,6 +7,21 @@
     "editorconfig.editorconfig",
     "vitest.explorer",
     "ms-playwright.playwright",
-    "lokalise.i18n-ally"
+    "lokalise.i18n-ally",
+    "seatonjiang.gitmoji-vscode",
+    "nhoizey.gremlins",
+    "redhat.vscode-yaml",
+    "github.vscode-github-actions",
+    "github.vscode-pull-request-github",
+    "unifiedjs.vscode-mdx",
+    "ryanluker.vscode-coverage-gutters",
+    "ms-azuretools.vscode-containers",
+    "mikestead.dotenv",
+    "kvanttori.env-alert",
+    "42crunch.vscode-openapi",
+    "usernamehw.errorlens",
+    "yoavbls.pretty-ts-errors",
+    "pflannery.vscode-versionlens",
+    "gruntfuggly.todo-tree"
   ]
 }
