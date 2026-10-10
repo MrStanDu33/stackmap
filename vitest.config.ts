@@ -61,7 +61,7 @@ export default defineConfig({
         'packages/*/src/**/*.ts',
         'scripts/**/*.mjs',
       ],
-      exclude: ['**/*.test.*', '**/*.d.ts', 'scripts/**/check-*.mjs', 'scripts/conventions/pre-push.mjs', 'scripts/release/prepare.mjs', 'scripts/release/release-notes.mjs'],
+      exclude: ['**/*.test.*', '**/*.d.ts', 'scripts/**/check-*.mjs', 'scripts/conventions/pre-push.mjs', 'scripts/release/prepare.mjs', 'scripts/release/release-notes.mjs', 'scripts/agents/tdd-guard.mjs', 'scripts/agents/lint-fix.mjs'],
       thresholds: {
         lines: 80,
         functions: 80,

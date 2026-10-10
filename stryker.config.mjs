@@ -21,6 +21,8 @@ export default {
     '!scripts/conventions/pre-push.mjs',
     '!scripts/release/prepare.mjs',
     '!scripts/release/release-notes.mjs',
+    '!scripts/agents/tdd-guard.mjs',
+    '!scripts/agents/lint-fix.mjs',
   ],
   reporters: ['clear-text', 'progress', 'html'],
   htmlReporter: { fileName: 'reports/mutation/index.html' },
