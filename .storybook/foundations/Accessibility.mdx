@@ -1,0 +1,38 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Foundations/Accessibility" />
+
+# Accessibility
+
+Stackmap targets **RGAA 4.1 / WCAG 2.1 AA**, with a strict mode for users who need more.
+
+## Checked automatically
+
+- Every story runs as a test in Chromium, in each theme (midnight, light), contrast mode (standard, strict) and locale
+  (en, fr). A story fails when its play function fails or when axe reports a violation.
+- Token contrast is checked by unit tests and, on the live CSS, by **Foundations/Color tokens**.
+- ESLint runs `eslint-plugin-vuejs-accessibility` on every component.
+
+Automated checks find roughly a third of the issues. Keyboard and screen-reader checks are still needed.
+
+## Rules for components
+
+- Every interactive element is reachable and usable with the keyboard, with a visible focus.
+- Every control has an accessible name: a visible label, or `aria-label` when the label cannot be visible.
+- Do not convey information by color alone: pair status colors with an icon or text.
+- Every string goes through i18n, in English and French.
+- Every visual graph or canvas has an accessible equivalent (table or form).
+
+## Strict mode
+
+Enabled per user with `data-contrast="strict"` on `<html>`:
+
+- text contrast of at least 7:1, UI elements at least 4.5:1;
+- no animation or transition;
+- focus always visible, including after a mouse click;
+- targets of at least 44 × 44 px.
+
+## Motion
+
+Animations respect `prefers-reduced-motion`: they are reduced to an instant change. Never rely on an animation to
+convey information.

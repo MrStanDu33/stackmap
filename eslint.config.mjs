@@ -1,4 +1,5 @@
 // @ts-check
+import storybook from 'eslint-plugin-storybook';
 import vueA11y from 'eslint-plugin-vuejs-accessibility';
 import tseslint from 'typescript-eslint';
 
@@ -22,6 +23,8 @@ export default withNuxt(
   ...tseslint.configs.strictTypeCheckedOnly.map((config) => ({ ...config, files: typedFiles })),
 
   ...vueA11y.configs['flat/recommended'],
+
+  ...storybook.configs['flat/recommended'],
 
   {
     name: 'stackmap/style',

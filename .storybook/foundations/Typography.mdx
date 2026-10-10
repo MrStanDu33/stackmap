@@ -1,0 +1,38 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Foundations/Typography and spacing" />
+
+# Typography and spacing
+
+## Fonts
+
+Stackmap uses the system font stacks defined in `app/assets/css/tokens.css`. No web font is downloaded: builds work
+offline and the app makes no request to a font provider.
+
+| Token         | Use                                   |
+| ------------- | ------------------------------------- |
+| `--font-sans` | Interface text                        |
+| `--font-mono` | IPs, ports, hostnames, code, commands |
+
+Use `font-mono` for every technical value (IP, port, CIDR, hostname, image tag) so that columns align and similar
+characters (`0`/`O`, `1`/`l`) stay distinct.
+
+## Text colors
+
+Use the semantic utilities from Nuxt UI, never a palette shade, so that every theme and the strict mode stay readable:
+
+| Utility            | Use                                    |
+| ------------------ | -------------------------------------- |
+| `text-highlighted` | Headings, key values                   |
+| `text-default`     | Body text                              |
+| `text-toned`       | Secondary body text                    |
+| `text-muted`       | Hints, captions, metadata              |
+| `text-dimmed`      | Placeholders only                      |
+| `text-primary`     | Links and interactive text             |
+
+Their contrast is checked in every theme by **Foundations/Color tokens** and by the unit tests.
+
+## Spacing
+
+Use Tailwind's spacing scale (`gap-2`, `p-4`…). Keep interactive targets at least 24 × 24 px; the strict mode raises
+them to 44 × 44 px.

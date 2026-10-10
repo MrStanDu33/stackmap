@@ -1,0 +1,8 @@
+{
+  // Storybook runs the app's components with Vite in the browser (preview) and in Node (main).
+  "extends": "../.nuxt/tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["node", "vite/client"]
+  },
+  "include": ["./**/*.ts", "./**/*.vue", "../app/vue-shim.d.ts"]
+}
