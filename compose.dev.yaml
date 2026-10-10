@@ -1,0 +1,24 @@
+# Stackmap in development mode, with hot reload: `docker compose -f compose.dev.yaml up`, then open
+# http://localhost:3000. Edits to the checkout are picked up live. Use compose.yaml for the production build.
+services:
+  stackmap-dev:
+    build:
+      context: .
+      target: dev
+    image: stackmap:dev
+    pull_policy: build
+    ports:
+      - "3000:3000"
+    environment:
+      BETTER_AUTH_URL: http://localhost:3000
+    volumes:
+      - .:/app
+      # Container-only: Linux dependencies and Nuxt's generated files must not overwrite the host's.
+      - dev-node-modules:/app/node_modules
+      - dev-nuxt:/app/.nuxt
+      - dev-pnpm-store:/pnpm/store
+
+volumes:
+  dev-node-modules:
+  dev-nuxt:
+  dev-pnpm-store:

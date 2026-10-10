@@ -21,6 +21,26 @@ COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --offline --frozen-lockfile \
     && pnpm build
 
+# --- Development -----------------------------------------------------------------------------------------------------
+# Used by compose.dev.yaml: the source is bind-mounted into /app and `nuxt dev` serves it with hot reload.
+# node_modules and .nuxt are volumes owned by the node user, so Linux binaries never land in the host checkout.
+FROM node:${NODE_VERSION}-slim AS dev
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    HUSKY=0 \
+    HOST=0.0.0.0 \
+    PORT=3000
+RUN corepack enable \
+    && mkdir -p /app/node_modules /app/.nuxt /pnpm \
+    && chown -R node:node /app /pnpm
+# The image's node user (numeric, so file ownership resolves the same on every host).
+USER 1000:1000
+WORKDIR /app
+EXPOSE 3000
+# Install first so the node_modules volume always matches the lockfile (fast when nothing changed).
+CMD ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev --host 0.0.0.0"]
+
 # --- Runtime ---------------------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-slim AS runtime
 
