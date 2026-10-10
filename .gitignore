@@ -1,0 +1,44 @@
+# Nuxt build output
+.output
+.data
+.nuxt
+.nitro
+.cache
+dist
+
+# Dependencies
+node_modules
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
+
+# Local databases
+/data
+*.sqlite
+*.sqlite3
+*.db
+
+# Test and tooling reports
+coverage
+reports
+.stryker-tmp
+playwright-report
+test-results
+blob-report
+storybook-static
+
+# Personal AI agent overrides and temporary specs
+CLAUDE.local.md
+.claude/settings.local.json
+.ai/
