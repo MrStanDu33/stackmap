@@ -3,11 +3,12 @@ import { gitmojis } from 'gitmojis';
 /** The header must be shorter than this many graphemes. */
 export const MAX_HEADER_GRAPHEMES = 80;
 
-const VARIATION_SELECTOR = /️/g;
+const VARIATION_SELECTOR = /\uFE0F/gu;
 
 const normalizeEmoji = (emoji) => emoji.replace(VARIATION_SELECTOR, '');
 
-const GITMOJIS = new Set(gitmojis.map(({ emoji }) => normalizeEmoji(emoji)));
+/** Gitmoji (without U+FE0F) → semver level: 'major', 'minor', 'patch' or null. */
+const GITMOJIS = new Map(gitmojis.map(({ emoji, semver }) => [normalizeEmoji(emoji), semver]));
 
 /** Imperative verbs that end in -ed or -ing and must not be mistaken for past tense or gerunds. */
 export const IMPERATIVE_ALLOWLIST = new Set([
@@ -30,6 +31,21 @@ const GENERATED_MERGE = /^Merge (branch|remote-tracking branch|pull request) /;
 const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
 
 const graphemes = (text) => [...segmenter.segment(text)].map(({ segment }) => segment);
+
+/**
+ * Splits a "<gitmoji> <Title>" header.
+ *
+ * @param {string} header
+ * @returns {{ emoji: string, semver: string | null, title: string } | null} null when it has no gitmoji.
+ */
+export const parseHeader = (header) => {
+  const [emoji = '', ...rest] = graphemes(header);
+  const normalized = normalizeEmoji(emoji);
+  if (!GITMOJIS.has(normalized)) {
+    return null;
+  }
+  return { emoji, semver: GITMOJIS.get(normalized) ?? null, title: rest.join('').trim() };
+};
 
 const FORMAT_HINT = 'Expected "<gitmoji> <Title>", e.g. "✨ Add exposure filter to the graph view".';
 
