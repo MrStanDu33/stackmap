@@ -1,0 +1,19 @@
+# Stackmap with SQLite: `docker compose up -d`, then open http://localhost:3000.
+# For Postgres: `docker compose -f compose.yaml -f compose.postgres.yaml up -d`.
+services:
+  stackmap:
+    image: ghcr.io/mrstandu33/stackmap:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Public URL of this instance, used for links and cookies.
+      BETTER_AUTH_URL: http://localhost:3000
+      # Owner of the files in /data. Set them to your user (`id -u`, `id -g`) when you bind-mount a host directory.
+      PUID: 1000
+      PGID: 1000
+    volumes:
+      - stackmap-data:/data
+
+volumes:
+  stackmap-data:

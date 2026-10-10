@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "group:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommitsDisabled",
+    ":timezone(Europe/Paris)"
+  ],
+  "baseBranchPatterns": ["develop"],
+  "branchPrefix": "chore-deps-",
+  "commitMessagePrefix": "⬆️",
+  "commitMessageLowerCase": "never",
+  "platformCommit": "enabled",
+  "minimumReleaseAge": "1 day",
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "description": "Group minor and patch updates of stable packages into one weekly PR.",
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchCurrentVersion": "!/^0/",
+      "groupName": "non-major dependencies",
+      "groupSlug": "non-major",
+      "schedule": ["before 6am on monday"]
+    },
+    {
+      "description": "typescript-eslint and vue-tsc do not support TypeScript 7 yet.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<6.1"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+packages:
+  - extensions/*
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+  vue-demi: true
+
+engineStrict: true
+
+# The Nuxt app lives at the workspace root on purpose.
+ignoreWorkspaceRootCheck: true
+
+# Wait a day before installing a freshly published version (supply-chain safety).
+minimumReleaseAge: 1440

@@ -1,0 +1,32 @@
+name: Conventions
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    name: Conventions
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+
+      # The title becomes the squash commit on develop. Passed through env so it is never interpreted by the shell.
+      - name: Check the title, branch name and target branch
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_HEAD: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+        run: node scripts/conventions/check-pull-request.mjs
+
+      # Hooks can be skipped with --no-verify, so every commit is checked again here.
+      - name: Check every commit message
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: node scripts/conventions/check-commits.mjs "$RANGE"

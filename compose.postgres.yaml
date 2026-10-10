@@ -1,0 +1,27 @@
+# Postgres instead of SQLite: `docker compose -f compose.yaml -f compose.postgres.yaml up -d`.
+# Change the password before exposing anything.
+services:
+  stackmap:
+    environment:
+      DATABASE_URL: postgres://stackmap:${POSTGRES_PASSWORD:-stackmap}@postgres:5432/stackmap
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stackmap
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stackmap}
+      POSTGRES_DB: stackmap
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stackmap -d stackmap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:

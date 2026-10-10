@@ -30,6 +30,7 @@ logs
 *.db
 
 # Test and tooling reports
+*.tsbuildinfo
 coverage
 reports
 .stryker-tmp

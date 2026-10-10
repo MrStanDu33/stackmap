@@ -1,0 +1,36 @@
+/*
+ * Accessibility behaviors shared by every theme.
+ * Strict mode is enabled with `data-contrast="strict"` on <html> (RGAA strict setting).
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Strict mode: no animation at all. */
+[data-contrast='strict'] *,
+[data-contrast='strict'] ::before,
+[data-contrast='strict'] ::after {
+  scroll-behavior: auto !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Strict mode: focus is always visible, including after a mouse click. */
+[data-contrast='strict'] :focus {
+  outline: 3px solid var(--ui-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Strict mode: larger targets (WCAG 2.5.5, 44 × 44 px). */
+[data-contrast='strict'] :where(button, [role='button'], input, select, textarea, summary) {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+}

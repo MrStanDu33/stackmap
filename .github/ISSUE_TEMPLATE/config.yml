@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/MrStanDu33/stackmap/security/advisories/new
+    about: Report vulnerabilities privately. Stackmap stores infrastructure maps, so please do not open a public issue.

@@ -1,0 +1,2 @@
+node scripts/conventions/pre-push.mjs
+pnpm typecheck
