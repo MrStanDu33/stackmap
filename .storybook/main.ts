@@ -16,7 +16,7 @@ const shims = path('./nuxt-shims.ts');
 
 const config: StorybookConfig = {
   stories: ['./foundations/*.@(mdx|stories.ts)', '../app/components/**/*.@(mdx|stories.ts)'],
-  addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest'],
+  addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest', '@storybook/addon-mcp'],
   core: { disableTelemetry: true },
   framework: {
     name: '@storybook/vue3-vite',
