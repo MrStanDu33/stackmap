@@ -80,6 +80,26 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
+      # Built on the runner's platform (better-sqlite3 ships every platform's binary); QEMU only runs it for the test.
+      - name: Build arm64 for the smoke tests
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/arm64
+          build-args: NODE_VERSION=${{ steps.node.outputs.version }}
+          load: true
+          tags: stackmap:smoke-arm64
+          cache-from: type=gha
+
+      - uses: ./.github/actions/setup
+
+      # Each image starts on an empty volume, migrates SQLite and becomes healthy; the compose overlay migrates Postgres.
+      - name: Smoke tests
+        env:
+          SMOKE_IMAGE: stackmap:scan
+          SMOKE_ARM64_IMAGE: stackmap:smoke-arm64
+        run: pnpm test:smoke
+
       - name: Build multi-platform and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
