@@ -15,7 +15,7 @@ const isContract = (value: unknown): value is Contract =>
 describe('contract list', () => {
   it('lists every contract of shared/contracts/', async () => {
     const files = readdirSync(import.meta.dirname).filter((file) => CONTRACT_FILE.test(file));
-    const modules = await Promise.all(files.map((file) => import(`./${file}`) as Promise<Record<string, unknown>>));
+    const modules = await Promise.all(files.map((file) => import(/* @vite-ignore */ `./${file}`) as Promise<Record<string, unknown>>));
     const defined = modules.flatMap((module) => Object.values(module).filter(isContract));
 
     expect(defined.length).toBeGreaterThan(0);

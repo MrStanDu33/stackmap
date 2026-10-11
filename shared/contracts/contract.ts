@@ -31,6 +31,14 @@ export class ContractError extends Error {
 }
 
 /** Checks a contract's documentation at definition time and returns it unchanged, with its literal types. */
-export function defineContract<const C extends Contract>(_contract: C): C {
-  throw new Error('Not implemented');
+export function defineContract<const C extends Contract>(contract: C): C {
+  const missing = [
+    contract.summary.trim() === '' ? 'a summary' : null,
+    contract.tags.length === 0 ? 'a tag' : null,
+    Object.keys(contract.responses).length === 0 ? 'a response' : null,
+  ].filter((item) => item !== null);
+  if (missing.length > 0) {
+    throw new ContractError(`Contract ${contract.operationId} needs ${missing.join(', ')}.`);
+  }
+  return contract;
 }

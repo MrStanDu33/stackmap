@@ -1,5 +1,5 @@
 import { createApp, createRouter, toWebHandler } from 'h3';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { defineContractHandler } from './contract-handler';
@@ -38,8 +38,14 @@ const serve = (handler: EventHandler) => {
   };
 };
 
+beforeEach(() => {
+  // Failures are logged on purpose; keep the test output clean.
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+});
+
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe('defineContractHandler', () => {
