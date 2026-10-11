@@ -36,6 +36,12 @@ function toOperation(contract: Contract): ZodOpenApiOperationObject {
     responses: {
       ...responses,
       ...(hasInput ? { 400: { description: 'The request does not match the API contract', ...json(ApiError) } } : {}),
+      ...(contract.body === undefined
+        ? {}
+        : {
+            413: { description: 'The request body is too large', ...json(ApiError) },
+            415: { description: 'The request body is not JSON', ...json(ApiError) },
+          }),
     },
     'x-required-role': contract.requiredRole,
   };

@@ -89,6 +89,8 @@ Every route is contract-first. A contract (`defineContract` in `shared/contracts
 tags, required role, Zod schemas for params, query and body, and one schema per response status; `CONTRACTS` lists
 them all. The route in `server/api/` implements exactly one contract with `defineContractHandler`, which:
 
+- reads bodies as JSON only (`415 unsupported_media_type` otherwise, since cross-site forms need no CORS preflight)
+  and up to 1 MiB (`413 payload_too_large`, refused while reading);
 - validates the input and answers `400 validation_failed` with the issues, without running the handler;
 - passes the parsed input, typed, to the handler, which returns `{ status, body }` for one of the declared statuses;
 - outside production, checks the response against its schema and answers `500 invalid_response` when it does not

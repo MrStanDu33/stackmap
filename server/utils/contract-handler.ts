@@ -1,4 +1,11 @@
-import { defineEventHandler, getQuery, getRouterParams, readRawBody, setResponseStatus } from 'h3';
+import {
+  defineEventHandler,
+  getQuery,
+  getRequestHeader,
+  getRequestWebStream,
+  getRouterParams,
+  setResponseStatus,
+} from 'h3';
 
 import type { Contract } from '../../shared/contracts/contract';
 import type { ApiError } from '../../shared/contracts/errors';
@@ -38,10 +45,52 @@ const toIssues = (source: string, error: z.ZodError): Issue[] => error.issues.ma
   message: issue.message,
 }));
 
+const tooLarge = () =>
+  new ApiFailure(413, 'payload_too_large', `The request body is larger than ${String(MAX_BODY_BYTES)} bytes.`);
+
+/** Reads the body as text, stopping as soon as it goes over the limit instead of buffering all of it. */
+async function readLimitedBody(event: H3Event): Promise<string> {
+  if (Number(getRequestHeader(event, 'content-length') ?? 0) > MAX_BODY_BYTES) {
+    throw tooLarge();
+  }
+  const reader = (getRequestWebStream(event) as ReadableStream<Uint8Array> | undefined)?.getReader();
+  if (!reader) {
+    return '';
+  }
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    size += chunk.value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      // Discard the rest, as Node does with unread bodies. Cancelling the stream instead would make h3's Node adapter
+      // throw, outside the request, on the next chunk.
+      event.node.req.removeAllListeners('data');
+      event.node.req.resume();
+      throw tooLarge();
+    }
+    chunks.push(chunk.value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+const isJson = (contentType: string) => {
+  const mediaType = contentType.split(';')[0]?.trim().toLowerCase() ?? '';
+  return mediaType === 'application/json' || mediaType.endsWith('+json');
+};
+
 async function readJsonBody(event: H3Event): Promise<unknown> {
-  const raw = await readRawBody(event, 'utf8');
-  if (raw === undefined || raw === '') {
+  // Only JSON: cross-site forms and simple fetches (text/plain, form data) are sent without a CORS preflight.
+  const contentType = getRequestHeader(event, 'content-type');
+  const unsupported = new ApiFailure(415, 'unsupported_media_type', 'The request body must be JSON (application/json).');
+  if (contentType !== undefined && !isJson(contentType)) {
+    throw unsupported;
+  }
+  const raw = await readLimitedBody(event);
+  if (raw === '') {
     return undefined;
+  }
+  if (contentType === undefined) {
+    throw unsupported;
   }
   try {
     return JSON.parse(raw) as unknown;
