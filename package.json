@@ -19,7 +19,7 @@
     "lint:css": "stylelint \"**/*.{css,vue}\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage --project scripts --project unit",
+    "test:coverage": "vitest run --coverage --project scripts --project unit --project integration",
     "commit": "gitmoji -c",
     "prepare": "husky",
     "storybook": "storybook dev -p 6006",
@@ -28,7 +28,11 @@
     "test:stories": "vitest run --project 'storybook:*'",
     "release:prepare": "node scripts/release/prepare.mjs",
     "check:stories": "node scripts/checks/check-story-coverage.mjs",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "test:integration": "vitest run --project integration",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
+    "db:test:up": "docker compose -f compose.dev.yaml --profile test up -d --wait postgres-test",
+    "db:test:stop": "docker compose -f compose.dev.yaml --profile test stop postgres-test"
   },
   "gitmoji": {
     "autoAdd": false,
@@ -41,9 +45,13 @@
   "dependencies": {
     "@nuxt/ui": "^4.11.3",
     "@nuxtjs/i18n": "^10.6.0",
+    "better-sqlite3": "^13.0.3",
     "culori": "^4.0.2",
+    "kysely": "^0.29.6",
     "nuxt": "^4.6.0",
+    "pg": "^8.23.1",
     "tailwindcss": "^4.3.3",
+    "uuid": "^14.0.2",
     "vue": "^3.5.43",
     "vue-router": "^5.4.0"
   },
@@ -56,8 +64,10 @@
     "@storybook/addon-vitest": "~10.6.1",
     "@storybook/vue3-vite": "~10.6.1",
     "@stryker-mutator/core": "^10.0.0",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/culori": "^4.0.1",
     "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
     "@vitejs/plugin-vue": "^6.0.9",
     "@vitest/browser-playwright": "^5.0.3",
     "@vitest/coverage-v8": "^5.0.3",

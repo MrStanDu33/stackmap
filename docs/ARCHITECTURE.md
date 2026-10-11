@@ -8,19 +8,29 @@ This is the target architecture. Parts that are not built yet are marked _(plann
 Stackmap is one Nuxt 4 application, shipped as one container:
 
 - the **app** (`app/`): Vue 3 pages and components, Nuxt UI, Vue Flow for graphs, Pinia for editor state;
-- the **server** (`server/`) _(planned)_: Nitro API routes, the domain logic and the database layer;
+- the **server** (`server/`): the database layer (`server/database/`), and later Nitro API routes and the domain
+  logic;
 - **shared code** (`shared/`): code used by both, such as the API contracts and the design rules;
 - **built-in extensions** (`extensions/<id>/`) _(planned)_: Nuxt layers that add entity types and features;
 - the **extension SDK** (`packages/extension-sdk/`) _(planned)_.
 
-Data lives in SQLite by default or in Postgres, through Kysely, with one code path for both.
+## Database
+
+Data lives in SQLite by default (`<DATA_DIR>/stackmap.sqlite`) or in Postgres (`DATABASE_URL=postgres://…`), through
+Kysely, with one code path for both (`server/database/`):
+
+- the same storage types everywhere: IDs (UUIDv7), JSON and timestamps (ISO-8601 UTC) as text, booleans as 0/1, through
+  `serialize.ts`; camelCase tables and columns, like Better Auth's;
+- migrations listed in `migrations/index.ts`, each with `up` and `down`, applied at startup before any request is
+  served; a database migrated by a newer version is refused; `migrateTo` moves to any migration;
+- integration tests run every migration and query on both databases, and check that both end with the same schema.
 
 ## Repository layout
 
 | Path                 | Contents                                                                   |
 | -------------------- | -------------------------------------------------------------------------- |
 | `app/`               | Pages, components (atomic design), CSS tokens, app config                  |
-| `server/`            | API routes, domain logic, repositories, migrations _(planned)_             |
+| `server/`            | Database layer and migrations; later API routes, domain logic, repositories |
 | `shared/`            | Code shared by the app and the server: contracts, design rules             |
 | `extensions/`        | Built-in extensions _(planned)_                                            |
 | `packages/`          | Extension SDK _(planned)_                                                  |

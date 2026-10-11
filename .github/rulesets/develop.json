@@ -31,6 +31,7 @@
         "required_status_checks": [
           { "context": "Lint and typecheck", "integration_id": 15368 },
           { "context": "Unit tests", "integration_id": 15368 },
+          { "context": "Integration tests", "integration_id": 15368 },
           { "context": "Story tests", "integration_id": 15368 },
           { "context": "Build", "integration_id": 15368 },
           { "context": "Conventions", "integration_id": 15368 }

@@ -11,6 +11,10 @@ export default {
   mutate: [
     'shared/**/*.ts',
     'server/domain/**/*.ts',
+    // The pure, unit-tested part of the database layer (the rest needs a database: integration tests).
+    'server/database/config.ts',
+    'server/database/serialize.ts',
+    'server/database/ids.ts',
     'extensions/*/server/domain/**/*.ts',
     'packages/*/src/**/*.ts',
     'scripts/**/*.mjs',

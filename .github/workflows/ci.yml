@@ -29,7 +29,31 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
-      # Fails below the coverage thresholds set in vitest.config.ts.
+      - run: pnpm test:unit
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: stackmap
+          POSTGRES_PASSWORD: stackmap
+          POSTGRES_DB: stackmap_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackmap -d stackmap_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_POSTGRES_URL: postgres://stackmap:stackmap@localhost:5432/stackmap_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      # Unit and integration tests on SQLite and Postgres; fails below the coverage thresholds of vitest.config.ts.
       - run: pnpm test:coverage
 
   stories:

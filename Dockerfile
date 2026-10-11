@@ -4,8 +4,8 @@
 ARG NODE_VERSION=24
 
 # --- Build -----------------------------------------------------------------------------------------------------------
-# The build output is plain JavaScript, so it runs on the build machine's platform even for arm64 images.
-# When native modules arrive (better-sqlite3), they must be installed for the target platform instead.
+# Runs on the build machine's platform even for arm64 images: the output is JavaScript, and better-sqlite3 ships
+# prebuilt binaries for every platform, which the bundle keeps (checked by the arm64 smoke test).
 FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-slim AS build
 ENV PNPM_HOME=/pnpm \
     PATH=/pnpm:$PATH \
