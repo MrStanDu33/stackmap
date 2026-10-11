@@ -35,10 +35,13 @@ Behind a TLS-inspecting proxy, downloads made by Node (such as `playwright insta
 | `pnpm lint`            | ESLint (`pnpm lint:fix` to fix)                                      |
 | `pnpm lint:css`        | Stylelint                                                            |
 | `pnpm typecheck`       | Type-check the whole project                                        |
-| `pnpm test`            | Every test: unit, scripts and stories (in every theme and locale)   |
-| `pnpm test:unit`       | Node-side tests only (fast)                                          |
+| `pnpm test`            | Every test: scripts, unit, integration and stories (every theme, locale) |
+| `pnpm test:unit`       | Node-side unit tests (fast)                                          |
+| `pnpm test:integration` | Tests against real databases: SQLite, and Postgres when configured |
+| `pnpm db:test:up`      | Start the Postgres used by the integration tests (port 55432)       |
 | `pnpm test:stories`    | Stories as tests in Chromium                                         |
-| `pnpm test:coverage`   | Node-side tests with coverage thresholds                             |
+| `pnpm test:coverage`   | Unit and integration tests with coverage thresholds                  |
+| `pnpm test:smoke`      | Docker image smoke tests (needs Docker and a built `stackmap:local`) |
 | `pnpm test:mutation`   | Mutation testing of the domain logic (slow, runs nightly in CI)     |
 | `pnpm storybook`       | Storybook on http://localhost:6006                                   |
 | `pnpm check:stories`   | Fail if a component has no story                                     |
