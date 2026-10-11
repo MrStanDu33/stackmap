@@ -116,6 +116,8 @@ healthcheck calls it. The database error goes to the logs, never to the response
   for the midnight (default), light and strict themes. `shared/design/contrast.ts` defines the contrast requirements,
   checked by tests.
 - Every string is in English and French (`@nuxtjs/i18n`, no locale in URLs).
+- Icons are Lucide (`i-lucide-…`), bundled with the app (`@iconify-json/lucide`): the Iconify API is never called, so
+  the app works offline and tells no third party where it runs.
 - Accessibility targets RGAA 4.1 / WCAG 2.1 AA; the strict mode raises contrast to AAA, removes motion, keeps focus
   visible and enlarges targets. Every graph has an accessible table equivalent.
 

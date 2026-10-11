@@ -60,6 +60,12 @@ export default defineNuxtConfig({
     },
   },
 
+  // Icons come from the bundled Lucide collection (@iconify-json/lucide), never from the Iconify API.
+  icon: {
+    serverBundle: { collections: ['lucide'] },
+    fallbackToApi: false,
+  },
+
   // API reference at /api/docs, generated from the contracts. No remote fonts, telemetry, AI or sharing services.
   scalar: {
     url: '/api/openapi.json',
