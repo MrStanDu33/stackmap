@@ -1,4 +1,5 @@
 import { prepareDatabase } from '../database/startup';
+import { setDatabase } from '../utils/database';
 
 const logger = {
   info: (message: string) => {
@@ -12,6 +13,7 @@ const logger = {
  */
 export default defineNitroPlugin((nitroApp) => {
   const ready = prepareDatabase({ DATABASE_URL: process.env.DATABASE_URL, DATA_DIR: process.env.DATA_DIR }, logger);
+  setDatabase(ready);
   ready.catch((error: unknown) => {
     console.error(`[database] ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);

@@ -31,6 +31,8 @@ describe('database plugin', () => {
 
     plugin(nitro.app as unknown as Parameters<typeof plugin>[0]);
     await nitro.run('request');
+    const { useDatabase } = await import('../utils/database');
+    expect(await (await useDatabase()).selectFrom('appSetting').selectAll().execute()).toEqual([]);
 
     expect(info).toHaveBeenCalledWith(
       expect.stringContaining(`Applied database migrations: ${Object.keys(MIGRATIONS).join(', ')}`),
