@@ -1,0 +1,15 @@
+{
+  "name": "@stackmap/extension-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Defines and checks Stackmap extensions: the manifest schema, defineExtension and test utilities.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.142",
+    "zod": "^4.6.5"
+  }
+}

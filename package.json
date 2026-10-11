@@ -47,6 +47,8 @@
     "@nuxt/ui": "^4.11.3",
     "@nuxtjs/i18n": "^10.6.0",
     "@scalar/nuxt": "^0.6.79",
+    "@stackmap/extension-core": "workspace:*",
+    "@stackmap/extension-sdk": "workspace:*",
     "better-sqlite3": "^13.0.3",
     "culori": "^4.0.2",
     "h3": "~1.15.11",
