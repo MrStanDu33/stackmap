@@ -106,6 +106,8 @@ describe('API in the Docker image', () => {
     expect(text).toMatch(/scalar/i);
     // Scripts, styles, images and fonts come from the app; a plain link to another site loads nothing.
     expect(text.match(/<(?:script|link|img|iframe|source)\b[^>]*\b(?:src|href)=["']https?:\/\/[^"']+/g) ?? []).toEqual([]);
+    // Inline styles: no remote fonts or images either.
+    expect(text.match(/url\(\s*["']?https?:\/\/[^)]+/g) ?? []).toEqual([]);
   });
 
   it('with compose.postgres.yaml, becomes unhealthy when Postgres stops (the healthcheck calls /api/health)', async () => {

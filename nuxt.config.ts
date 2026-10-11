@@ -71,6 +71,8 @@ export default defineNuxtConfig({
     mcp: { disabled: true },
     // The toolbar offers to share and deploy the document through Scalar's services.
     showDeveloperTools: 'never',
+    // The "Open API Client" button opens client.scalar.com with the document's URL.
+    hideClientButton: true,
     devtools: false,
   },
 });
