@@ -39,6 +39,7 @@ Never weaken, skip or delete a test to get green. A hook blocks edits to unteste
   explicit `#imports` (stories render with plain Vue and the shims in `.storybook/nuxt-shims.ts`).
 - Styles: Nuxt UI components and semantic utilities (`text-muted`, `bg-elevated`, `text-primary`); never palette
   shades or raw colors. Tokens live in `app/assets/css/tokens.css`.
+- Icons: Lucide only (`i-lucide-…`), bundled with the app; other collections would need adding to the server bundle.
 - Strings: every user-facing string goes through i18n, in both `i18n/locales/en.json` and `fr.json`.
 - Accessibility: RGAA 4.1 / WCAG 2.1 AA. Keyboard access, visible focus, labels, no information by color alone, an
   accessible table or form for every graph or canvas.
