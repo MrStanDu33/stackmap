@@ -53,8 +53,8 @@ any code is written. Then:
 2. write the minimum code to make them pass;
 3. refactor with the tests passing.
 
-In a pull request this shows as a `✅ Add tests for …` commit before the implementation commit. Never weaken, skip or
-delete a test to make it pass without explaining why in the pull request.
+In a pull request this shows as a `🧪 Add failing tests for …` commit before the implementation commit. Never weaken,
+skip or delete a test to make it pass without explaining why in the pull request.
 
 | Layer       | Tool                           | Where                                             |
 | ----------- | ------------------------------ | ------------------------------------------------- |

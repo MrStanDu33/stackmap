@@ -4,7 +4,7 @@
 
 ## Checklist
 
-- [ ] Tests were written first and are named after the acceptance criteria (a `✅` commit before the implementation)
+- [ ] Tests were written first and are named after the acceptance criteria (a `🧪` commit before the implementation)
 - [ ] No test was weakened, skipped or deleted, or the reason is explained above
 - [ ] Every new or changed component has a story covering its variants and states
 - [ ] Usable with the keyboard and a screen reader; no new axe violation

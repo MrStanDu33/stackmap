@@ -51,7 +51,7 @@ Never weaken, skip or delete a test to get green. A hook blocks edits to unteste
 - Branches: `feature-<slug>`, `fix-<slug>`, `chore-<slug>` from `develop`; pull requests target `develop`.
 - Commits and PR titles: `<gitmoji> <Title>` with a Unicode gitmoji from gitmoji.dev, imperative mood ("If applied,
   this commit would …"), capitalized, no trailing period, under 80 characters. Example: `✨ Add exposure filter`.
-- Tests go in a `✅ Add tests for …` commit before the implementation commit.
+- Failing tests go in a `🧪 Add failing tests for …` commit before the implementation commit.
 
 ## Do not
 
