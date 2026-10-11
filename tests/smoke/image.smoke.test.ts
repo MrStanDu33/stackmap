@@ -39,11 +39,16 @@ const waitUntilHealthy = async (container: string, timeoutMs = 180_000) => {
   throw new Error(`${container} did not become healthy:\n${docker('logs', container)}`);
 };
 
-const runOnEmptyVolume = async (image: string, platform?: string) => {
+const runOnEmptyVolume = async (image: string, { platform, network }: { platform?: string; network?: string } = {}) => {
   const name = `stackmap-smoke-${randomUUID().slice(0, 8)}`;
   docker('volume', 'create', name);
   cleanups.push(() => docker('volume', 'rm', '-f', name));
-  docker('run', '-d', '--name', name, ...(platform ? ['--platform', platform] : []), '-v', `${name}:/data`, image);
+  docker(
+    'run', '-d', '--name', name,
+    ...(platform ? ['--platform', platform] : []),
+    ...(network ? ['--network', network] : []),
+    '-v', `${name}:/data`, image,
+  );
   cleanups.push(() => docker('rm', '-f', name));
 
   await waitUntilHealthy(name);
@@ -59,7 +64,7 @@ describe('Docker image', () => {
   });
 
   it('the arm64 image starts and migrates SQLite too', async () => {
-    const container = await runOnEmptyVolume(ARM64_IMAGE, 'linux/arm64');
+    const container = await runOnEmptyVolume(ARM64_IMAGE, { platform: 'linux/arm64' });
 
     expect(docker('exec', container, 'uname', '-m')).toBe('aarch64');
     expect(docker('logs', container)).toContain(APPLIED);
@@ -108,6 +113,15 @@ describe('API in the Docker image', () => {
     expect(text.match(/<(?:script|link|img|iframe|source)\b[^>]*\b(?:src|href)=["']https?:\/\/[^"']+/g) ?? []).toEqual([]);
     // Inline styles: no remote fonts or images either.
     expect(text.match(/url\(\s*["']?https?:\/\/[^)]+/g) ?? []).toEqual([]);
+  });
+
+  it('serves the Lucide icons itself, without network access (no Iconify API)', async () => {
+    const container = await runOnEmptyVolume(IMAGE, { network: 'none' });
+
+    const { status, text } = fetchInside(container, '/api/_nuxt_icon/lucide.json?icons=puzzle');
+
+    expect(status).toBe(200);
+    expect(JSON.parse(text)).toHaveProperty(['icons', 'puzzle', 'body']);
   });
 
   it('with compose.postgres.yaml, becomes unhealthy when Postgres stops (the healthcheck calls /api/health)', async () => {
