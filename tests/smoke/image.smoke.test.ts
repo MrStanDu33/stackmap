@@ -77,3 +77,46 @@ describe('Docker image', () => {
     expect(compose('exec', 'stackmap', 'sh', '-c', 'test -e /data/stackmap.sqlite || echo no-sqlite')).toBe('no-sqlite');
   });
 });
+
+/** Fetches a page from inside the container (no published port needed). */
+const fetchInside = (container: string, path: string) => {
+  const script = `fetch('http://127.0.0.1:3000${path}').then(async (r) => console.log(JSON.stringify({ status: r.status, text: await r.text() })))`;
+  return JSON.parse(docker('exec', container, 'node', '-e', script)) as { status: number; text: string };
+};
+
+/** Waits until a container's healthcheck reports the given status. */
+const waitForHealth = async (container: string, expected: string, timeoutMs = 240_000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (docker('inspect', '--format', '{{.State.Health.Status}}', container) === expected) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  throw new Error(`${container} did not become ${expected}:\n${docker('logs', '--tail', '30', container)}`);
+};
+
+describe('API in the Docker image', () => {
+  it('serves /api/docs with Scalar bundled in the app, without loading anything from a CDN', async () => {
+    const container = await runOnEmptyVolume(IMAGE);
+
+    const { status, text } = fetchInside(container, '/api/docs');
+
+    expect(status).toBe(200);
+    expect(text).toMatch(/scalar/i);
+    expect(text.match(/(?:src|href)=["']https?:\/\/[^"']+/g) ?? []).toEqual([]);
+  });
+
+  it('with compose.postgres.yaml, becomes unhealthy when Postgres stops (the healthcheck calls /api/health)', async () => {
+    const project = `stackmap-smoke-${randomUUID().slice(0, 8)}`;
+    const compose = (...args: string[]) =>
+      docker('compose', '-p', project, '-f', 'compose.yaml', '-f', 'compose.postgres.yaml', ...args);
+    cleanups.push(() => compose('down', '--volumes'));
+    compose('up', '-d', '--wait', '--wait-timeout', '300');
+    const container = compose('ps', '-q', 'stackmap');
+
+    compose('stop', 'postgres');
+
+    await waitForHealth(container, 'unhealthy');
+  });
+});
