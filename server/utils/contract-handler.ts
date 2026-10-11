@@ -5,6 +5,9 @@ import type { ApiError } from '../../shared/contracts/errors';
 import type { EventHandler, H3Event } from 'h3';
 import type { z } from 'zod';
 
+/** Largest request body the API reads, in bytes. */
+export const MAX_BODY_BYTES = 1024 * 1024;
+
 type Parsed<S> = S extends z.ZodType ? z.output<S> : undefined;
 
 /** The validated input of a contract's operation. */

@@ -48,6 +48,10 @@ describe('OpenAPI document', () => {
     const post = document.paths?.['/api/things']?.post;
     expect(post?.requestBody).toHaveProperty(['content', 'application/json', 'schema']);
     expect(post?.responses).toHaveProperty('201');
+    // Operations with a body also document the media type and size errors.
+    expect(post?.responses).toHaveProperty(['413', 'content', 'application/json', 'schema']);
+    expect(post?.responses).toHaveProperty(['415', 'content', 'application/json', 'schema']);
+    expect(get?.responses).not.toHaveProperty('413');
   });
 
   it('records the required role of each operation as x-required-role', () => {

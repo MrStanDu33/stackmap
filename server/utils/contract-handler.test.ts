@@ -2,7 +2,7 @@ import { createApp, createRouter, toWebHandler } from 'h3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { defineContractHandler } from './contract-handler';
+import { defineContractHandler, MAX_BODY_BYTES } from './contract-handler';
 import { defineContract } from '../../shared/contracts/contract';
 
 import type { EventHandler } from 'h3';
@@ -28,10 +28,10 @@ const serve = (handler: EventHandler) => {
   const router = createRouter().post('/api/things/:id', handler);
   const app = createApp().use(router);
   const fetchHandler = toWebHandler(app);
-  return async (path: string, body?: string) => {
+  return async (path: string, body?: string, headers: Record<string, string> = {}) => {
     const response = await fetchHandler(new Request(`http://localhost${path}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...headers },
       body,
     }));
     return { status: response.status, json: await response.json() as Record<string, unknown> };
@@ -78,6 +78,46 @@ describe('defineContractHandler', () => {
       status: 400,
       json: { statusCode: 400, code: 'validation_failed' },
     });
+  });
+
+  it('accepts a JSON body whose content type has parameters', async () => {
+    const request = serve(defineContractHandler(thing, ({ body }) => ({
+      status: 200,
+      body: { id: '42', name: body.name, dryRun: false },
+    })));
+
+    expect(await request('/api/things/42', JSON.stringify({ name: 'Proxy' }), {
+      'content-type': 'application/json; charset=utf-8',
+    })).toMatchObject({ status: 200, json: { name: 'Proxy' } });
+  });
+
+  it('given a body that is not JSON, answers 415 unsupported_media_type and does not run the handler', async () => {
+    // A cross-site form or fetch can send text/plain without a CORS preflight.
+    const handler = vi.fn();
+    const request = serve(defineContractHandler(thing, handler));
+
+    expect(await request('/api/things/42', JSON.stringify({ name: 'Proxy' }), { 'content-type': 'text/plain' }))
+      .toMatchObject({ status: 415, json: { statusCode: 415, code: 'unsupported_media_type' } });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('given a declared body length over the limit, answers 413 payload_too_large without reading it', async () => {
+    const handler = vi.fn();
+    const request = serve(defineContractHandler(thing, handler));
+
+    expect(await request('/api/things/42', JSON.stringify({ name: 'Proxy' }), {
+      'content-length': String(MAX_BODY_BYTES + 1),
+    })).toMatchObject({ status: 413, json: { statusCode: 413, code: 'payload_too_large' } });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('given a body that grows over the limit, answers 413 payload_too_large and does not run the handler', async () => {
+    const handler = vi.fn();
+    const request = serve(defineContractHandler(thing, handler));
+
+    expect(await request('/api/things/42', JSON.stringify({ name: 'x'.repeat(MAX_BODY_BYTES) })))
+      .toMatchObject({ status: 413, json: { statusCode: 413, code: 'payload_too_large' } });
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it('outside production, given a response that does not match its schema, fails with a 500 naming the contract', async () => {
