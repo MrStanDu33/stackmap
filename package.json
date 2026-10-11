@@ -19,7 +19,7 @@
     "lint:css": "stylelint \"**/*.{css,vue}\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage --project scripts --project unit",
+    "test:coverage": "vitest run --coverage --project scripts --project unit --project integration",
     "commit": "gitmoji -c",
     "prepare": "husky",
     "storybook": "storybook dev -p 6006",

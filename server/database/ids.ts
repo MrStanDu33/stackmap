@@ -1,3 +1,6 @@
+import { v7 } from 'uuid';
+
+/** A new UUIDv7: unique, and sortable as text in creation order (it starts with a millisecond timestamp). */
 export function newId(): string {
-  throw new Error('Not implemented');
+  return v7();
 }

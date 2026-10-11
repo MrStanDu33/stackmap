@@ -83,6 +83,7 @@ export default defineConfig({
         'server/domain/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
         'extensions/*/server/domain/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
         'packages/*/src/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        'server/database/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
       },
     },
   },

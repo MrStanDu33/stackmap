@@ -31,11 +31,11 @@ const withSearchPath = (url: string, schema: string): string => {
 
 /**
  * A fresh, isolated database: an in-memory SQLite, or a dedicated Postgres schema dropped by `cleanup`.
- * The SQLite variant uses a file when `file` is given, so several connections can share it.
+ * `reopen` gives another connection to the same Postgres schema (for SQLite in memory, it is a new database).
  */
-export async function openTestDatabase(dialect: Dialect, file?: string): Promise<TestDatabase> {
+export async function openTestDatabase(dialect: Dialect): Promise<TestDatabase> {
   if (dialect === 'sqlite') {
-    const config: DatabaseConfig = { dialect: 'sqlite', path: file ?? ':memory:' };
+    const config: DatabaseConfig = { dialect: 'sqlite', path: ':memory:' };
     const opened: Kysely<Database>[] = [await connectDatabase(config)];
     return {
       db: opened[0]!,
@@ -88,8 +88,12 @@ export interface ColumnShape {
  * Kysely's own migration tables are left out.
  */
 export async function describeSchema(db: Kysely<Database>, dialect: Dialect): Promise<Record<string, ColumnShape[]>> {
+  // Postgres introspection lists every schema of the database; keep the test's own.
+  const current = dialect === 'postgres'
+    ? (await sql<{ schema: string }>`select current_schema() as schema`.execute(db)).rows[0]?.schema
+    : undefined;
   const tables = (await db.introspection.getTables())
-    .filter(({ name, schema }) => !name.startsWith('kysely_') && (dialect === 'sqlite' || schema !== 'public'));
+    .filter(({ name, schema }) => !name.startsWith('kysely_') && (dialect === 'sqlite' || schema === current));
 
   const shapes = await Promise.all(tables.map(async (table) => {
     const primaryKeys = await primaryKeyColumns(db, dialect, table.name);

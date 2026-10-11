@@ -21,6 +21,10 @@ describe('database serialization', () => {
     it('given invalid JSON read from a column, fails with an error naming the column', () => {
       expect(() => fromJson('{not json', 'appSetting.value')).toThrow(/appSetting\.value/);
     });
+
+    it.each([undefined, () => 1, Symbol('x')])('refuses to store a value that has no JSON form (%s)', (value) => {
+      expect(() => toJson(value)).toThrow(/Cannot store/);
+    });
   });
 
   describe('boolean columns', () => {
@@ -66,6 +70,11 @@ describe('database serialization', () => {
       '2026-10-11T12:34:56.789+02:00',
       '2026-13-40T99:00:00.000Z',
       'yesterday',
+      // An impossible date that Date would silently move to March 2.
+      '2026-02-30T00:00:00.000Z',
+      // Extra text around an otherwise valid timestamp.
+      ' 2026-10-11T12:34:56.789Z',
+      '2026-10-11T12:34:56.789Z ',
     ])('given a stored value that is not an ISO-8601 UTC timestamp, fails (%s)', (text) => {
       expect(() => fromTimestamp(text, 'appSetting.updatedAt')).toThrow(/appSetting\.updatedAt/);
     });
