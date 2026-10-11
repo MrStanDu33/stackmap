@@ -21,10 +21,10 @@ more features and support.
 Each feature starts with its acceptance criteria as test names, reviewed before implementation.
 
 - [ ] **1. Scaffold**: tooling, conventions, CI, design tokens, Storybook, agent configuration, Docker, docs.
-- [ ] **2. Foundations**: database layer (SQLite and Postgres), workspace-scoped repositories, extension SDK and
-      registry, API contracts and OpenAPI, test factories and the demo stack.
-- [ ] **3. Vertical slice**: hosts, networks, services, listeners, domains, DNS records and proxy routes → derived flows
-      → hop-by-hop trace on a read-only graph, with the demo stack.
+- [ ] **2. Foundations**: database layer (SQLite and Postgres), API contracts and OpenAPI, extension SDK and registry.
+- [ ] **3. Vertical slice**: workspace-scoped repositories and test factories; hosts, networks, services, listeners,
+      domains, DNS records and proxy routes → derived flows → hop-by-hop trace on a read-only graph, with the demo
+      stack.
 - [ ] **4. Accounts and workspaces**: first-run setup, login, roles, invitations, user settings, password reset CLI.
 - [ ] **5. Extensions and inventory**: per-workspace extensions, onboarding ("What's in your stack?"), the built-in
       extensions, CRUD tables, search and the command palette.

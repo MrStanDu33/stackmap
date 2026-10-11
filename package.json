@@ -45,15 +45,19 @@
   "dependencies": {
     "@nuxt/ui": "^4.11.3",
     "@nuxtjs/i18n": "^10.6.0",
+    "@scalar/nuxt": "^0.6.79",
     "better-sqlite3": "^13.0.3",
     "culori": "^4.0.2",
+    "h3": "~1.15.11",
     "kysely": "^0.29.6",
     "nuxt": "^4.6.0",
     "pg": "^8.23.1",
     "tailwindcss": "^4.3.3",
     "uuid": "^14.0.2",
     "vue": "^3.5.43",
-    "vue-router": "^5.4.0"
+    "vue-router": "^5.4.0",
+    "zod": "^4.6.5",
+    "zod-openapi": "^6.0.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

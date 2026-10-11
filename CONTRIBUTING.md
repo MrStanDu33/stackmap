@@ -36,7 +36,7 @@ Behind a TLS-inspecting proxy, downloads made by Node (such as `playwright insta
 | `pnpm lint:css`        | Stylelint                                                            |
 | `pnpm typecheck`       | Type-check the whole project                                        |
 | `pnpm test`            | Every test: scripts, unit, integration and stories (every theme, locale) |
-| `pnpm test:unit`       | Node-side unit tests (fast)                                          |
+| `pnpm test:unit`       | Node-side unit tests (fast); `-u` updates `docs/api/openapi.json`     |
 | `pnpm test:integration` | Tests against real databases: SQLite, and Postgres when configured |
 | `pnpm db:test:up`      | Start the Postgres used by the integration tests (port 55432)       |
 | `pnpm test:stories`    | Stories as tests in Chromium                                         |

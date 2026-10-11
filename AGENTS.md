@@ -42,8 +42,9 @@ Never weaken, skip or delete a test to get green. A hook blocks edits to unteste
 - Strings: every user-facing string goes through i18n, in both `i18n/locales/en.json` and `fr.json`.
 - Accessibility: RGAA 4.1 / WCAG 2.1 AA. Keyboard access, visible focus, labels, no information by color alone, an
   accessible table or form for every graph or canvas.
-- API _(from phase 2)_: contract first. Zod schemas and route metadata in `shared/contracts/`, imported by the route.
-- Data _(from phase 2)_: every query goes through workspace-scoped repositories; one code path for SQLite and Postgres.
+- API: contract first. Define the contract in `shared/contracts/` and add it to `CONTRACTS`, then implement it in
+  `server/api/` with `defineContractHandler`. Update `docs/api/openapi.json` with `pnpm test:unit -u`.
+- Data: one code path for SQLite and Postgres; every query goes through workspace-scoped repositories _(from phase 3)_.
 - Style: ESLint and Stylelint decide formatting (semicolons, single quotes, 2 spaces, 120 columns). Comments explain
   why, not what.
 

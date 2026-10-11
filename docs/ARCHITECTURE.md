@@ -30,7 +30,7 @@ Kysely, with one code path for both (`server/database/`):
 | Path                 | Contents                                                                   |
 | -------------------- | -------------------------------------------------------------------------- |
 | `app/`               | Pages, components (atomic design), CSS tokens, app config                  |
-| `server/`            | Database layer and migrations; later API routes, domain logic, repositories |
+| `server/`            | API routes, database and migrations; later domain logic and repositories   |
 | `shared/`            | Code shared by the app and the server: contracts, design rules             |
 | `extensions/`        | Built-in extensions _(planned)_                                            |
 | `packages/`          | Extension SDK _(planned)_                                                  |
@@ -38,7 +38,7 @@ Kysely, with one code path for both (`server/database/`):
 | `tests/`             | Unit tests that are not next to their code, fixtures, end-to-end tests     |
 | `scripts/`           | Convention rules, release tooling and CI checks                            |
 | `.storybook/`        | Storybook configuration and foundation pages                               |
-| `docs/`              | Roadmap, architecture, CLA                                                 |
+| `docs/`              | Roadmap, architecture, CLA, the generated OpenAPI document                 |
 
 ## Domain model _(planned)_
 
@@ -83,11 +83,29 @@ Workspace admins turn extensions on or off. Turning one off never deletes data:
 3. its entities that are still connected show as greyed "hidden" boxes in graphs and traces, so paths stay continuous;
 4. once a hidden entity has no connection left, the user chooses to delete it or keep it hidden.
 
-## API _(planned)_
+## API
 
-Every route is contract-first: its Zod input and output schemas, summary, errors and required role live in
-`shared/contracts/`. The route handler imports its contract, and an OpenAPI 3.1 document is generated from the
-contracts and served at `/api/docs`. CI fails when the document is stale.
+Every route is contract-first. A contract (`defineContract` in `shared/contracts/`) holds the method, path, summary,
+tags, required role, Zod schemas for params, query and body, and one schema per response status; `CONTRACTS` lists
+them all. The route in `server/api/` implements exactly one contract with `defineContractHandler`, which:
+
+- reads bodies as JSON only (`415 unsupported_media_type` otherwise, since cross-site forms need no CORS preflight)
+  and up to 1 MiB (`413 payload_too_large`, refused while reading);
+- validates the input and answers `400 validation_failed` with the issues, without running the handler;
+- passes the parsed input, typed, to the handler, which returns `{ status, body }` for one of the declared statuses;
+- outside production, checks the response against its schema and answers `500 invalid_response` when it does not
+  match, so contract drift fails in tests;
+- answers unexpected errors with `500 internal_error`, logging the details without returning them.
+
+Every error has the same shape: `{ statusCode, code, message, issues? }`. The required role is recorded now and
+enforced from phase 4.
+
+The OpenAPI 3.1 document is generated from the contracts (`zod-openapi`), served at `/api/openapi.json` and committed
+as `docs/api/openapi.json`; a test fails when the committed file is stale (`pnpm test:unit -u` updates it). `/api/docs`
+renders it with Scalar, bundled in the app: no CDN, remote fonts, telemetry or AI services.
+
+`GET /api/health` answers `200` with the app version when the database answers, `503` otherwise; the Docker
+healthcheck calls it. The database error goes to the logs, never to the response.
 
 ## Interface
 
@@ -104,9 +122,9 @@ contracts and served at `/api/docs`. CI fails when the document is stale.
 ## Testing
 
 Tests are the specification: acceptance criteria are written as test names before the code. Layers: unit tests
-(Vitest), integration tests against SQLite and Postgres _(planned)_, stories as component tests, and end-to-end tests
-with Playwright and axe _(planned)_. Coverage thresholds and nightly mutation testing guard the domain logic. See
-[CONTRIBUTING.md](../CONTRIBUTING.md).
+(Vitest), integration tests against SQLite and Postgres, stories as component tests, Docker image smoke tests, and
+end-to-end tests with Playwright and axe _(planned)_. Coverage thresholds and nightly mutation testing guard the domain
+logic. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Glossary
 

@@ -1,6 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxtjs/i18n'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxtjs/i18n', '@scalar/nuxt'],
 
   components: [{ path: '~/components', pathPrefix: false }],
 
@@ -58,5 +58,21 @@ export default defineNuxtConfig({
       cookieKey: 'stackmap_locale',
       fallbackLocale: 'en',
     },
+  },
+
+  // API reference at /api/docs, generated from the contracts. No remote fonts, telemetry, AI or sharing services.
+  scalar: {
+    url: '/api/openapi.json',
+    pathRouting: { basePath: '/api/docs' },
+    metaData: { title: 'Stackmap API' },
+    withDefaultFonts: false,
+    telemetry: false,
+    agent: { disabled: true },
+    mcp: { disabled: true },
+    // The toolbar offers to share and deploy the document through Scalar's services.
+    showDeveloperTools: 'never',
+    // The "Open API Client" button opens client.scalar.com with the document's URL.
+    hideClientButton: true,
+    devtools: false,
   },
 });
