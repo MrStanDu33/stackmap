@@ -17,8 +17,22 @@
   },
   "servers": [
     {
-      "url": "/",
-      "description": "This Stackmap instance"
+      "url": "{scheme}://{host}",
+      "description": "A Stackmap instance",
+      "variables": {
+        "scheme": {
+          "default": "http",
+          "enum": [
+            "http",
+            "https"
+          ],
+          "description": "`https` behind a TLS reverse proxy"
+        },
+        "host": {
+          "default": "localhost:3000",
+          "description": "Host name and port of your Stackmap instance"
+        }
+      }
     }
   ],
   "tags": [

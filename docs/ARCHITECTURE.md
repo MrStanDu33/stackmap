@@ -156,11 +156,11 @@ values, `issues`. The required role is recorded now and enforced from phase 4.
 
 The OpenAPI 3.1.1 document is generated from the contracts (`zod-openapi`), served at `/api/openapi.json` and committed
 as `docs/api/openapi.json`; a test fails when the committed file is stale (`pnpm test:unit -u` updates it). It
-describes everything the specification offers that applies: info (summary, conventions, contact, license), a relative
-server, tags, external docs, shared error responses, every operation's role, examples and errors, and every property.
-Tests prove it: it is valid OpenAPI, the strict Redocly lint (`redocly.yaml`) reports nothing, and every example
-matches its schema. `/api/docs` renders it with Scalar, bundled in the app: no CDN, remote fonts, telemetry or AI
-services.
+describes everything the specification offers that applies: info (summary, conventions, contact, license), the
+server as `{scheme}://{host}` (the served document names the instance itself, behind a proxy too), tags, external
+docs, shared error responses, every operation's role, examples and errors, and every property. Tests prove it: it
+is valid OpenAPI, the strict Redocly lint (`redocly.yaml`) reports nothing, and every example matches its schema.
+`/api/docs` renders it with Scalar, bundled in the app: no CDN, remote fonts, telemetry or AI services.
 
 `GET /api/health` answers `200` with the app version when the database answers, `503` otherwise; the Docker
 healthcheck calls it. The database error goes to the logs, never to the response.

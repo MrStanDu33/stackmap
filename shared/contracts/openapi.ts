@@ -168,7 +168,15 @@ export function createOpenApiDocument(
       contact: { name: 'Stackmap', url: `${REPOSITORY}/issues` },
       license: { name: 'All rights reserved', url: `${REPOSITORY}/blob/develop/LICENSE` },
     },
-    servers: [{ url: '/', description: 'This Stackmap instance' }],
+    // Absolute, for tools that read the document without its host; /api/openapi.json serves the instance's own.
+    servers: [{
+      url: '{scheme}://{host}',
+      description: 'A Stackmap instance',
+      variables: {
+        scheme: { default: 'http', enum: ['http', 'https'], description: '`https` behind a TLS reverse proxy' },
+        host: { default: 'localhost:3000', description: 'Host name and port of your Stackmap instance' },
+      },
+    }],
     tags: Object.entries(tags)
       .filter(([name]) => used.has(name))
       .sort(([a], [b]) => a.localeCompare(b))
