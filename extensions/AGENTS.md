@@ -7,6 +7,8 @@
   string is an i18n key under `extensions.<id>.`, defined in both locale files.
 - Icons: a Lucide name (`i-lucide-…`), or an image in `public/extensions/<id>/` referenced as `/extensions/<id>/…`.
   Never a remote URL. Screens show `ExtensionIcon`, which falls back to a generic icon.
+- Keep to your namespace: locale keys under `extensions.<id>.` and public files under `public/extensions/<id>/`, so
+  no extension overrides another's strings or files (`checkExtension` reports it).
 - Kinds are stored by id: kebab-case, never renamed once released, unique per entity across all extensions.
 - Add the extension to `server/extensions/builtin.ts` and to the root `package.json` (`workspace:*`). The tests in
   `server/extensions/builtin.test.ts` check it is listed, translated and versioned; the registry refuses duplicate

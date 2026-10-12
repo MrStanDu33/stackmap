@@ -51,6 +51,19 @@ export function checkExtension(manifest: ExtensionManifest, { messages, publicFi
     }
   }
 
+  // Layers share one namespace: an extension keeps to its own keys and files, so it cannot override another's.
+  const keyPrefix = `extensions.${manifest.id}.`;
+  for (const key of keys) {
+    if (!key.startsWith(keyPrefix)) {
+      problems.add(`${key} is outside ${keyPrefix}`);
+    }
+  }
+  for (const file of publicFiles) {
+    if (!file.startsWith(`extensions/${manifest.id}/`)) {
+      problems.add(`public/${file} is outside public/extensions/${manifest.id}/`);
+    }
+  }
+
   const icons = [manifest.icon, ...kindsOf(manifest).map(({ icon }) => icon)].filter((icon) => icon !== undefined);
   for (const icon of icons) {
     if (icon.startsWith('i-lucide-')) {

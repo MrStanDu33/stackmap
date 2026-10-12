@@ -82,7 +82,10 @@ always-on extension `extensions/core`.
   in both, existing icons.
 - **Built-in extensions** live in `extensions/<id>/`. Each is a pnpm workspace package and a Nuxt layer, extended by
   `nuxt.config.ts`, so its `i18n/locales/` merge with the app's (and, later, its pages and components).
-  `server/extensions/builtin.ts` lists them; tests check that every package is listed, translated and versioned.
+  `server/extensions/builtin.ts` lists them; tests check that every package is listed, translated and versioned, and
+  that it keeps to its own keys (`extensions.<id>.`) and files (`public/extensions/<id>/`). A layer runs code at build
+  time and shares the app's namespace, so only reviewed extensions from this repository become layers; how external
+  extensions run is decided after a security review.
 - **Registry** (`server/extensions/registry.ts`): built at startup by `server/plugins/extensions.ts`, which exits with
   every problem when the extensions do not fit together (duplicate ids, missing dependencies, cycles, an unsupported
   API version, an always-on extension depending on an optional one, a kind added twice). It orders extensions
@@ -91,7 +94,7 @@ always-on extension `extensions/core`.
   extensions, so an extension adds one without a migration.
 - `GET /api/extensions` lists the installed extensions with their kinds; strings are i18n keys. `enabled` is `true` for
   all of them until the per-workspace toggles. An icon the app cannot show is left out, and `ExtensionIcon` shows a
-  generic fallback icon when the icon is missing or an image does not load.
+  generic fallback icon when the icon is missing, remote, or an image does not load.
 
 _(Planned.)_ Extensions will also contribute entity types, fields, flow types, **flow derivers** (turn its entities
 into flows), **trace hop resolvers** (resolve the next hop through its entities), templates, wizard questions, themes,
