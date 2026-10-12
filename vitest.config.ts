@@ -92,6 +92,9 @@ export default defineConfig({
         'extensions/*/server/domain/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
         'packages/*/src/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
         'server/database/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        // Workspace isolation and the entity rules everything else relies on.
+        'server/repositories/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        'shared/entities/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
       },
     },
   },
