@@ -32,6 +32,35 @@ const thing = defineContract({
   },
 });
 
+/** A response with nested objects and a default, to check what is sent. */
+const account = defineContract({
+  method: 'post',
+  path: '/api/things/:id',
+  operationId: 'getAccount',
+  summary: 'Get an account',
+  description: 'Returns an account.',
+  tags: ['Things'],
+  requiredRole: 'viewer',
+  responses: {
+    200: {
+      description: 'The account',
+      schema: z.object({
+        user: z.object({ name: z.string() }),
+        items: z.array(z.object({ id: z.string() })),
+        plan: z.string().default('free'),
+      }),
+      examples: { ada: { summary: 'Ada', value: { user: { name: 'Ada' }, items: [], plan: 'free' } } },
+    },
+  },
+});
+
+/** A body with fields the contract does not declare, at every depth. */
+const LEAKY_ACCOUNT = {
+  user: { name: 'Ada', passwordHash: '$argon2id$…' },
+  items: [{ id: 'a1', secret: 'token' }],
+  debug: true,
+};
+
 /** Serves one handler at the contract's path and returns a fetch-like function. */
 const serve = (handler: EventHandler) => {
   const router = createRouter().post('/api/things/:id', handler);
@@ -140,11 +169,50 @@ describe('defineContractHandler', () => {
     expect(json.detail).toContain('updateThing');
   });
 
-  it('in production, sends the response without validating it', async () => {
+  it('outside production, given a response with an undeclared field at any depth, fails with a 500 and an issue per field', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const request = serve(defineContractHandler(account, () => ({ status: 200, body: LEAKY_ACCOUNT })));
+
+    const { status, json } = await request('/api/things/42');
+
+    expect(status).toBe(500);
+    expect(json).toMatchObject({ status: 500, code: 'invalid_response' });
+    expect(json.issues).toEqual([
+      { path: 'response.user.passwordHash', message: 'Undeclared field' },
+      { path: 'response.items.0.secret', message: 'Undeclared field' },
+      { path: 'response.debug', message: 'Undeclared field' },
+    ]);
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('getAccount'), expect.anything());
+  });
+
+  it('in production, sends the response without its undeclared fields', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    const request = serve(defineContractHandler(account, () => ({ status: 200, body: LEAKY_ACCOUNT })));
+
+    expect(await request('/api/things/42')).toEqual({
+      status: 200,
+      json: { user: { name: 'Ada' }, items: [{ id: 'a1' }], plan: 'free' },
+    });
+  });
+
+  it.each(['development', 'production'])('in %s, sends the parsed body: defaults applied, no extra keys', async (environment) => {
+    vi.stubEnv('NODE_ENV', environment);
+    const items: { id: string }[] = [];
+    const request = serve(defineContractHandler(account, () => ({ status: 200, body: { user: { name: 'Ada' }, items } })));
+
+    expect(await request('/api/things/42')).toEqual({ status: 200, json: { user: { name: 'Ada' }, items: [], plan: 'free' } });
+  });
+
+  it('in production, given a response that does not match its schema, answers 500 internal_error and logs the issues', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     const request = serve(defineContractHandler(thing, () => ({ status: 200, body: { id: 42 } as never })));
 
-    expect(await request('/api/things/42', JSON.stringify({ name: 'Proxy' }))).toEqual({ status: 200, json: { id: 42 } });
+    const { status, json } = await request('/api/things/42', JSON.stringify({ name: 'Proxy' }));
+
+    expect(status).toBe(500);
+    expect(json).toMatchObject({ status: 500, code: 'internal_error' });
+    expect(JSON.stringify(json)).not.toContain('42');
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('updateThing'), expect.anything());
   });
 
   it('answers with any status declared in the contract', async () => {

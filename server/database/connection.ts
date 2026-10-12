@@ -80,3 +80,8 @@ export async function connectDatabase(config: DatabaseConfig): Promise<Kysely<Da
     );
   }
 }
+
+/** Checks that the database answers. */
+export function pingDatabase(_db: Kysely<Database>): Promise<void> {
+  return Promise.reject(new Error('Not implemented'));
+}

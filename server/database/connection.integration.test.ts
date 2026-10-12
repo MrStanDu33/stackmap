@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { sql } from 'kysely';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { connectDatabase } from './connection';
+import { connectDatabase, pingDatabase } from './connection';
 import { DIALECTS } from '../../tests/support/databases';
 
 import type { Database } from './types/schema';
@@ -34,6 +34,20 @@ const pragma = async (db: Kysely<Database>, name: string) => {
 };
 
 describe('database connection', () => {
+  describe.each(DIALECTS)('pingDatabase on %s', (dialect) => {
+    it('resolves when the database answers, and rejects when it does not', async () => {
+      const { openTestDatabase } = await import('../../tests/support/databases');
+      const database = await openTestDatabase(dialect);
+      try {
+        await expect(pingDatabase(database.db)).resolves.toBeUndefined();
+      } finally {
+        await database.cleanup();
+      }
+
+      await expect(pingDatabase(database.db)).rejects.toThrow();
+    });
+  });
+
   describe('SQLite', () => {
     it('creates a missing directory and opens the file with foreign keys, WAL journal mode and a busy timeout', async () => {
       const path = join(temporaryDirectory(), 'nested', 'deeper', 'stackmap.sqlite');

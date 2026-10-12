@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest';
+
+import { DEMO_STACK, seedDemoStack } from './demo-stack';
+import { DIALECTS } from '../../tests/support/databases';
+import { BUILTIN_KINDS, countRows, SCOPED_TABLES, useTestWorkspaces } from '../../tests/support/workspaces';
+
+import type { Dialect } from '../../tests/support/databases';
+
+describe.each(DIALECTS)('demo stack seed on %s', (dialect: Dialect) => {
+  const workspaces = useTestWorkspaces(dialect);
+
+  it('seeds the demo stack into a fresh workspace and returns the created entities by reference', async () => {
+    const seeded = await seedDemoStack(workspaces.a.repos);
+
+    for (const group of ['sites', 'networks', 'hosts', 'services', 'listeners', 'domains', 'dnsRecords'] as const) {
+      expect(Object.keys(seeded[group]), group).toEqual(Object.keys(DEMO_STACK[group]));
+      expect(await workspaces.a.repos[group].list(), group).toHaveLength(Object.keys(DEMO_STACK[group]).length);
+    }
+    expect(seeded.services.npm).toMatchObject({ name: 'Nginx Proxy Manager', workspaceId: workspaces.a.workspace.id });
+  });
+
+  it('resolves every reference to the created entity', async () => {
+    const seeded = await seedDemoStack(workspaces.a.repos);
+    const { sites, networks, hosts, services, listeners, domains, dnsRecords } = seeded;
+
+    expect(networks.lan?.siteId).toBe(sites.home?.id);
+    expect(hosts.server).toMatchObject({
+      siteId: sites.home?.id,
+      addresses: [{ address: '10.0.10.20', networkId: networks.lan?.id }],
+    });
+    expect(hosts.router?.addresses.map(({ networkId }) => networkId))
+      .toEqual([networks.lan?.id, networks.internet?.id]);
+    expect(services.website?.hostId).toBe(hosts.server?.id);
+    expect(services.weatherApi?.hostId).toBeNull();
+    expect(Object.values(listeners).filter(({ serviceId }) => serviceId === services.npm?.id)).toHaveLength(3);
+    expect(Object.values(dnsRecords).every(({ domainId }) => domainId === domains.homelab?.id)).toBe(true);
+  });
+
+  it('given a failure halfway, keeps nothing (one transaction)', async () => {
+    const { a, db } = workspaces;
+    // Without the external-api kind, the Weather API cannot be created, after the other services.
+    const withoutExternalApis = workspaces.repositories(a.workspace.id, {
+      kinds: { hasKind: (entity, id) => id !== 'external-api' && BUILTIN_KINDS.hasKind(entity, id) },
+    });
+
+    await expect(seedDemoStack(withoutExternalApis)).rejects.toThrow(/external-api/);
+
+    for (const table of SCOPED_TABLES) {
+      expect(await countRows(db, table, a.workspace.id), table).toBe(0);
+    }
+  });
+});

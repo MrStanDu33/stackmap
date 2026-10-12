@@ -29,8 +29,35 @@ const withSearchPath = (url: string, schema: string): string => {
   return parsed.toString();
 };
 
+let workerDatabase: Promise<string> | undefined;
+
 /**
- * A fresh, isolated database: an in-memory SQLite, or a dedicated Postgres schema dropped by `cleanup`.
+ * The URL of this Vitest worker's own Postgres database, created on first use. A worker runs one test at a time, so no
+ * schema is dropped while another test introspects: Kysely's Postgres introspection resolves every schema of the
+ * database by name, and fails when one disappears during the query.
+ */
+function workerDatabaseUrl(baseUrl: string): Promise<string> {
+  workerDatabase ??= (async () => {
+    const url = new URL(baseUrl);
+    const name = `${url.pathname.slice(1)}_${process.env.VITEST_POOL_ID ?? '0'}`;
+    const admin = await connectDatabase({ dialect: 'postgres', url: baseUrl });
+    try {
+      const { rows } = await sql`select 1 from pg_database where datname = ${name}`.execute(admin);
+      if (rows.length === 0) {
+        await sql`create database ${sql.id(name)}`.execute(admin);
+      }
+    } finally {
+      await admin.destroy();
+    }
+    url.pathname = `/${name}`;
+    return url.toString();
+  })();
+  return workerDatabase;
+}
+
+/**
+ * A fresh, isolated database: an in-memory SQLite, or a dedicated Postgres schema dropped by `cleanup`, in a database
+ * of the worker's own.
  * `reopen` gives another connection to the same Postgres schema (for SQLite in memory, it is a new database).
  */
 export async function openTestDatabase(dialect: Dialect): Promise<TestDatabase> {
@@ -51,10 +78,11 @@ export async function openTestDatabase(dialect: Dialect): Promise<TestDatabase> 
     };
   }
 
-  const baseUrl = inject('postgresUrl');
-  if (!baseUrl) {
+  const postgresUrl = inject('postgresUrl');
+  if (!postgresUrl) {
     throw new Error('Postgres is not available to the integration tests.');
   }
+  const baseUrl = await workerDatabaseUrl(postgresUrl);
   const schema = `test_${randomUUID().replaceAll('-', '')}`;
   const admin = await connectDatabase({ dialect: 'postgres', url: baseUrl });
   await sql`create schema ${sql.id(schema)}`.execute(admin);
