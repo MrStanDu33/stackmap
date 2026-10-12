@@ -1,3 +1,12 @@
+import { dnsRecordRepository } from './dns-records';
+import { domainRepository } from './domains';
+import { inTransaction } from './entity-repository';
+import { hostRepository } from './hosts';
+import { listenerRepository } from './listeners';
+import { networkRepository } from './networks';
+import { serviceRepository } from './services';
+import { siteRepository } from './sites';
+
 import type { DnsRecordRepository } from './dns-records';
 import type { DomainRepository } from './domains';
 import type { RepositoryScope } from './entity-repository';
@@ -24,6 +33,16 @@ export interface WorkspaceRepositories {
   transaction: <T>(work: (repos: WorkspaceRepositories) => Promise<T>) => Promise<T>;
 }
 
-export function workspaceRepositories(_db: Kysely<Database>, _scope: RepositoryScope): WorkspaceRepositories {
-  throw new Error('Not implemented');
+export function workspaceRepositories(db: Kysely<Database>, scope: RepositoryScope): WorkspaceRepositories {
+  const context = { db, scope };
+  return {
+    sites: siteRepository(context),
+    networks: networkRepository(context),
+    hosts: hostRepository(context),
+    services: serviceRepository(context),
+    listeners: listenerRepository(context),
+    domains: domainRepository(context),
+    dnsRecords: dnsRecordRepository(context),
+    transaction: (work) => inTransaction(db, (trx) => work(workspaceRepositories(trx, scope))),
+  };
 }
