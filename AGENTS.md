@@ -46,7 +46,8 @@ Never weaken, skip or delete a test to get green. A hook blocks edits to unteste
 - API: contract first. Define the contract in `shared/contracts/` (a description, a declared tag, every field
   described with `examples`, an example per response) and add it to `CONTRACTS`, then implement it in `server/api/`
   with `defineContractHandler`. Update `docs/api/openapi.json` with `pnpm test:unit -u`; the lint test must stay
-  clean. Errors are Problem Details: add a new code to `PROBLEMS`.
+  clean. Errors are Problem Details: add a new code to `PROBLEMS`. Bound every field with `shared/contracts/formats.ts`
+  (`text(max)`, `kebabId()`, `i18nKey()`…) and every array with `.max()`.
 - Data: one code path for SQLite and Postgres; every query goes through workspace-scoped repositories _(from phase 3)_.
 - Extensions: built-in extensions live in `extensions/<id>/` (see `extensions/AGENTS.md`); the core is
   `extensions/core`. New kinds go in an extension's manifest, never in a database enum.

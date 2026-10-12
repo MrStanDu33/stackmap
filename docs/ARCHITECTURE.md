@@ -158,8 +158,12 @@ The OpenAPI 3.1.1 document is generated from the contracts (`zod-openapi`), serv
 as `docs/api/openapi.json`; a test fails when the committed file is stale (`pnpm test:unit -u` updates it). It
 describes everything the specification offers that applies: info (summary, conventions, contact, license), the
 server as `{scheme}://{host}` (the served document names the instance itself, behind a proxy too), tags, external
-docs, shared error responses, every operation's role, examples and errors, and every property. Tests prove it: it
-is valid OpenAPI, the strict Redocly lint (`redocly.yaml`) reports nothing, and every example matches its schema.
+docs, shared error responses, every operation's role, examples and errors, and every property. Every string has a
+maximum length and an anchored pattern, every array a maximum size, and every value a type (`shared/contracts/
+formats.ts`), so responses validate tightly and API security audits (42Crunch) find no open-ended schema. The
+document requires the session cookie (`better-auth.session_token`, `shared/contracts/security.ts`) except on public
+operations; it is enforced once accounts exist (phase 4), which must use that cookie. Tests prove it: it is valid
+OpenAPI, the strict Redocly lint (`redocly.yaml`) reports nothing, and every example matches its schema.
 `/api/docs` renders it with Scalar, bundled in the app: no CDN, remote fonts, telemetry or AI services.
 
 `GET /api/health` answers `200` with the app version when the database answers, `503` otherwise; the Docker
