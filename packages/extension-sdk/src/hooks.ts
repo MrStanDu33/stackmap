@@ -62,6 +62,8 @@ export interface HookBusOptions {
   trace?: (line: string) => void;
   /** Fail calls whose payload is not plain JSON (on outside production). */
   checkPayloads?: boolean;
+  /** How long a handler may take before it counts as failed; the bus stops waiting for it (it cannot be cancelled). */
+  timeoutMs?: number;
 }
 
 export interface HookBus<H> {

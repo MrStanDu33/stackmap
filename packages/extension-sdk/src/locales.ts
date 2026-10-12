@@ -4,6 +4,8 @@ export interface Messages { [key: string]: string | Messages }
 /** One extension's (or the app's, with `extension: null`) messages for a language. */
 export interface LocaleSource {
   extension: string | null;
+  /** Whether the extension declares this language (a locale pack): only then may it translate others' keys. */
+  declares?: boolean;
   messages: Messages;
 }
 

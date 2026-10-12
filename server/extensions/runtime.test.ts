@@ -114,6 +114,55 @@ describe('extension runtime', () => {
     expect(registry.get('vpn')?.state).toBe('active');
   });
 
+  it('marks failed an extension handling a hook that is not exactly <id>:<name>', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const vpn = manifest('vpn', { hooks: [peerAdded] });
+    const odd = manifest('odd', { dependsOn: ['vpn'] });
+    const registry = createExtensionRegistry([vpn, odd], {
+      servers: [
+        defineExtensionServer(vpn, {}),
+        defineExtensionServer(odd, { hooks: anyHooks({ 'vpn:peer-added:extra': vi.fn() }) }),
+      ],
+    });
+
+    await startExtensions(registry);
+
+    expect(registry.get('odd')).toMatchObject({
+      state: 'failed',
+      errors: ['handles "vpn:peer-added:extra", which is not a Stackmap hook'],
+    });
+  });
+
+  it('marks failed an extension whose setup does not settle in time', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const vpn = manifest('vpn');
+    const registry = createExtensionRegistry([vpn], {
+      servers: [defineExtensionServer(vpn, { setup: () => new Promise(() => undefined) })],
+    });
+
+    await startExtensions(registry, { setupTimeoutMs: 20 });
+
+    expect(registry.get('vpn')).toMatchObject({ state: 'failed', errors: ['setup failed: timed out after 20 ms'] });
+  });
+
+  it('masks credentials in the errors it keeps, which diagnostics show', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const vpn = manifest('vpn');
+    const registry = createExtensionRegistry([vpn], {
+      servers: [defineExtensionServer(vpn, {
+        setup: () => {
+          throw new Error('cannot reach postgres://stackmap:s3cret@db.internal:5432/stackmap?password=hunter2');
+        },
+      })],
+    });
+
+    await startExtensions(registry);
+
+    expect(registry.get('vpn')?.errors).toEqual([
+      'setup failed: cannot reach postgres://stackmap:***@db.internal:5432/stackmap?password=***',
+    ]);
+  });
+
   it('skips the handlers for an enhanced extension while it is missing or failed', async () => {
     const stats = manifest('stats', { enhances: ['vpn'] });
     const statsServer = defineExtensionServer(stats, { hooks: anyHooks({ 'vpn:peer-added': vi.fn() }) });

@@ -64,7 +64,17 @@ function registrationsOf(registry: ExtensionRegistry) {
  * Starts the active extensions' server code: checks the hooks each one handles, runs their `setup` in registry order
  * (a failing one is marked failed with its dependents) and returns the hook bus.
  */
-export async function startExtensions(registry: ExtensionRegistry): Promise<ExtensionRuntime> {
+export interface ExtensionRuntimeOptions {
+  /** How long a setup may take before its extension fails. */
+  setupTimeoutMs?: number;
+  /** How long a hook handler may take before it counts as failed. */
+  hookTimeoutMs?: number;
+}
+
+export async function startExtensions(
+  registry: ExtensionRegistry,
+  _options: ExtensionRuntimeOptions = {},
+): Promise<ExtensionRuntime> {
   const trace = process.env.STACKMAP_DEBUG?.split(',').includes('extensions')
     ? (line: string) => {
         console.debug(`[extensions] ${line}`);

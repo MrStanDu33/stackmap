@@ -9,10 +9,11 @@ const sources: LocaleSource[] = [
   { extension: null, messages: { app: { name: 'Stackmap' } } },
   {
     extension: 'german',
+    declares: true,
     messages: { app: { name: 'Stackmap DE', title: 'Infrastruktur' }, extensions: { vpn: { name: 'VPN (Paket)' } } },
   },
   { extension: 'vpn', messages: { extensions: { vpn: { name: 'VPN', peers: 'Gegenstellen' } } } },
-  { extension: 'other-pack', messages: { app: { title: 'Infra' } } },
+  { extension: 'other-pack', declares: true, messages: { app: { title: 'Infra' } } },
 ];
 
 describe('mergeLocaleMessages', () => {
@@ -29,6 +30,20 @@ describe('mergeLocaleMessages', () => {
       { key: 'app.title', language: 'de', winner: 'german', ignored: ['other-pack'] },
       { key: 'extensions.vpn.name', language: 'de', winner: 'vpn', ignored: ['german'] },
     ]);
+  });
+});
+
+describe('mergeLocaleMessages: who may translate', () => {
+  it('in a language, only the key\'s owner and the extensions declaring that language translate it', () => {
+    const { messages, conflicts } = mergeLocaleMessages('de', [
+      { extension: null, messages: {} },
+      // Does not declare German: it may only translate its own keys.
+      { extension: 'audit', messages: { app: { warning: 'Harmlos' }, extensions: { audit: { name: 'Prüfung' } } } },
+      { extension: 'german', declares: true, messages: { app: { warning: 'Führt Code aus' } } },
+    ]);
+
+    expect(messages).toEqual({ app: { warning: 'Führt Code aus' }, extensions: { audit: { name: 'Prüfung' } } });
+    expect(conflicts).toEqual([]);
   });
 });
 

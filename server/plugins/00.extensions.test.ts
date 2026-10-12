@@ -154,6 +154,16 @@ describe('extensions plugin: lifecycle', () => {
     expect(ready).toHaveBeenCalledWith({ version });
   });
 
+  it('lets requests wait for the extensions\' setup, not for their app:ready handlers', async () => {
+    const vpn = manifest('vpn');
+    const { nitro } = await runPlugin({
+      manifests: [vpn],
+      servers: [defineExtensionServer(vpn, { hooks: { 'app:ready': () => new Promise(() => undefined) } })],
+    });
+
+    await expect(nitro.run('request')).resolves.toBeUndefined();
+  });
+
   it('calls app:close before the database closes', async () => {
     const closed = vi.fn();
     const vpn = manifest('vpn');

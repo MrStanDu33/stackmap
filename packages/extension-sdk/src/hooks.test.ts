@@ -131,7 +131,37 @@ describe('createHookBus', () => {
   });
 });
 
+describe('createHookBus: timeouts', () => {
+  it('given a handler that does not settle in time, reports it as failed and calls the next handlers', async () => {
+    const onError = vi.fn();
+    const after = vi.fn();
+    const bus = createHookBus<TestHooks>([
+      { extension: 'stuck', hooks: { 'app:ready': () => new Promise(() => undefined) } },
+      { extension: 'fine', hooks: { 'app:ready': after } },
+    ], { onError, timeoutMs: 20 });
+
+    await bus.callHook('app:ready', { version: '1' });
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'timed out after 20 ms' }), {
+      extension: 'stuck',
+      hook: 'app:ready',
+    });
+    expect(after).toHaveBeenCalled();
+  });
+});
+
 describe('defineExtensionServer and defineExtensionClient', () => {
+  it('freeze a copy of the hooks: handlers added after the definition are ignored', () => {
+    const hooks: Record<string, () => void> = {};
+    const server = defineExtensionServer(vpn, { hooks });
+
+    hooks['app:ready'] = vi.fn();
+
+    expect(server.hooks).not.toHaveProperty('app:ready');
+    expect(Object.isFrozen(server.hooks)).toBe(true);
+    expect(Object.isFrozen(defineExtensionClient(vpn, {}).hooks)).toBe(true);
+  });
+
   it('tie the code to the manifest, with typed hook names and payloads', () => {
     const setup = vi.fn();
 
