@@ -1,4 +1,4 @@
-import { unimplementedSchema } from './common';
+import { defineEntitySchema, entityId, entityName, kindId, line } from './common';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from './common';
 
@@ -22,4 +22,10 @@ export type ServiceInput = CommonInput & {
 };
 export type ServicePatch = Partial<ServiceInput>;
 
-export const serviceSchema: EntitySchema<ServiceFields, ServiceInput> = unimplementedSchema();
+export const serviceSchema: EntitySchema<ServiceFields, ServiceInput> = defineEntitySchema({
+  name: entityName(),
+  kind: kindId(),
+  hostId: entityId().nullable().default(null),
+  image: line(300).nullable().default(null),
+  containerName: line(100).nullable().default(null),
+});

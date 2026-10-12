@@ -1,4 +1,5 @@
-import { unimplementedSchema } from './common';
+import { defineEntitySchema } from './common';
+import { dnsName } from './network-values';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from './common';
 
@@ -11,4 +12,6 @@ export type Domain = EntityMeta & DomainFields;
 export type DomainInput = CommonInput & { name: string };
 export type DomainPatch = Partial<DomainInput>;
 
-export const domainSchema: EntitySchema<DomainFields, DomainInput> = unimplementedSchema();
+export const domainSchema: EntitySchema<DomainFields, DomainInput> = defineEntitySchema({
+  name: dnsName({ minLabels: 2 }),
+});

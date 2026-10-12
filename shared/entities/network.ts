@@ -1,4 +1,7 @@
-import { unimplementedSchema } from './common';
+import { z } from 'zod';
+
+import { defineEntitySchema, entityId, entityName, kindId } from './common';
+import { cidr } from './network-values';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from './common';
 
@@ -21,4 +24,10 @@ export type NetworkInput = CommonInput & {
 };
 export type NetworkPatch = Partial<NetworkInput>;
 
-export const networkSchema: EntitySchema<NetworkFields, NetworkInput> = unimplementedSchema();
+export const networkSchema: EntitySchema<NetworkFields, NetworkInput> = defineEntitySchema({
+  name: entityName(),
+  kind: kindId(),
+  cidr: cidr().nullable().default(null),
+  vlan: z.number().int().min(1).max(4094).nullable().default(null),
+  siteId: entityId().nullable().default(null),
+});

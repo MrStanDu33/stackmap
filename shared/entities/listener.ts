@@ -1,4 +1,7 @@
-import { unimplementedSchema } from './common';
+import { z } from 'zod';
+
+import { defineEntitySchema, entityId, kindId, port } from './common';
+import { ipAddress } from './network-values';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from './common';
 
@@ -28,4 +31,16 @@ export type ListenerInput = CommonInput & {
 };
 export type ListenerPatch = Partial<ListenerInput>;
 
-export const listenerSchema: EntitySchema<ListenerFields, ListenerInput> = unimplementedSchema();
+export const listenerSchema: EntitySchema<ListenerFields, ListenerInput> = defineEntitySchema({
+  serviceId: entityId(),
+  port: port(),
+  transport: z.enum(TRANSPORTS),
+  protocol: kindId().nullable().default(null),
+  bindAddress: ipAddress().nullable().default('0.0.0.0'),
+  publishedPort: port().nullable().default(null),
+}, (listener: ListenerFields, context) => {
+  if (listener.publishedPort !== null && listener.bindAddress === null) {
+    context.addIssue({ code: 'custom', path: ['bindAddress'], message: 'A published port is bound to an address' });
+  }
+  return listener;
+});
