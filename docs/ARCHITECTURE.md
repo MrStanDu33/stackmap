@@ -32,8 +32,8 @@ Kysely, with one code path for both (`server/database/`):
 | `app/`               | Pages, components (atomic design), CSS tokens, app config                  |
 | `server/`            | API routes, database and migrations; later domain logic and repositories   |
 | `shared/`            | Code shared by the app and the server: contracts, design rules             |
-| `extensions/`        | Built-in extensions _(planned)_                                            |
-| `packages/`          | Extension SDK _(planned)_                                                  |
+| `extensions/`        | Built-in extensions, each a Nuxt layer; `core` is always on                |
+| `packages/`          | The extension SDK (`@stackmap/extension-sdk`)                              |
 | `i18n/locales/`      | English and French messages                                                |
 | `tests/`             | Unit tests that are not next to their code, fixtures, end-to-end tests     |
 | `scripts/`           | Convention rules, release tooling and CI checks                            |
@@ -69,14 +69,35 @@ plugin. All data access goes through repositories scoped
 to a workspace; tests prove that one workspace cannot read or change another's data. An entitlements service,
 `can(workspace, feature)`, allows everything in v1 and prepares paid plans.
 
-## Extensions _(planned)_
+## Extensions
 
-The core and the built-in extensions use the same SDK, which proves it is sufficient. An extension
-contributes entity types, fields, kinds, flow types, **flow derivers** (turn its entities into flows), **trace hop
-resolvers** (resolve the next hop through its entities), templates, wizard questions, themes, locales and, for
-built-in extensions, code such as connectors and checks.
+The core and the built-in extensions use the same SDK, which proves it is sufficient. The core itself is the
+always-on extension `extensions/core`.
 
-Workspace admins turn extensions on or off. Turning one off never deletes data:
+- **SDK** (`packages/extension-sdk`, `@stackmap/extension-sdk`): `defineExtension()` validates a manifest when it is
+  defined: a kebab-case id, a semver version, the extension `apiVersion` it targets, its name and description as i18n
+  keys under `extensions.<id>.`, an optional icon (a Lucide name, or an image in the extension's own
+  `public/extensions/<id>/`; never a remote URL), `alwaysOn`, `dependsOn`, and what it contributes. `checkExtension()`
+  (`@stackmap/extension-sdk/testing`) checks what a manifest refers to: every key in English and French, the same keys
+  in both, existing icons.
+- **Built-in extensions** live in `extensions/<id>/`. Each is a pnpm workspace package and a Nuxt layer, extended by
+  `nuxt.config.ts`, so its `i18n/locales/` merge with the app's (and, later, its pages and components).
+  `server/extensions/builtin.ts` lists them; tests check that every package is listed, translated and versioned.
+- **Registry** (`server/extensions/registry.ts`): built at startup by `server/plugins/extensions.ts`, which exits with
+  every problem when the extensions do not fit together (duplicate ids, missing dependencies, cycles, an unsupported
+  API version, an always-on extension depending on an optional one, a kind added twice). It orders extensions
+  dependencies first and indexes their kinds: `kinds(entity)` and `hasKind(entity, id)` validate the kind columns.
+- **Kinds** (host, network, service and protocol kinds) are text values stored by id, unique per entity across
+  extensions, so an extension adds one without a migration.
+- `GET /api/extensions` lists the installed extensions with their kinds; strings are i18n keys. `enabled` is `true` for
+  all of them until the per-workspace toggles. An icon the app cannot show is left out, and `ExtensionIcon` shows a
+  generic fallback icon when the icon is missing or an image does not load.
+
+_(Planned.)_ Extensions will also contribute entity types, fields, flow types, **flow derivers** (turn its entities
+into flows), **trace hop resolvers** (resolve the next hop through its entities), templates, wizard questions, themes,
+locales and, for built-in extensions, code such as connectors and checks.
+
+Workspace admins will turn extensions on or off _(planned)_. Turning one off never deletes data:
 
 1. if its entities carry live flows, the admin is warned first;
 2. its types disappear from palettes, forms, search and filters;
