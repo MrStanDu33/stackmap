@@ -347,12 +347,21 @@ importers:
       '@stackmap/extension-sdk':
         specifier: workspace:*
         version: link:../../packages/extension-sdk
+      kysely:
+        specifier: ^0.29.6
+        version: 0.29.6
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   packages/extension-sdk:
     dependencies:
       '@iconify-json/lucide':
         specifier: ^1.2.142
         version: 1.2.142
+      kysely:
+        specifier: ^0.29.6
+        version: 0.29.6
       zod:
         specifier: ^4.6.5
         version: 4.6.5

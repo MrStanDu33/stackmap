@@ -41,10 +41,13 @@ const fakeNitroApp = () => {
 const runPlugin = async (
   builtin?: { manifests: ExtensionManifest[]; servers: ExtensionServer[] },
   database: Promise<unknown> = Promise.resolve({}),
+  migrateExtensions: () => Promise<void> = () => Promise.resolve(),
 ) => {
   vi.resetModules();
   vi.stubGlobal('defineNitroPlugin', (plugin: unknown) => plugin);
   vi.doMock('../utils/database', () => ({ useDatabase: () => database }));
+  // The extension migrations have their own integration tests; here they only need to run at the right time.
+  vi.doMock('../extensions/migrations', () => ({ migrateExtensions }));
   if (builtin) {
     vi.doMock('../extensions/builtin', () => ({
       BUILTIN_EXTENSIONS: builtin.manifests,
@@ -59,6 +62,7 @@ const runPlugin = async (
 };
 
 afterEach(() => {
+  vi.doUnmock('../extensions/migrations');
   vi.doUnmock('../extensions/builtin');
   vi.doUnmock('../utils/database');
   vi.unstubAllGlobals();
@@ -91,6 +95,31 @@ describe('extensions plugin', () => {
 });
 
 describe('extensions plugin: lifecycle', () => {
+  it('runs the extension migrations once the database is ready, before the extensions\' setup and before requests', async () => {
+    const order: string[] = [];
+    let databaseReady: (db: unknown) => void = () => undefined;
+    const database = new Promise((resolve) => {
+      databaseReady = resolve;
+    });
+    const tls = manifest('tls');
+    const { nitro } = await runPlugin(
+      { manifests: [tls], servers: [defineExtensionServer(tls, { setup: () => void order.push('setup') })] },
+      database,
+      () => {
+        order.push('migrations');
+        return Promise.resolve();
+      },
+    );
+    const request = nitro.run('request').then(() => void order.push('request'));
+    await Promise.resolve();
+    expect(order).toEqual([]);
+
+    databaseReady({});
+    await request;
+
+    expect(order).toEqual(['migrations', 'setup', 'request']);
+  });
+
   it('runs each active extension setup once, in registry order, after the registry is built', async () => {
     const order: string[] = [];
     const tls = manifest('tls');

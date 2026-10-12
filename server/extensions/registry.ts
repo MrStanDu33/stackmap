@@ -1,6 +1,7 @@
 import { EXTENSION_API_VERSION, KIND_ENTITIES } from '@stackmap/extension-sdk';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
+import type { EntityRepositoryDefinition } from '@stackmap/extension-sdk/server';
 
 export interface RegisteredKind extends Kind {
   /** Id of the extension that contributes it. */
@@ -35,6 +36,8 @@ export interface ExtensionRegistry {
   locales: () => readonly RegisteredLocale[];
   /** Marks an extension failed at runtime (its setup threw), with its dependents. Throws for an always-on one. */
   fail: (id: string, error: string) => void;
+  /** The repository definitions of the active extensions, in registry order. */
+  repositories: () => readonly EntityRepositoryDefinition[];
 }
 
 export interface ExtensionRegistryOptions {
@@ -238,6 +241,9 @@ export function createExtensionRegistry(
       entry.errors.push(error);
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
+    },
+    repositories: () => {
+      throw new Error('Not implemented');
     },
   };
 }

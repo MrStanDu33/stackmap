@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { createHookBus, defineExtensionClient, defineExtensionServer } from './hooks';
 
+import type { ExtensionServer } from './hooks';
 import type { ExtensionManifest } from './manifest';
 
 interface TestHooks {
@@ -20,6 +21,17 @@ const vpn: ExtensionManifest = {
   code: { server: true, client: true },
   contributes: { kinds: {} },
 };
+
+describe('defineExtensionServer', () => {
+  it('keeps the migrations and the repository definitions of the extension\'s server code', () => {
+    const manifest = vpn;
+    const migrations = { '0001_peer': { up: () => Promise.resolve(), down: () => Promise.resolve() } };
+    const repositories = [{ entity: 'peer', key: 'vpnPeers', table: 'vpn_peer' }] as unknown as ExtensionServer['repositories'];
+
+    expect(defineExtensionServer(manifest, { migrations, repositories })).toMatchObject({ extension: 'vpn', migrations, repositories });
+    expect(defineExtensionServer(manifest, {})).not.toHaveProperty('migrations');
+  });
+});
 
 describe('createHookBus', () => {
   it('calls the handlers in registry order, awaiting each, with the payload', async () => {

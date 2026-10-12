@@ -1,4 +1,5 @@
-import { EXTENSION_API_VERSION } from '@stackmap/extension-sdk';
+import { defineExtensionServer, EXTENSION_API_VERSION } from '@stackmap/extension-sdk';
+import { defineEntityRepository } from '@stackmap/extension-sdk/server';
 import { describe, expect, it } from 'vitest';
 
 import { createExtensionRegistry, ExtensionRegistryError } from './registry';
@@ -237,5 +238,63 @@ describe('createExtensionRegistry: states', () => {
     expect(() => {
       registry.fail('core', 'setup failed: boom');
     }).toThrow(ExtensionRegistryError);
+  });
+});
+
+describe('extension registry: entities', () => {
+  const entity = (extension: string, id: string, table = `${extension}_${id}`) =>
+    ({ id, table, label: `extensions.${extension}.entities.${id}` });
+  const withEntities = (id: string, entities: ReturnType<typeof entity>[], options: Options = {}) => {
+    const base = manifest(id, { ...options, code: { server: true } });
+    return { ...base, contributes: { ...base.contributes, entities } } satisfies ExtensionManifest;
+  };
+  const repository = (entityId: string, key: string, table: string) =>
+    defineEntityRepository({ entity: entityId, key, table, schema: { input: {}, patch: {} } as never, columns: [] });
+  const serverOf = (extension: ExtensionManifest, repositories: ReturnType<typeof repository>[]) =>
+    defineExtensionServer(extension, { repositories });
+
+  it('given two extensions declaring the same table, fails the later one naming the other, and keeps the app running', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing', 'alpha_thing')]);
+
+    expect(summary([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]), serverOf(beta, [repository('thing', 'betaThings', 'alpha_thing')])],
+    })).toEqual(['alpha active', 'beta failed: declares table "alpha_thing", which "alpha" already declares']);
+  });
+
+  it('given two extensions defining the same repository key, fails the later one naming the other', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')]);
+
+    expect(summary([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [repository('thing', 'things', 'beta_thing')])],
+    })).toEqual(['alpha active', 'beta failed: defines repository "things", which "alpha" already defines']);
+  });
+
+  it('given a repository for an entity the manifest does not declare, or a declared entity without a repository, fails the extension naming the entity', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+
+    expect(summary([alpha], { servers: [serverOf(alpha, [repository('other', 'others', 'alpha_other')])] })).toEqual([
+      'alpha failed: defines a repository for entity "other", which its manifest does not declare; '
+      + 'declares entity "thing" but defines no repository for it',
+    ]);
+  });
+
+  it('given a repository whose table is not the one the manifest declares, fails the extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+
+    expect(summary([alpha], { servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_other')])] })).toEqual([
+      'alpha failed: stores entity "thing" in table "alpha_other", but its manifest declares "alpha_thing"',
+    ]);
+  });
+
+  it('lists the repository definitions of the active extensions, in registry order', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')], { dependsOn: ['alpha'] });
+    const registry = createExtensionRegistry([beta, alpha], {
+      servers: [serverOf(beta, [repository('thing', 'betaThings', 'beta_thing')]), serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')])],
+    });
+
+    expect(registry.repositories().map(({ key }) => key)).toEqual(['alphaThings', 'betaThings']);
   });
 });

@@ -2,14 +2,17 @@
   "name": "@stackmap/extension-sdk",
   "version": "0.0.0",
   "private": true,
-  "description": "Defines and checks Stackmap extensions: the manifest schema, defineExtension and test utilities.",
+  "description": "Defines and checks Stackmap extensions: the manifest schema, defineExtension, entity building blocks and test utilities.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./entities": "./src/entities/index.ts",
+    "./server": "./src/server.ts",
     "./testing": "./src/testing.ts"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.142",
+    "kysely": "^0.29.6",
     "zod": "^4.6.5"
   }
 }

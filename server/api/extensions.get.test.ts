@@ -133,3 +133,20 @@ describe('GET /api/extensions: states and locales', () => {
     ]);
   });
 });
+
+describe('GET /api/extensions: entities', () => {
+  it('lists each extension\'s entities with their id and label', async () => {
+    const withHosts: ExtensionManifest = {
+      ...core,
+      contributes: { ...core.contributes, entities: [{ id: 'host', table: 'core_host', label: 'extensions.core.entities.host' }] },
+    };
+
+    const { status, json } = await get([withHosts, vpn]);
+
+    expect(status).toBe(200);
+    expect(json.extensions.map(({ id, entities }) => ({ id, entities }))).toEqual([
+      { id: 'core', entities: [{ id: 'host', label: 'extensions.core.entities.host' }] },
+      { id: 'vpn', entities: [] },
+    ]);
+  });
+});

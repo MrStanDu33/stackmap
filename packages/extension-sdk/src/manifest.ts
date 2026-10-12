@@ -21,6 +21,16 @@ export interface Kind {
 
 export type KindContributions = Partial<Record<KindEntity, readonly Kind[]>>;
 
+/** An entity type an extension adds, stored in a table of its own. */
+export interface EntityDeclaration {
+  /** Kebab-case, unique in the extension. */
+  id: string;
+  /** `<snake_case extension id>_<camelCase name>`: `core_host`, `reverse_proxy_route`. */
+  table: string;
+  /** i18n key, under extensions.<id>. */
+  label: string;
+}
+
 /** A hook an extension declares; others call it `<extension id>:<name>`. */
 export interface HookDeclaration {
   name: string;
@@ -54,6 +64,7 @@ export interface ExtensionManifest {
   code?: { server?: boolean; client?: boolean };
   contributes: {
     kinds: KindContributions;
+    entities?: readonly EntityDeclaration[];
     hooks?: readonly HookDeclaration[];
     locales?: readonly LocaleDeclaration[];
   };
@@ -175,4 +186,9 @@ export function defineExtension(manifest: ExtensionManifestInput): ExtensionMani
   }
   // The refinement checked the icons, which the schema can only type as strings.
   return result.data as ExtensionManifest;
+}
+
+/** The prefix of an extension's tables and migration history: its id in snake case, `reverse_proxy`. */
+export function extensionTablePrefix(_id: string): string {
+  throw new Error('Not implemented');
 }

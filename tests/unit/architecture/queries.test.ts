@@ -44,3 +44,31 @@ describe('coverage', () => {
     expect(thresholds?.['server/repositories/**']).toEqual(strict);
   });
 });
+
+describe('database access in extensions', () => {
+  const extensionSources = globSync('extensions/*/**/*.ts', { cwd: ROOT, exclude: (entry) => entry === 'node_modules' })
+    .filter((file) => !file.endsWith('.test.ts') && !file.includes('/node_modules/'));
+  /** An extension queries its tables only from its server code: migrations and repository definitions. */
+  const EXTENSION_QUERY_LAYER = /^extensions\/[^/]+\/server(?:\.ts|\/)/;
+
+  it('queries the database only in server/database, server/repositories and an extension\'s server directory', () => {
+    expect(extensionSources.length).toBeGreaterThan(5);
+    const outside = extensionSources.filter((file) => !EXTENSION_QUERY_LAYER.test(file));
+
+    expect(extensionSources.some((file) => EXTENSION_QUERY_LAYER.test(file) && QUERY.test(read(file)))).toBe(true);
+    expect(matching(QUERY, outside)).toEqual([]);
+    expect(matching(SQL_TAG, outside)).toEqual([]);
+  });
+
+  it('never selects every column in extensions either', () => {
+    expect(matching(SELECT_ALL, extensionSources)).toEqual([]);
+  });
+
+  it('requires 90% coverage of extension entities and server code', () => {
+    const thresholds = (config.test?.coverage as { thresholds?: Record<string, unknown> } | undefined)?.thresholds;
+    const strict = { lines: 90, functions: 90, branches: 90, statements: 90 };
+
+    expect(thresholds?.['extensions/*/entities/**']).toEqual(strict);
+    expect(thresholds?.['extensions/*/server/**']).toEqual(strict);
+  });
+});

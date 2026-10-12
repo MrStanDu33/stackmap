@@ -1,4 +1,5 @@
 import type { ExtensionManifest } from './manifest';
+import type { EntityRepositoryDefinition, Migration } from './server';
 
 /**
  * Hooks the app calls on the server. Extensions add theirs, named `<id>:<name>`, with
@@ -44,6 +45,10 @@ export interface ExtensionServer {
   extension: string;
   setup?: (context: ExtensionContext<ServerHooks>) => void | Promise<void>;
   hooks: HookHandlers<ServerHooks>;
+  /** Its own migration history, named `0001_…` in order, run before `setup` in registry order. */
+  migrations?: Readonly<Record<string, Migration>>;
+  /** One per entity its manifest declares. */
+  repositories?: readonly EntityRepositoryDefinition[];
 }
 
 export interface ExtensionClient {
