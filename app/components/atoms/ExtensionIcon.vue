@@ -21,7 +21,7 @@ const iconName = computed(() => (props.icon?.startsWith('i-') ? props.icon : FAL
     alt=""
     aria-hidden="true"
     :data-icon="image"
-    class="object-contain"
+    class="extension-icon-image object-contain"
     @error="brokenImage = image"
   >
   <UIcon
@@ -31,3 +31,13 @@ const iconName = computed(() => (props.icon?.startsWith('i-') ? props.icon : FAL
     :data-icon="iconName"
   />
 </template>
+
+<style>
+/* 1em by default, like icons, so the image follows the text size. In a layer, so the caller's size class wins. */
+@layer components {
+  .extension-icon-image {
+    width: 1em;
+    height: 1em;
+  }
+}
+</style>
