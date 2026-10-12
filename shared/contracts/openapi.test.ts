@@ -8,8 +8,8 @@ import { API_VERSION, createOpenApiDocument } from './openapi';
 import type { oas31 } from 'zod-openapi';
 
 const Thing = z.object({
-  id: z.string().min(1).meta({ description: 'Its id', example: '42' }),
-  name: z.string().min(1).meta({ description: 'Its name', example: 'Proxy' }),
+  id: z.string().min(1).meta({ description: 'Its id', examples: ['42'] }),
+  name: z.string().min(1).meta({ description: 'Its name', examples: ['Proxy'] }),
 }).meta({ id: 'Thing', description: 'A thing to test with', examples: [{ id: '42', name: 'Proxy' }] });
 
 const thingExamples = { proxy: { summary: 'A proxy', value: { id: '42', name: 'Proxy' } } };
@@ -22,8 +22,8 @@ const getThing = defineContract({
   description: 'Gets one thing by its id.',
   tags: ['Things'],
   requiredRole: 'viewer',
-  params: z.object({ id: z.string().meta({ description: 'The thing\'s id', example: '42' }) }),
-  query: z.object({ expand: z.string().optional().meta({ description: 'What to include', example: 'owner' }) }),
+  params: z.object({ id: z.string().meta({ description: 'The thing\'s id', examples: ['42'] }) }),
+  query: z.object({ expand: z.string().optional().meta({ description: 'What to include', examples: ['owner'] }) }),
   responses: { 200: { description: 'The thing', schema: Thing, examples: thingExamples } },
 });
 
@@ -37,7 +37,7 @@ const createThing = defineContract({
   requiredRole: 'editor',
   deprecated: true,
   externalDocs: { description: 'About things', url: 'https://example.com/things' },
-  body: z.object({ name: z.string().min(1).meta({ description: 'Its name', example: 'Proxy' }) })
+  body: z.object({ name: z.string().min(1).meta({ description: 'Its name', examples: ['Proxy'] }) })
     .meta({ description: 'The thing to create', examples: [{ name: 'Proxy' }] }),
   responses: { 201: { description: 'The created thing', schema: Thing, examples: thingExamples } },
 });

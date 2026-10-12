@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 import { defineContract } from './contract';
 
+import type { Contract } from './contract';
+
 const valid = () => ({
   method: 'get' as const,
   path: '/api/things/:id' as const,
@@ -41,12 +43,15 @@ describe('defineContract', () => {
   });
 });
 
+/** A contract missing what its type requires, as JavaScript callers could pass it. */
+const incomplete = (contract: unknown) => contract as Contract;
+
 describe('defineContract: documentation', () => {
   it('given a contract without a description, fails at definition time', () => {
     const { description: _description, ...undescribed } = valid();
 
     expect(() => defineContract({ ...valid(), description: ' ' })).toThrow(/getThing.*description/);
-    expect(() => defineContract(undescribed as Parameters<typeof defineContract>[0])).toThrow(/getThing.*description/);
+    expect(() => defineContract(incomplete(undescribed))).toThrow(/getThing.*description/);
   });
 
   it('given a response without an example, fails at definition time naming the status', () => {
@@ -54,7 +59,7 @@ describe('defineContract: documentation', () => {
 
     expect(() => defineContract({ ...valid(), responses: { 200: { ...response, examples: {} } } }))
       .toThrow(/getThing.*example.*200/);
-    expect(() => defineContract({ ...valid(), responses: { 200: response } }))
+    expect(() => defineContract(incomplete({ ...valid(), responses: { 200: response } })))
       .toThrow(/getThing.*example.*200/);
   });
 });
