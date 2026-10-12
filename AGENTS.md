@@ -46,6 +46,8 @@ Never weaken, skip or delete a test to get green. A hook blocks edits to unteste
 - API: contract first. Define the contract in `shared/contracts/` and add it to `CONTRACTS`, then implement it in
   `server/api/` with `defineContractHandler`. Update `docs/api/openapi.json` with `pnpm test:unit -u`.
 - Data: one code path for SQLite and Postgres; every query goes through workspace-scoped repositories _(from phase 3)_.
+- Extensions: built-in extensions live in `extensions/<id>/` (see `extensions/AGENTS.md`); the core is
+  `extensions/core`. New kinds go in an extension's manifest, never in a database enum.
 - Style: ESLint and Stylelint decide formatting (semicolons, single quotes, 2 spaces, 120 columns). Comments explain
   why, not what.
 

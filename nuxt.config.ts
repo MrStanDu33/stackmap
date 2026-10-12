@@ -1,5 +1,12 @@
+import { fileURLToPath } from 'node:url';
+
+import { findExtensionLayers } from './scripts/extensions/layers.mjs';
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  // Every built-in extension is a Nuxt layer: its locale files now, its pages and components later.
+  extends: findExtensionLayers(fileURLToPath(new URL('.', import.meta.url))),
+
   modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxtjs/i18n', '@scalar/nuxt'],
 
   components: [{ path: '~/components', pathPrefix: false }],
@@ -25,7 +32,15 @@ export default defineNuxtConfig({
     strict: true,
     // Root tool configs (vitest, playwright…) and Node-side tests and helpers are typechecked with the Node project.
     nodeTsConfig: {
-      include: ['../*.config.ts', '../tests/unit/**/*', '../tests/support/**/*', '../tests/smoke/**/*'],
+      include: [
+        '../*.config.ts',
+        '../tests/unit/**/*',
+        '../tests/support/**/*',
+        '../tests/smoke/**/*',
+        // The extension SDK and the built-in extensions' manifests and tests.
+        '../packages/*/src/**/*',
+        '../extensions/*/*.ts',
+      ],
     },
   },
 

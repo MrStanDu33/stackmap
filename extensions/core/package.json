@@ -1,0 +1,13 @@
+{
+  "name": "@stackmap/extension-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The core of Stackmap, packaged as an always-on extension: sites, hosts, networks, services, flows, DNS.",
+  "type": "module",
+  "exports": {
+    ".": "./manifest.ts"
+  },
+  "dependencies": {
+    "@stackmap/extension-sdk": "workspace:*"
+  }
+}

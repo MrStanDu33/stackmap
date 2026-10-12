@@ -1,0 +1,38 @@
+{
+  "extensions": {
+    "core": {
+      "name": "Socle",
+      "description": "Sites, hôtes, réseaux, services, flux et DNS. Toujours actif.",
+      "kinds": {
+        "host": {
+          "physical": "Serveur physique",
+          "vm": "Machine virtuelle",
+          "vps": "VPS",
+          "router": "Routeur"
+        },
+        "network": {
+          "lan": "Réseau local",
+          "dmz": "DMZ",
+          "public": "Public"
+        },
+        "service": {
+          "app": "Application",
+          "database": "Base de données",
+          "cache": "Cache",
+          "dns": "Serveur DNS",
+          "externalApi": "API externe",
+          "other": "Autre"
+        },
+        "protocol": {
+          "tcp": "TCP",
+          "udp": "UDP",
+          "http": "HTTP",
+          "https": "HTTPS",
+          "ssh": "SSH",
+          "ftp": "FTP",
+          "sftp": "SFTP"
+        }
+      }
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import { addCollection } from '@iconify/vue';
+import { icons as lucide } from '@iconify-json/lucide';
 import UApp from '@nuxt/ui/components/App.vue';
 import ui from '@nuxt/ui/vue-plugin';
 import { setup } from '@storybook/vue3-vite';
@@ -10,6 +12,9 @@ import type { Locale } from './nuxt-shims';
 import type { Decorator, Preview } from '@storybook/vue3-vite';
 
 type Theme = 'midnight' | 'light';
+
+// Icons come from the bundled Lucide collection, as in the app: stories never call the Iconify API.
+addCollection(lucide);
 
 setup((app) => {
   app.use(i18n);

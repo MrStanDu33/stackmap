@@ -17,6 +17,8 @@ const shims = path('./nuxt-shims.ts');
 
 const config: StorybookConfig = {
   stories: ['./foundations/*.@(mdx|stories.ts)', '../app/components/**/*.@(mdx|stories.ts)'],
+  // Files the stories load, such as an extension's image icon.
+  staticDirs: ['./public'],
   addons: [
     {
       name: '@storybook/addon-docs',
@@ -44,7 +46,8 @@ const config: StorybookConfig = {
         colorMode: false,
         router: true,
         autoImport: {
-          imports: [{ from: shims, imports: ['useI18n', 'useState', 'clearNuxtState', 'useRuntimeConfig', 'useNuxtApp'] }],
+          // Vue's APIs (ref, computed…) are auto-imported in Nuxt too.
+          imports: ['vue', { from: shims, imports: ['useI18n', 'useState', 'clearNuxtState', 'useRuntimeConfig', 'useNuxtApp'] }],
         },
         components: {
           dirs: [path('../app/components')],

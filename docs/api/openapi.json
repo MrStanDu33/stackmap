@@ -80,6 +80,41 @@
           }
         }
       }
+    },
+    "/api/extensions": {
+      "get": {
+        "operationId": "listExtensions",
+        "summary": "List the installed extensions",
+        "description": "Dependencies come before the extensions that need them. Strings are i18n keys.",
+        "tags": [
+          "Extensions"
+        ],
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "The installed extensions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "extensions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Extension"
+                      }
+                    }
+                  },
+                  "required": [
+                    "extensions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -112,6 +147,111 @@
         ],
         "additionalProperties": false,
         "description": "Whether the app and its database are up"
+      },
+      "Extension": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "description": "i18n key"
+          },
+          "description": {
+            "type": "string",
+            "description": "i18n key"
+          },
+          "icon": {
+            "description": "A Lucide icon name or an image path; absent when unknown",
+            "type": "string"
+          },
+          "alwaysOn": {
+            "type": "boolean"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Always true until extensions can be turned off per workspace"
+          },
+          "kinds": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExtensionKind"
+                }
+              },
+              "network": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExtensionKind"
+                }
+              },
+              "service": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExtensionKind"
+                }
+              },
+              "protocol": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExtensionKind"
+                }
+              }
+            },
+            "required": [
+              "host",
+              "network",
+              "service",
+              "protocol"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "name",
+          "description",
+          "alwaysOn",
+          "dependsOn",
+          "enabled",
+          "kinds"
+        ],
+        "additionalProperties": false,
+        "description": "An installed extension"
+      },
+      "ExtensionKind": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "i18n key"
+          },
+          "icon": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "additionalProperties": false,
+        "description": "A kind an extension adds to a core entity"
       }
     }
   }

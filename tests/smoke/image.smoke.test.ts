@@ -124,6 +124,18 @@ describe('API in the Docker image', () => {
     expect(JSON.parse(text)).toHaveProperty(['icons', 'puzzle', 'body']);
   });
 
+  it('serves the core extension\'s strings in English and French', async () => {
+    const container = await runOnEmptyVolume(IMAGE);
+
+    for (const [locale, name] of [['en', 'Core'], ['fr', 'Socle']] as const) {
+      // @nuxtjs/i18n serves each locale's messages, the extension layers' included; the hash segment only busts caches.
+      const { status, text } = fetchInside(container, `/_i18n/smoke/${locale}/messages.json`);
+
+      expect(status).toBe(200);
+      expect(JSON.parse(text)).toHaveProperty([locale, 'extensions', 'core', 'name'], name);
+    }
+  });
+
   it('with compose.postgres.yaml, becomes unhealthy when Postgres stops (the healthcheck calls /api/health)', async () => {
     const project = `stackmap-smoke-${randomUUID().slice(0, 8)}`;
     const compose = (...args: string[]) =>
