@@ -3,24 +3,43 @@ import { describe, expect, it } from 'vitest';
 
 import { createExtensionRegistry, ExtensionRegistryError } from './registry';
 
-import type { ExtensionManifest, KindContributions } from '@stackmap/extension-sdk';
+import type {
+  ExtensionManifest, ExtensionServer, KindContributions, LocaleDeclaration,
+} from '@stackmap/extension-sdk';
 
-const manifest = (
-  id: string,
-  { alwaysOn = false, dependsOn = [], kinds = {}, apiVersion = EXTENSION_API_VERSION }:
-  { alwaysOn?: boolean; dependsOn?: string[]; kinds?: KindContributions; apiVersion?: number } = {},
-): ExtensionManifest => ({
+interface Options {
+  alwaysOn?: boolean;
+  dependsOn?: string[];
+  kinds?: KindContributions;
+  locales?: LocaleDeclaration[];
+  code?: ExtensionManifest['code'];
+  apiVersion?: number;
+  version?: string;
+}
+
+const manifest = (id: string, { kinds = {}, locales, apiVersion = EXTENSION_API_VERSION, ...rest }: Options = {}) => ({
   id,
-  version: '1.0.0',
+  version: rest.version ?? '1.0.0',
   apiVersion,
   name: `extensions.${id}.name`,
   description: `extensions.${id}.description`,
-  alwaysOn,
-  dependsOn,
-  contributes: { kinds },
-});
+  alwaysOn: rest.alwaysOn ?? false,
+  dependsOn: rest.dependsOn ?? [],
+  ...(rest.code ? { code: rest.code } : {}),
+  contributes: { kinds, ...(locales ? { locales } : {}) },
+}) satisfies ExtensionManifest;
 
 const kind = (extension: string, id: string) => ({ id, label: `extensions.${extension}.kinds.${id}` });
+
+const APP_LOCALES: LocaleDeclaration[] = [
+  { code: 'en', language: 'en-US', name: 'English' },
+  { code: 'fr', language: 'fr-FR', name: 'Français' },
+];
+
+/** `id state: errors` for every extension, in registry order. */
+const summary = (manifests: ExtensionManifest[], options = {}) =>
+  createExtensionRegistry(manifests, options).extensions.map(({ manifest: { id }, state, errors }) =>
+    (errors.length > 0 ? `${id} ${state}: ${errors.join('; ')}` : `${id} ${state}`));
 
 /** The problems of the registry error thrown by `create`. */
 const problemsOf = (create: () => unknown): readonly string[] => {
@@ -44,62 +63,55 @@ describe('createExtensionRegistry', () => {
       manifest('core', { alwaysOn: true }),
     ]);
 
-    expect(registry.extensions.map(({ id }) => id)).toEqual(['core', 'tls', 'proxy', 'vpn']);
-    expect(registry.get('tls')).toMatchObject({ id: 'tls' });
+    expect(registry.extensions.map(({ manifest: { id } }) => id)).toEqual(['core', 'tls', 'proxy', 'vpn']);
+    expect(registry.active.map(({ id }) => id)).toEqual(['core', 'tls', 'proxy', 'vpn']);
+    expect(registry.get('tls')).toMatchObject({ manifest: { id: 'tls' }, state: 'active', errors: [] });
     expect(registry.get('backups')).toBeUndefined();
   });
 
-  it('given two extensions with the same id, fails naming the id', () => {
-    expect(problemsOf(() => createExtensionRegistry([manifest('vpn'), manifest('vpn')])))
-      .toEqual(['extension "vpn" is installed twice']);
+  it('marks failed an extension installed twice: the later one', () => {
+    expect(summary([manifest('vpn'), manifest('vpn', { version: '2.0.0' })]))
+      .toEqual(['vpn active', 'vpn failed: is installed twice']);
   });
 
-  it('given a dependency that is not installed, fails naming the extension and the dependency', () => {
-    expect(problemsOf(() => createExtensionRegistry([manifest('proxy', { dependsOn: ['tls'] })])))
-      .toEqual(['"proxy" depends on "tls", which is not installed']);
+  it('marks failed an extension whose dependency is not installed, naming it', () => {
+    expect(summary([manifest('proxy', { dependsOn: ['tls'] })]))
+      .toEqual(['proxy failed: depends on "tls", which is not installed']);
   });
 
-  it('given a dependency cycle, fails naming the cycle', () => {
-    expect(problemsOf(() => createExtensionRegistry([
+  it('marks failed the extensions of a dependency cycle, naming the cycle', () => {
+    expect(summary([
       manifest('a', { dependsOn: ['b'] }),
       manifest('b', { dependsOn: ['c'] }),
       manifest('c', { dependsOn: ['a'] }),
       manifest('d'),
-    ]))).toEqual(['dependency cycle: a → b → c → a']);
+    ])).toEqual([
+      'd active',
+      'a failed: is in a dependency cycle: a → b → c → a',
+      'b failed: is in a dependency cycle: a → b → c → a',
+      'c failed: is in a dependency cycle: a → b → c → a',
+    ]);
   });
 
-  it('given an apiVersion the SDK does not support, fails naming the supported version', () => {
-    expect(problemsOf(() => createExtensionRegistry([manifest('vpn', { apiVersion: EXTENSION_API_VERSION + 1 })])))
-      .toEqual([`"vpn" targets extension API ${String(EXTENSION_API_VERSION + 1)}; this Stackmap supports ${String(EXTENSION_API_VERSION)}`]);
+  it('marks failed an extension targeting an unsupported apiVersion, naming the supported version', () => {
+    expect(summary([manifest('vpn', { apiVersion: EXTENSION_API_VERSION + 1 })])).toEqual([
+      `vpn failed: targets extension API ${String(EXTENSION_API_VERSION + 1)}; `
+      + `this Stackmap supports ${String(EXTENSION_API_VERSION)}`,
+    ]);
   });
 
-  it('given an always-on extension depending on one that is not always on, fails', () => {
+  it('given an always-on extension depending on one that is not always on, throws', () => {
     expect(problemsOf(() => createExtensionRegistry([
       manifest('core', { alwaysOn: true, dependsOn: ['tls'] }),
       manifest('tls'),
     ]))).toEqual(['"core" is always on but depends on "tls", which can be turned off']);
   });
 
-  it('given two extensions contributing the same kind for the same entity, fails naming the kind and both extensions', () => {
-    expect(problemsOf(() => createExtensionRegistry([
+  it('marks failed the later extension contributing the same kind for the same entity, naming both', () => {
+    expect(summary([
       manifest('vpn', { kinds: { network: [kind('vpn', 'vpn')] } }),
       manifest('wireguard', { kinds: { network: [kind('wireguard', 'vpn')], service: [kind('wireguard', 'vpn')] } }),
-    ]))).toEqual(['network kind "vpn" is contributed by both "vpn" and "wireguard"']);
-  });
-
-  it('given several problems, fails with an ExtensionRegistryError listing all of them', () => {
-    let error: unknown;
-    try {
-      createExtensionRegistry([manifest('vpn'), manifest('vpn'), manifest('proxy', { dependsOn: ['tls'] })]);
-    } catch (thrown) {
-      error = thrown;
-    }
-
-    expect(error).toBeInstanceOf(ExtensionRegistryError);
-    expect(error).toMatchObject({
-      problems: ['extension "vpn" is installed twice', '"proxy" depends on "tls", which is not installed'],
-      message: expect.stringMatching(/- extension "vpn" is installed twice\n- "proxy" depends on "tls"/) as string,
-    });
+    ])).toEqual(['vpn active', 'wireguard failed: adds network kind "vpn", which "vpn" already adds']);
   });
 
   it('kinds(entity) returns the kinds of every extension, with the contributing extension, in registry order', () => {
@@ -122,5 +134,108 @@ describe('createExtensionRegistry', () => {
     expect(registry.hasKind('network', 'vpn')).toBe(true);
     expect(registry.hasKind('network', 'docker')).toBe(false);
     expect(registry.hasKind('host', 'vpn')).toBe(false);
+  });
+});
+
+describe('createExtensionRegistry: states', () => {
+  it('gives each extension a state, active or failed with its errors', () => {
+    const registry = createExtensionRegistry([manifest('vpn'), manifest('proxy', { dependsOn: ['tls'] })]);
+
+    expect(registry.get('vpn')).toMatchObject({ state: 'active', errors: [] });
+    expect(registry.get('proxy')).toMatchObject({
+      state: 'failed',
+      errors: ['depends on "tls", which is not installed'],
+    });
+    expect(registry.active.map(({ id }) => id)).toEqual(['vpn']);
+  });
+
+  it('marks the later extension failed on a duplicate id, a kind conflict or a locale declared differently', () => {
+    const deutsch = { code: 'de', language: 'de-DE', name: 'Deutsch' };
+
+    expect(summary([
+      manifest('a', { locales: [deutsch] }),
+      manifest('b', { locales: [{ ...deutsch, name: 'German' }] }),
+      manifest('c', { locales: [deutsch, { code: 'fr', language: 'fr-FR', name: 'French' }] }),
+      manifest('d', { locales: [deutsch, { code: 'fr', language: 'fr-FR', name: 'Français' }] }),
+    ], { appLocales: APP_LOCALES })).toEqual([
+      'a active',
+      'b failed: declares locale "de" as German (de-DE), which "a" declares as Deutsch (de-DE)',
+      'c failed: declares locale "fr" as French (fr-FR), which the app declares as Français (fr-FR)',
+      'd active',
+    ]);
+  });
+
+  it('marks failed an extension whose code is declared but not shipped, or shipped but not declared', () => {
+    const servers: ExtensionServer[] = [{ extension: 'shipped', hooks: {} }, { extension: 'both', hooks: {} }];
+
+    expect(summary([
+      manifest('declared', { code: { server: true } }),
+      manifest('shipped'),
+      manifest('both', { code: { server: true } }),
+    ], { servers })).toEqual([
+      'both active',
+      'declared failed: declares code.server but ships no server code',
+      'shipped failed: ships server code but does not declare code.server',
+    ]);
+    expect(createExtensionRegistry([manifest('both', { code: { server: true } })], { servers }).get('both')?.server)
+      .toBe(servers[1]);
+  });
+
+  it('marks failed the dependents of a failed extension, naming the extension they needed', () => {
+    expect(summary([
+      manifest('tls', { apiVersion: EXTENSION_API_VERSION + 1 }),
+      manifest('proxy', { dependsOn: ['tls'] }),
+      manifest('waf', { dependsOn: ['proxy'] }),
+    ])).toEqual([
+      `tls failed: targets extension API ${String(EXTENSION_API_VERSION + 1)}; `
+      + `this Stackmap supports ${String(EXTENSION_API_VERSION)}`,
+      'proxy failed: needs "tls", which failed',
+      'waf failed: needs "proxy", which failed',
+    ]);
+  });
+
+  it('given a failed always-on extension, throws with every problem', () => {
+    expect(problemsOf(() => createExtensionRegistry([
+      manifest('core', { alwaysOn: true, apiVersion: EXTENSION_API_VERSION + 1 }),
+      manifest('vpn', { dependsOn: ['missing'] }),
+    ]))).toEqual([
+      `"core" targets extension API ${String(EXTENSION_API_VERSION + 1)}; `
+      + `this Stackmap supports ${String(EXTENSION_API_VERSION)}`,
+      '"vpn" depends on "missing", which is not installed',
+    ]);
+  });
+
+  it('failed extensions contribute nothing: no kinds, no hooks, no locales', () => {
+    const registry = createExtensionRegistry([
+      manifest('vpn', {
+        apiVersion: EXTENSION_API_VERSION + 1,
+        kinds: { network: [kind('vpn', 'vpn')] },
+        locales: [{ code: 'de', language: 'de-DE', name: 'Deutsch' }],
+      }),
+    ]);
+
+    expect(registry.kinds('network')).toEqual([]);
+    expect(registry.hasKind('network', 'vpn')).toBe(false);
+    expect(registry.locales()).toEqual([]);
+    expect(registry.active).toEqual([]);
+  });
+
+  it('fail(id) marks an extension and its dependents failed at runtime; failing an always-on extension throws', () => {
+    const registry = createExtensionRegistry([
+      manifest('core', { alwaysOn: true }),
+      manifest('tls'),
+      manifest('proxy', { dependsOn: ['tls'] }),
+    ]);
+
+    registry.fail('tls', 'setup failed: certificate store unreachable');
+
+    expect(registry.extensions.map(({ manifest: { id }, state, errors }) => [id, state, errors])).toEqual([
+      ['core', 'active', []],
+      ['tls', 'failed', ['setup failed: certificate store unreachable']],
+      ['proxy', 'failed', ['needs "tls", which failed']],
+    ]);
+    expect(() => {
+      registry.fail('core', 'setup failed: boom');
+    }).toThrow(ExtensionRegistryError);
   });
 });

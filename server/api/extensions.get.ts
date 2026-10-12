@@ -4,6 +4,7 @@ import { listExtensions } from '../../shared/contracts/extensions';
 import { defineContractHandler } from '../utils/contract-handler';
 import { useExtensionRegistry } from '../utils/extensions';
 
+import type { RegisteredExtension } from '../extensions/registry';
 import type { ExtensionManifest, KindEntity } from '@stackmap/extension-sdk';
 
 const warned = new Set<string>();
@@ -27,23 +28,25 @@ const kindsOf = (extension: ExtensionManifest, entity: KindEntity) =>
     ...knownIcon(icon, `"${extension.id}"`),
   }));
 
-const toExtension = (extension: ExtensionManifest) => ({
-  id: extension.id,
-  version: extension.version,
-  name: extension.name,
-  description: extension.description,
-  ...knownIcon(extension.icon, `"${extension.id}"`),
-  alwaysOn: extension.alwaysOn,
-  dependsOn: [...extension.dependsOn],
-  // Per-workspace toggles arrive with phase 5; until then every installed extension is on.
-  enabled: true,
-  kinds: {
-    host: kindsOf(extension, 'host'),
-    network: kindsOf(extension, 'network'),
-    service: kindsOf(extension, 'service'),
-    protocol: kindsOf(extension, 'protocol'),
-  },
-});
+/** A failed extension is listed with its state, but contributes nothing. */
+const toExtension = ({ manifest, state }: RegisteredExtension) => {
+  const contributes = state === 'active';
+  const kinds = (entity: KindEntity) => (contributes ? kindsOf(manifest, entity) : []);
+  return {
+    id: manifest.id,
+    version: manifest.version,
+    name: manifest.name,
+    description: manifest.description,
+    ...knownIcon(manifest.icon, `"${manifest.id}"`),
+    alwaysOn: manifest.alwaysOn,
+    dependsOn: [...manifest.dependsOn],
+    state,
+    // Per-workspace toggles arrive with phase 5; until then every installed extension is on.
+    enabled: true,
+    kinds: { host: kinds('host'), network: kinds('network'), service: kinds('service'), protocol: kinds('protocol') },
+    locales: contributes ? [...(manifest.contributes.locales ?? [])] : [],
+  };
+};
 
 export default defineContractHandler(listExtensions, () => ({
   status: 200,

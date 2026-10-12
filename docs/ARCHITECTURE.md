@@ -71,41 +71,69 @@ to a workspace; tests prove that one workspace cannot read or change another's d
 
 ## Extensions
 
-The core and the built-in extensions use the same SDK, which proves it is sufficient. The core itself is the
-always-on extension `extensions/core`.
+Users customise Stackmap with extensions, in the spirit of VS Code or Chromium. The core and the built-in extensions
+use the same SDK, which proves it is sufficient; the core itself is the always-on extension `extensions/core`. Users
+are responsible for what they install, and Stackmap makes the risk visible: a manifest declares whether the extension
+runs code, installing one that does shows a warning, and an update that starts running code is turned off until an
+admin approves it again _(install flows: phase 5; community extensions: after v1)_.
 
 - **SDK** (`packages/extension-sdk`, `@stackmap/extension-sdk`): `defineExtension()` validates a manifest when it is
-  defined: a kebab-case id, a semver version, the extension `apiVersion` it targets, its name and description as i18n
-  keys under `extensions.<id>.`, an optional icon (a Lucide name, or an image in the extension's own
-  `public/extensions/<id>/`; never a remote URL), `alwaysOn`, `dependsOn`, and what it contributes. `checkExtension()`
-  (`@stackmap/extension-sdk/testing`) checks what a manifest refers to: every key in English and French, the same keys
-  in both, existing icons.
+  defined: a kebab-case id (not `app`, `route`, `locale` or `extension`, which the app's hooks use), a semver version,
+  the extension `apiVersion` it targets, its name and description as i18n keys under `extensions.<id>.`, an optional
+  icon (a Lucide name, or an image in its own `public/extensions/<id>/`; never a remote URL), `alwaysOn`, `dependsOn`,
+  `enhances` (optional dependencies), `code` (`server`, `client`), and what it contributes: kinds, hooks, locales.
+  `checkExtension()` (`@stackmap/extension-sdk/testing`) checks what a manifest refers to: its keys in English and
+  French, placeholders matching English, its namespace, existing icons.
 - **Built-in extensions** live in `extensions/<id>/`. Each is a pnpm workspace package and a Nuxt layer, extended by
-  `nuxt.config.ts`, so its `i18n/locales/` merge with the app's (and, later, its pages and components).
-  `server/extensions/builtin.ts` lists them; tests check that every package is listed, translated and versioned, and
-  that it keeps to its own keys (`extensions.<id>.`) and files (`public/extensions/<id>/`). A layer runs code at build
-  time and shares the app's namespace, so only reviewed extensions from this repository become layers; how external
-  extensions run is decided after a security review.
-- **Registry** (`server/extensions/registry.ts`): built at startup by `server/plugins/extensions.ts`, which exits with
-  every problem when the extensions do not fit together (duplicate ids, missing dependencies, cycles, an unsupported
-  API version, an always-on extension depending on an optional one, a kind added twice). It orders extensions
-  dependencies first and indexes their kinds: `kinds(entity)` and `hasKind(entity, id)` validate the kind columns.
+  `nuxt.config.ts` (pages and components later). Tests check that every package is listed, translated and versioned,
+  and that it keeps to its own keys and files. A layer runs code at build time and shares the app's namespace, so only
+  reviewed extensions from this repository become layers.
+- **Code and hooks**: an extension's server code (`server.ts`, `defineExtensionServer`) has a `setup(context)` and hook
+  handlers; its browser code (`client.ts`, `defineExtensionClient`) has hook handlers. The app calls `app:ready` (once
+  the database is migrated), `app:close` (before the database closes), and in the browser `app:mounted`,
+  `route:changed` and `locale:changed`; server code calls any hook with `useExtensionHooks().callHook()`. An extension
+  declares its own hooks (`<id>:<name>`) and calls them through its context; others may handle them if they depend on
+  it or enhance it. Handlers run in registry order, each with its own copy of the payload, which is plain JSON (checked
+  outside production) so that extension code can later run in another process. A failing handler is logged with its
+  extension and the others carry on; so is one that takes over 10 s. Hooks observe; they cannot change the payload or
+  cancel the event. An extension's hooks are frozen when it is defined, so it cannot add handlers after the check.
+- **Registry and failures** (`server/extensions/registry.ts`, started by `server/plugins/00.extensions.ts`): it orders
+  extensions dependencies first. An extension that does not fit (missing dependency, cycle, unsupported API version,
+  duplicate id, kind or locale clash, code declared but not shipped or the reverse, a hook it may not handle, a
+  `setup` that throws or takes over 30 s) is marked failed with its errors and turned off, with its dependents; the
+  app keeps running. Only a failed always-on extension stops the server. Failed extensions contribute nothing.
+  `kinds(entity)` and `hasKind(entity, id)` validate the kind columns.
 - **Kinds** (host, network, service and protocol kinds) are text values stored by id, unique per entity across
   extensions, so an extension adds one without a migration.
-- `GET /api/extensions` lists the installed extensions with their kinds; strings are i18n keys. `enabled` is `true` for
-  all of them until the per-workspace toggles. An icon the app cannot show is left out, and `ExtensionIcon` shows a
-  generic fallback icon when the icon is missing, remote, or an image does not load.
+- **Locale packs**: an extension may add languages (`contributes.locales`), and several may add the same one. At build
+  time, `modules/extension-locales.ts` merges every extension's locale files per language. Only a key's owner (the
+  app, or the extension of `extensions.<id>.…`) and the packs that declare the language may translate it, so no other
+  extension can reword the app's strings, its warnings included; the owner wins, then the first declaring pack in
+  registry order. A key a language does not translate falls back to English, so a pack may lag behind the app.
+  English and French stay complete.
+- **Diagnostics**: `GET /api/extensions` lists the extensions with their state, kinds and languages (strings are i18n
+  keys; `enabled` is `true` until the per-workspace toggles). `GET /api/extensions/diagnostics` (admin) adds their
+  errors (credentials masked; the logs keep them whole), declared code, hooks provided and handled, and per language
+  the coverage, missing keys and conflicts. Logs name the extension (`[extension:<id>]`); `STACKMAP_DEBUG=extensions`
+  traces every hook call on the server (handlers, durations, errors), and `localStorage['stackmap:debug'] =
+  'extensions'` does the same in the browser. An icon the app cannot show is left out, and `ExtensionIcon` shows a
+  generic fallback icon.
 
 _(Planned.)_ Extensions will also contribute entity types, fields, flow types, **flow derivers** (turn its entities
-into flows), **trace hop resolvers** (resolve the next hop through its entities), templates, wizard questions, themes,
-locales and, for built-in extensions, code such as connectors and checks.
+into flows), **trace hop resolvers** (resolve the next hop through its entities), templates, wizard questions and
+themes, and domain events will join the hooks as the features that emit them arrive.
 
-Workspace admins will turn extensions on or off _(planned)_. Turning one off never deletes data:
+Admins install and remove extensions, and workspace admins turn them on or off _(planned, phase 5; who may do it is a
+permission)_. Turning one off never deletes data:
 
 1. if its entities carry live flows, the admin is warned first;
 2. its types disappear from palettes, forms, search and filters;
 3. its entities that are still connected show as greyed "hidden" boxes in graphs and traces, so paths stay continuous;
 4. once a hidden entity has no connection left, the user chooses to delete it or keep it hidden.
+
+Removing an extension keeps its data by default (hidden, restored on reinstall); "remove and delete data" shows what
+will be deleted, asks for confirmation, offers an export and is audit-logged. An extension others depend on cannot be
+removed until they are turned off.
 
 ## API
 

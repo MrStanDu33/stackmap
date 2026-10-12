@@ -115,6 +115,29 @@
           }
         }
       }
+    },
+    "/api/extensions/diagnostics": {
+      "get": {
+        "operationId": "getExtensionDiagnostics",
+        "summary": "Diagnose the installed extensions",
+        "description": "For admins, extension authors and maintainers: states, errors, code, hooks and translation coverage.",
+        "tags": [
+          "Extensions"
+        ],
+        "x-required-role": "admin",
+        "responses": {
+          "200": {
+            "description": "The extensions and languages, with their diagnostics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionDiagnostics"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -178,6 +201,14 @@
               "type": "string"
             }
           },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "failed"
+            ],
+            "description": "A failed extension contributes nothing"
+          },
           "enabled": {
             "type": "boolean",
             "description": "Always true until extensions can be turned off per workspace"
@@ -217,6 +248,12 @@
               "protocol"
             ],
             "additionalProperties": false
+          },
+          "locales": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtensionLocale"
+            }
           }
         },
         "required": [
@@ -226,8 +263,10 @@
           "description",
           "alwaysOn",
           "dependsOn",
+          "state",
           "enabled",
-          "kinds"
+          "kinds",
+          "locales"
         ],
         "additionalProperties": false,
         "description": "An installed extension"
@@ -252,6 +291,190 @@
         ],
         "additionalProperties": false,
         "description": "A kind an extension adds to a core entity"
+      },
+      "ExtensionLocale": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string",
+            "description": "BCP 47 language tag"
+          },
+          "name": {
+            "type": "string",
+            "description": "The language's name in that language"
+          }
+        },
+        "required": [
+          "code",
+          "language",
+          "name"
+        ],
+        "additionalProperties": false,
+        "description": "A language an extension adds"
+      },
+      "ExtensionDiagnostics": {
+        "type": "object",
+        "properties": {
+          "extensions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "failed"
+                  ],
+                  "description": "A failed extension contributes nothing"
+                },
+                "errors": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "code": {
+                  "type": "object",
+                  "properties": {
+                    "server": {
+                      "type": "boolean"
+                    },
+                    "client": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "server",
+                    "client"
+                  ],
+                  "additionalProperties": false
+                },
+                "hooks": {
+                  "type": "object",
+                  "properties": {
+                    "provides": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Hooks the extension declares, as <id>:<name>"
+                    },
+                    "handles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Server hooks the extension handles"
+                    }
+                  },
+                  "required": [
+                    "provides",
+                    "handles"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "id",
+                "version",
+                "state",
+                "errors",
+                "code",
+                "hooks"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "language": {
+                  "type": "string",
+                  "description": "BCP 47 language tag"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "The language's name in that language"
+                },
+                "coverage": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Share of the English keys translated"
+                },
+                "missing": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "conflicts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "key": {
+                        "type": "string"
+                      },
+                      "winner": {
+                        "description": "The extension whose translation is used; null: the app",
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ignored": {
+                        "type": "array",
+                        "items": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "winner",
+                      "ignored"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "code",
+                "language",
+                "name",
+                "coverage",
+                "missing",
+                "conflicts"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "extensions",
+          "languages"
+        ],
+        "additionalProperties": false,
+        "description": "What each extension does, why it failed, and translation coverage"
       }
     }
   }

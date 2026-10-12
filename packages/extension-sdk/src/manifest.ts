@@ -21,6 +21,23 @@ export interface Kind {
 
 export type KindContributions = Partial<Record<KindEntity, readonly Kind[]>>;
 
+/** A hook an extension declares; others call it `<extension id>:<name>`. */
+export interface HookDeclaration {
+  name: string;
+  side: 'server' | 'client';
+  description: string;
+}
+
+/** A language an extension adds (a locale pack). */
+export interface LocaleDeclaration {
+  /** As used in URLs and settings: `de`, `pt-BR`. */
+  code: string;
+  /** BCP 47 language tag: `de-DE`. */
+  language: string;
+  /** The language's name in that language: "Deutsch". */
+  name: string;
+}
+
 export interface ExtensionManifest {
   id: string;
   version: string;
@@ -31,14 +48,22 @@ export interface ExtensionManifest {
   /** Cannot be turned off (the core). */
   alwaysOn: boolean;
   dependsOn: readonly string[];
-  contributes: { kinds: KindContributions };
+  /** Optional dependencies: extensions this one extends when they are there. */
+  enhances?: readonly string[];
+  /** Whether the extension runs code; users are warned before installing one that does. */
+  code?: { server?: boolean; client?: boolean };
+  contributes: {
+    kinds: KindContributions;
+    hooks?: readonly HookDeclaration[];
+    locales?: readonly LocaleDeclaration[];
+  };
 }
 
 /** What an extension declares; defineExtension fills in the defaults. */
 export type ExtensionManifestInput = Omit<ExtensionManifest, 'alwaysOn' | 'dependsOn' | 'contributes'> & {
   alwaysOn?: boolean;
   dependsOn?: readonly string[];
-  contributes?: { kinds?: KindContributions };
+  contributes?: Partial<ExtensionManifest['contributes']>;
 };
 
 export class ExtensionManifestError extends Error {
@@ -55,7 +80,14 @@ export const lucideIconExists = (icon: string): boolean => {
   return icon.startsWith('i-lucide-') && (name in lucide.icons || name in (lucide.aliases ?? {}));
 };
 
+/** Prefixes of the app's own hooks (`app:ready`, `route:changed`…): no extension may take them as its id. */
+export const RESERVED_EXTENSION_IDS: readonly string[] = ['app', 'route', 'locale', 'extension'];
+
 const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+/** `de`, `pt-BR`, `zh-Hant`. */
+const LOCALE_CODE = /^[a-z]{2,3}(?:-[A-Z]{2}|-[A-Z][a-z]{3})?$/;
+/** A BCP 47 tag: `de-DE`, `pt-BR`. */
+const LANGUAGE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
 const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const LUCIDE_ICON = /^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** An image path inside the extension's own directory: no `..`, no other extension, local formats only. */
@@ -65,8 +97,22 @@ const kebabCase = z.string().regex(KEBAB_CASE, 'must be kebab-case (lowercase le
 
 const kinds = z.array(z.strictObject({ id: kebabCase, label: z.string(), icon: z.string().optional() })).optional();
 
+const hooks = z.array(z.strictObject({
+  name: kebabCase,
+  side: z.enum(['server', 'client']),
+  description: z.string().trim().min(1, 'must not be empty'),
+})).optional();
+
+const locales = z.array(z.strictObject({
+  code: z.string().regex(LOCALE_CODE, 'must be a locale code, such as de or pt-BR'),
+  language: z.string().regex(LANGUAGE_TAG, 'must be a BCP 47 language tag, such as de-DE'),
+  name: z.string().trim().min(1, 'must be the language\'s name, in that language'),
+})).optional();
+
 const manifestSchema = z.strictObject({
-  id: kebabCase.max(40, 'must be at most 40 characters'),
+  id: kebabCase
+    .max(40, 'must be at most 40 characters')
+    .refine((id) => !RESERVED_EXTENSION_IDS.includes(id), 'is reserved for the app\'s own hooks'),
   version: z.string().regex(SEMVER, 'must be a semantic version, such as 1.2.0'),
   apiVersion: z.number().int().positive(),
   name: z.string(),
@@ -74,8 +120,12 @@ const manifestSchema = z.strictObject({
   icon: z.string().optional(),
   alwaysOn: z.boolean().default(false),
   dependsOn: z.array(kebabCase).default([]),
+  enhances: z.array(kebabCase).optional(),
+  code: z.strictObject({ server: z.boolean().optional(), client: z.boolean().optional() }).optional(),
   contributes: z.strictObject({
     kinds: z.strictObject({ host: kinds, network: kinds, service: kinds, protocol: kinds }).default({}),
+    hooks,
+    locales,
   }).default({ kinds: {} }),
 }).superRefine((manifest, context) => {
   // Checks that depend on the extension's id: its namespace for strings and its directory for images.

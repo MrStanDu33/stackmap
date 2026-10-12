@@ -47,6 +47,12 @@ Behind a TLS-inspecting proxy, downloads made by Node (such as `playwright insta
 | `pnpm check:stories`   | Fail if a component has no story                                     |
 | `pnpm commit`          | Write a commit message interactively with gitmoji                    |
 
+### Debugging extensions
+
+- `STACKMAP_DEBUG=extensions pnpm dev` traces every server hook call: handlers in order, durations, errors.
+- In the browser console: `localStorage.setItem('stackmap:debug', 'extensions')`, then reload.
+- `GET /api/extensions/diagnostics`: each extension's state and errors, its code and hooks, and translation coverage.
+
 ## How we work: tests first
 
 Tests are the specification. A feature starts with **test names that state its acceptance criteria**, reviewed before

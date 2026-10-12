@@ -1,9 +1,3 @@
-// A Nuxt layer of the app: its locale files are merged with the app's.
-export default defineNuxtConfig({
-  i18n: {
-    locales: [
-      { code: 'en', file: 'en.json' },
-      { code: 'fr', file: 'fr.json' },
-    ],
-  },
-});
+// A Nuxt layer of the app: its pages and components (later) join the app's. Its locale files are merged by
+// modules/extension-locales.ts, with every other extension's.
+export default defineNuxtConfig({});

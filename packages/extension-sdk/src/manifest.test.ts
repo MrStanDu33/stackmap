@@ -134,3 +134,53 @@ describe('defineExtension', () => {
     });
   });
 });
+
+describe('defineExtension: platform fields', () => {
+  it('accepts code: { server, client }; without it, the extension runs no code', () => {
+    expect(defineExtension({ ...minimal(), code: { server: true, client: true } }).code)
+      .toEqual({ server: true, client: true });
+    expect(defineExtension(minimal()).code).toBeUndefined();
+  });
+
+  it('accepts its own hooks, contributes.hooks with a kebab-case name, a side and a description, known as <id>:<name>', () => {
+    const hook = { name: 'route-added', side: 'server', description: 'A proxy route was added' } as const;
+
+    expect(defineExtension({ ...minimal(), contributes: { hooks: [hook] } }).contributes.hooks).toEqual([hook]);
+    expect(problemsOf(() => defineExtension({ ...minimal(), contributes: { hooks: [{ ...hook, name: 'Route_Added' }] } })))
+      .toEqual([expect.stringMatching(/^contributes\.hooks\.0\.name: /)]);
+    expect(problemsOf(() => defineExtension({ ...minimal(), contributes: { hooks: [{ ...hook, side: 'both' as never }] } })))
+      .toEqual([expect.stringMatching(/^contributes\.hooks\.0\.side: /)]);
+  });
+
+  it('accepts optional dependencies in enhances', () => {
+    expect(defineExtension({ ...minimal(), enhances: ['tls'] }).enhances).toEqual(['tls']);
+    expect(problemsOf(() => defineExtension({ ...minimal(), enhances: ['Not Valid'] })))
+      .toEqual([expect.stringMatching(/^enhances\.0: /)]);
+  });
+
+  it('accepts contributed locales (code, BCP 47 language tag, name) and fails naming the path when invalid', () => {
+    const locales = [
+      { code: 'de', language: 'de-DE', name: 'Deutsch' },
+      { code: 'pt-BR', language: 'pt-BR', name: 'Português (Brasil)' },
+    ];
+
+    expect(defineExtension({ ...minimal(), contributes: { locales } }).contributes.locales).toEqual(locales);
+    for (const invalid of [{ code: 'DE' }, { code: 'deutsch' }, { language: 'de_DE' }, { name: ' ' }]) {
+      const field = Object.keys(invalid)[0] ?? '';
+      const locale = { ...locales[0]!, ...invalid };
+      expect(problemsOf(() => defineExtension({ ...minimal(), contributes: { locales: [locale] } })))
+        .toEqual([expect.stringMatching(new RegExp(`^contributes\\.locales\\.0\\.${field}: `))]);
+    }
+  });
+
+  it('refuses ids reserved for the app\'s own hooks: app, route, locale, extension', () => {
+    for (const id of ['app', 'route', 'locale', 'extension']) {
+      expect(problemsOf(() => defineExtension({
+        ...minimal(),
+        id,
+        name: `extensions.${id}.name`,
+        description: `extensions.${id}.description`,
+      }))).toEqual([expect.stringMatching(/^id: .*reserved/)]);
+    }
+  });
+});

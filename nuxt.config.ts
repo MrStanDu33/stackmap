@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 
 import { findExtensionLayers } from './scripts/extensions/layers.mjs';
+import { APP_LOCALES } from './shared/i18n/locales';
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -64,10 +65,8 @@ export default defineNuxtConfig({
     // URLs carry no locale prefix: the locale comes from the user setting, then the cookie, then the browser.
     strategy: 'no_prefix',
     defaultLocale: 'en',
-    locales: [
-      { code: 'en', language: 'en-US', name: 'English', file: 'en.json' },
-      { code: 'fr', language: 'fr-FR', name: 'Français', file: 'fr.json' },
-    ],
+    // The app's languages; modules/extension-locales.ts adds the extensions' strings and the languages they add.
+    locales: APP_LOCALES.map((locale) => ({ ...locale })),
     detectBrowserLanguage: {
       useCookie: true,
       cookieKey: 'stackmap_locale',

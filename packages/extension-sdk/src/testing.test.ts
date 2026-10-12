@@ -99,3 +99,50 @@ describe('checkExtension', () => {
     expect(checkExtension(withoutIcons, { ...files(), publicFiles: [] })).toEqual([]);
   });
 });
+
+describe('checkExtension: locale packs', () => {
+  const pack: ExtensionManifest = {
+    id: 'german',
+    version: '1.0.0',
+    apiVersion: 1,
+    name: 'extensions.german.name',
+    description: 'extensions.german.description',
+    alwaysOn: false,
+    dependsOn: [],
+    contributes: { kinds: {}, locales: [{ code: 'de', language: 'de-DE', name: 'Deutsch' }] },
+  };
+  const en = { extensions: { german: { name: 'German', description: 'German for Stackmap' } } };
+  const fr = { extensions: { german: { name: 'Allemand', description: 'L\'allemand pour Stackmap' } } };
+
+  it('in a language the extension contributes, accepts any key; in other languages, keeps to its namespace', () => {
+    const de = { app: { name: 'Stackmap' }, extensions: { german: { name: 'Deutsch' }, vpn: { name: 'VPN' } } };
+
+    expect(checkExtension(pack, { messages: { en, fr, de }, publicFiles: [] })).toEqual([]);
+    expect(checkExtension(pack, { messages: { en, fr: { ...fr, app: { name: 'Stackmap' } }, de }, publicFiles: [] }))
+      .toEqual(['app.name is outside extensions.german.']);
+  });
+
+  it('reports keys missing from a contributed language as coverage, not as problems', () => {
+    expect(checkExtension(pack, { messages: { en, fr, de: { app: { name: 'Stackmap' } } }, publicFiles: [] }))
+      .toEqual([]);
+  });
+
+  it('reports a message whose placeholders differ from English, in every locale file', () => {
+    const withPeers = (messages: typeof en, peers: string) =>
+      ({ extensions: { german: { ...messages.extensions.german, peers } } });
+
+    expect(checkExtension(pack, {
+      messages: {
+        en: withPeers(en, '{count} peers'),
+        fr: withPeers(fr, '{total} pairs'),
+        de: { app: { greeting: 'Hallo {user}' }, extensions: { german: { peers: '{count} Gegenstellen {extra}' } } },
+      },
+      publicFiles: [],
+      reference: { app: { greeting: 'Hello {name}' } },
+    }).sort()).toEqual([
+      'app.greeting has {user} in de but {name} in English',
+      'extensions.german.peers has {count} {extra} in de but {count} in English',
+      'extensions.german.peers has {total} in fr but {count} in English',
+    ]);
+  });
+});
