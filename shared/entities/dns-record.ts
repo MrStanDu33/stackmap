@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { defineEntitySchema, entityId, line } from './common';
-import { normalizeDnsName, normalizeIp } from './network-values';
+import { ASCII, normalizeDnsName, normalizeIp } from './network-values';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from './common';
 
@@ -39,8 +39,8 @@ const RECORD_LABEL = /^(?:_?(?!-)[a-z0-9-]{1,63}(?<!-))$/;
 const recordName = () => z.string().min(1).max(253).transform((text, context) => {
   const name = text.toLowerCase();
   const labels = name.split('.');
-  const valid = name === '@'
-    || labels.every((label, index) => RECORD_LABEL.test(label) || (index === 0 && label === '*'));
+  const valid = ASCII.test(text) && (name === '@'
+    || labels.every((label, index) => RECORD_LABEL.test(label) || (index === 0 && label === '*')));
   if (!valid) {
     context.addIssue({ code: 'custom', message: 'Expected @ or a name relative to the domain, such as www or *.dev' });
     return z.NEVER;

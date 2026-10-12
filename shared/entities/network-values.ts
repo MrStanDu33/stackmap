@@ -9,6 +9,8 @@ const IPV4_OCTET = String.raw`(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)`;
 const IPV4 = new RegExp(`^${IPV4_OCTET}(?:\\.${IPV4_OCTET}){3}$`);
 const IPV6_GROUP = /^[0-9a-f]{1,4}$/i;
 const DNS_LABEL = /^(?!-)[a-z0-9-]{1,63}(?<!-)$/;
+// eslint-disable-next-line no-control-regex -- every ASCII character, controls included; labels check the rest.
+export const ASCII = /^[\u0000-\u007F]*$/;
 const MAX_DNS_NAME = 253;
 
 interface Ip {
@@ -142,6 +144,10 @@ export function cidrContains(cidr: string, address: string): boolean {
 
 /** Lowercase without a trailing dot, or undefined when it is not a DNS name with at least `minLabels` labels. */
 export function normalizeDnsName(text: string, minLabels = 1): string | undefined {
+  // Before lowercasing, which turns some non-ASCII letters into ASCII ones (the Kelvin sign into k).
+  if (!ASCII.test(text)) {
+    return undefined;
+  }
   const name = text.toLowerCase().replace(/\.$/, '');
   const labels = name.split('.');
   if (name.length === 0 || name.length > MAX_DNS_NAME || labels.length < minLabels) {

@@ -44,9 +44,9 @@ export interface EntitySchema<Fields, Input> {
   patch: z.ZodType<Partial<Fields>, Partial<Input>>;
 }
 
-/** One line of text: no control characters at all. */
+/** One line of text: no control characters at all, nor the invisible and bidi characters free text refuses. */
 // eslint-disable-next-line no-control-regex -- the point is to refuse control characters.
-const LINE = /^[^\u0000-\u001F\u007F]*$/;
+const LINE = /^[^\u0000-\u001F\u007F-\u009F\u200B\u200C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ORIGIN = /^(?:manual|connector:[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$/;
 

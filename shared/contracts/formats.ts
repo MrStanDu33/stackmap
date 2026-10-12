@@ -3,9 +3,13 @@ import { z } from 'zod';
 // Bounded formats for the API's strings: every string has a maximum length and an anchored pattern, so responses
 // can be validated tightly (outside production, and by API security tools such as 42Crunch).
 
-/** Free text: anything but control characters (tabs and line breaks allowed). */
+/**
+ * Free text: anything but control characters (tabs and line breaks allowed), and invisible or direction-changing
+ * characters that make text read differently than it is (zero-width spaces, bidi overrides and isolates, BOM). The
+ * zero-width joiner stays, for emoji sequences.
+ */
 // eslint-disable-next-line no-control-regex -- the point is to refuse control characters.
-export const TEXT = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$/;
+export const TEXT = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B\u200C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]*$/;
 export const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 /** A semantic version: 1.4.0, 2.0.0-beta.1. */
 export const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
