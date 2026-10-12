@@ -138,8 +138,9 @@ removed until they are turned off.
 ## API
 
 Every route is contract-first. A contract (`defineContract` in `shared/contracts/`) holds the method, path, summary,
-tags, required role, Zod schemas for params, query and body, and one schema per response status; `CONTRACTS` lists
-them all. The route in `server/api/` implements exactly one contract with `defineContractHandler`, which:
+description, tags (declared in `tags.ts`), required role, Zod schemas for params, query and body (each field described,
+with examples), and per response status a description, a schema and examples; `CONTRACTS` lists them all. The route
+in `server/api/` implements exactly one contract with `defineContractHandler`, which:
 
 - reads bodies as JSON only (`415 unsupported_media_type` otherwise, since cross-site forms need no CORS preflight)
   and up to 1 MiB (`413 payload_too_large`, refused while reading);
@@ -149,12 +150,21 @@ them all. The route in `server/api/` implements exactly one contract with `defin
   match, so contract drift fails in tests;
 - answers unexpected errors with `500 internal_error`, logging the details without returning them.
 
-Every error has the same shape: `{ statusCode, code, message, issues? }`. The required role is recorded now and
-enforced from phase 4.
+Every error is RFC 9457 Problem Details, as `application/problem+json`: `type` (`urn:stackmap:problem:<code>`),
+`title`, `status`, `detail`, `instance` (the request path), a stable `code` (listed in `PROBLEMS`) and, for invalid
+values, `issues`. The required role is recorded now and enforced from phase 4.
 
-The OpenAPI 3.1 document is generated from the contracts (`zod-openapi`), served at `/api/openapi.json` and committed
-as `docs/api/openapi.json`; a test fails when the committed file is stale (`pnpm test:unit -u` updates it). `/api/docs`
-renders it with Scalar, bundled in the app: no CDN, remote fonts, telemetry or AI services.
+The OpenAPI 3.1.1 document is generated from the contracts (`zod-openapi`), served at `/api/openapi.json` and committed
+as `docs/api/openapi.json`; a test fails when the committed file is stale (`pnpm test:unit -u` updates it). It
+describes everything the specification offers that applies: info (summary, conventions, contact, license), the
+server as `{scheme}://{host}` (the served document names the instance itself, behind a proxy too), tags, external
+docs, shared error responses, every operation's role, examples and errors, and every property. Every string has a
+maximum length and an anchored pattern, every array a maximum size, and every value a type (`shared/contracts/
+formats.ts`), so responses validate tightly and API security audits (42Crunch) find no open-ended schema. The
+document requires the session cookie (`better-auth.session_token`, `shared/contracts/security.ts`) except on public
+operations; it is enforced once accounts exist (phase 4), which must use that cookie. Tests prove it: it is valid
+OpenAPI, the strict Redocly lint (`redocly.yaml`) reports nothing, and every example matches its schema.
+`/api/docs` renders it with Scalar, bundled in the app: no CDN, remote fonts, telemetry or AI services.
 
 `GET /api/health` answers `200` with the app version when the database answers, `503` otherwise; the Docker
 healthcheck calls it. The database error goes to the logs, never to the response.

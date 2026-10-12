@@ -43,3 +43,6 @@ storybook-static
 CLAUDE.local.md
 .claude/settings.local.json
 .ai/
+
+# 42Crunch editor extension (local audit config)
+.42c/

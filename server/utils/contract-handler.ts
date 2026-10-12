@@ -2,13 +2,17 @@ import {
   defineEventHandler,
   getQuery,
   getRequestHeader,
+  getRequestURL,
   getRequestWebStream,
   getRouterParams,
+  setResponseHeader,
   setResponseStatus,
 } from 'h3';
 
+import { MAX_ISSUES, problemOf } from '../../shared/contracts/errors';
+
 import type { Contract } from '../../shared/contracts/contract';
-import type { ApiError } from '../../shared/contracts/errors';
+import type { Problem, ProblemCode } from '../../shared/contracts/errors';
 import type { EventHandler, H3Event } from 'h3';
 import type { z } from 'zod';
 
@@ -31,12 +35,20 @@ export type ContractResult<C extends Contract> = {
 
 export type ContractHandler<C extends Contract> = EventHandler & { contract: C };
 
-type Issue = NonNullable<z.output<typeof ApiError>['issues']>[number];
+type Issue = NonNullable<Problem['issues']>[number];
 
-/** Thrown to answer with an API error instead of the handler's response. */
+/** Thrown to answer with an API problem instead of the handler's response. */
 class ApiFailure extends Error {
-  constructor(readonly statusCode: number, readonly code: string, message: string, readonly issues?: Issue[]) {
-    super(message);
+  readonly issues?: Issue[];
+
+  constructor(readonly code: ProblemCode, detail: string, issues?: Issue[]) {
+    // A bounded answer: at most MAX_ISSUES issues, and the detail says how many there were.
+    super(issues && issues.length > MAX_ISSUES
+      ? `${detail} Showing the first ${String(MAX_ISSUES)} of ${String(issues.length)} issues.`
+      : detail);
+    if (issues) {
+      this.issues = issues.slice(0, MAX_ISSUES);
+    }
   }
 }
 
@@ -46,7 +58,7 @@ const toIssues = (source: string, error: z.ZodError): Issue[] => error.issues.ma
 }));
 
 const tooLarge = () =>
-  new ApiFailure(413, 'payload_too_large', `The request body is larger than ${String(MAX_BODY_BYTES)} bytes.`);
+  new ApiFailure('payload_too_large', `The request body is larger than ${String(MAX_BODY_BYTES)} bytes.`);
 
 /** Reads the body as text, stopping as soon as it goes over the limit instead of buffering all of it. */
 async function readLimitedBody(event: H3Event): Promise<string> {
@@ -81,7 +93,7 @@ const isJson = (contentType: string) => {
 async function readJsonBody(event: H3Event): Promise<unknown> {
   // Only JSON: cross-site forms and simple fetches (text/plain, form data) are sent without a CORS preflight.
   const contentType = getRequestHeader(event, 'content-type');
-  const unsupported = new ApiFailure(415, 'unsupported_media_type', 'The request body must be JSON (application/json).');
+  const unsupported = new ApiFailure('unsupported_media_type', 'The request body must be JSON (application/json).');
   if (contentType !== undefined && !isJson(contentType)) {
     throw unsupported;
   }
@@ -95,7 +107,7 @@ async function readJsonBody(event: H3Event): Promise<unknown> {
   try {
     return JSON.parse(raw) as unknown;
   } catch {
-    throw new ApiFailure(400, 'validation_failed', 'The request body is not valid JSON.', [
+    throw new ApiFailure('validation_failed', 'The request body is not valid JSON.', [
       { path: 'body', message: 'Invalid JSON' },
     ]);
   }
@@ -121,7 +133,7 @@ async function parseInput<C extends Contract>(contract: C, event: H3Event): Prom
     }
   }
   if (issues.length > 0) {
-    throw new ApiFailure(400, 'validation_failed', 'The request does not match the API contract.', issues);
+    throw new ApiFailure('validation_failed', 'The request does not match the API contract.', issues);
   }
   return input as unknown as ContractInput<C>;
 }
@@ -136,7 +148,7 @@ function checkResult(contract: Contract, { status, body }: { status: number; bod
   if (result?.success !== true) {
     const issues = result ? toIssues('response', result.error) : [{ path: 'status', message: `Undeclared status ${String(status)}` }];
     console.error(`[api] ${contract.operationId} answered ${String(status)} with a response that does not match its contract`, issues);
-    throw new ApiFailure(500, 'invalid_response', `The response of ${contract.operationId} does not match its contract.`, issues);
+    throw new ApiFailure('invalid_response', `The response of ${contract.operationId} does not match its contract.`, issues);
   }
 }
 
@@ -153,17 +165,20 @@ export function defineContractHandler<C extends Contract, const R extends Contra
       setResponseStatus(event, result.status);
       return result.body;
     } catch (error) {
-      const failure = error instanceof ApiFailure ? error : new ApiFailure(500, 'internal_error', 'Something went wrong.');
+      const failure = error instanceof ApiFailure
+        ? error
+        : new ApiFailure('internal_error', 'An unexpected error happened; the server logs have the details.');
       if (!(error instanceof ApiFailure)) {
         console.error(`[api] ${contract.operationId} failed`, error);
       }
-      setResponseStatus(event, failure.statusCode);
-      return {
-        statusCode: failure.statusCode,
-        code: failure.code,
-        message: failure.message,
+      const problem = problemOf(failure.code, {
+        detail: failure.message,
+        instance: getRequestURL(event).pathname,
         ...(failure.issues === undefined ? {} : { issues: failure.issues }),
-      } satisfies z.input<typeof ApiError>;
+      });
+      setResponseStatus(event, problem.status);
+      setResponseHeader(event, 'content-type', 'application/problem+json');
+      return problem;
     }
   });
   return Object.assign(eventHandler, { contract });
