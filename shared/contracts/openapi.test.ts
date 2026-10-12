@@ -136,8 +136,15 @@ describe('OpenAPI document: top level', () => {
     }
   });
 
-  it('has one relative server, "/", for this Stackmap instance', () => {
-    expect(api.servers).toEqual([{ url: '/', description: 'This Stackmap instance' }]);
+  it('describes the server as an absolute URL template, {scheme}://{host}, with its variables', () => {
+    expect(api.servers).toEqual([{
+      url: '{scheme}://{host}',
+      description: 'A Stackmap instance',
+      variables: {
+        scheme: { default: 'http', enum: ['http', 'https'], description: expect.stringMatching(/\S/) as string },
+        host: { default: 'localhost:3000', description: expect.stringMatching(/\S/) as string },
+      },
+    }]);
   });
 
   it('declares every tag an operation uses, with a description', () => {
