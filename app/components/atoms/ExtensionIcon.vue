@@ -1,15 +1,18 @@
 <script setup lang="ts">
 const props = defineProps<{
-  /** A Lucide icon name (`i-lucide-…`) or an image URL. Missing or broken icons show the generic fallback. */
+  /** A Lucide icon name (`i-lucide-…`) or an image path. Missing, remote or broken icons show the generic fallback. */
   icon?: string;
 }>();
 
 /** Shown when an extension or a kind has no icon, or when its image does not load. */
 const FALLBACK_ICON = 'i-lucide-puzzle';
 
+/** Only images the app serves itself (an extension's public/ files); remote URLs are never loaded. */
+const isSameOriginPath = (icon: string) => icon.startsWith('/') && !icon.startsWith('//');
+
 const brokenImage = ref<string>();
 const image = computed(() =>
-  (props.icon && !props.icon.startsWith('i-') && props.icon !== brokenImage.value ? props.icon : undefined));
+  (props.icon && isSameOriginPath(props.icon) && props.icon !== brokenImage.value ? props.icon : undefined));
 const iconName = computed(() => (props.icon?.startsWith('i-') ? props.icon : FALLBACK_ICON));
 </script>
 
