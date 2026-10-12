@@ -34,14 +34,15 @@ export default defineNitroPlugin((nitroApp) => {
   }
   setExtensionRegistry(registry);
 
-  // After every plugin ran (the database plugin included) and the database is migrated.
+  // After every plugin ran (the database plugin included) and the database is migrated. Requests wait for the
+  // extensions' setup, not for their app:ready handlers.
   const ready = Promise.resolve().then(async () => {
     await useDatabase();
-    const runtime = await startExtensions(registry);
-    await runtime.callHook('app:ready', { version });
-    return runtime;
+    return startExtensions(registry);
   });
-  ready.catch(exitWith);
+  ready
+    .then((runtime) => runtime.callHook('app:ready', { version }))
+    .catch(exitWith);
   setExtensionRuntime(ready);
 
   nitroApp.hooks.hook('request', async () => {

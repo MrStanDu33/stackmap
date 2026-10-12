@@ -45,6 +45,7 @@ export function collectExtensionLocales({ appLocales, appMessages, extensions }:
       { extension: null, messages: appMessages[locale.code] ?? {} },
       ...extensions.map(({ manifest, messages }) => ({
         extension: manifest.id,
+        declares: manifest.contributes.locales?.some(({ code }) => code === locale.code) ?? false,
         messages: messages[locale.code] ?? {},
       })),
     ]),

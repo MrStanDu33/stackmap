@@ -1,4 +1,4 @@
-import { CORE_SERVER_HOOKS, createHookBus, RESERVED_EXTENSION_IDS } from '@stackmap/extension-sdk';
+import { CORE_SERVER_HOOKS, createHookBus, RESERVED_EXTENSION_IDS, withTimeout } from '@stackmap/extension-sdk';
 
 import type { ExtensionRegistry, RegisteredExtension } from './registry';
 import type {
@@ -8,6 +8,24 @@ import type {
 export type ExtensionRuntime = HookBus<ServerHooks>;
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** The defaults: a setup that hangs fails its extension; a hook handler that hangs counts as failed. */
+export const SETUP_TIMEOUT_MS = 30_000;
+export const HOOK_TIMEOUT_MS = 10_000;
+
+/**
+ * Masks credentials in an error kept for diagnostics (the logs keep the full message): passwords in URLs and secret
+ * query parameters.
+ */
+const maskSecrets = (message: string) => message
+  .replace(/(\b[a-z][\w+.-]*:\/\/[^:/\s@]+:)[^@\s]+@/gi, '$1***@')
+  .replace(/\b(password|passwd|pwd|secret|token|api[_-]?key)=[^&\s]+/gi, '$1=***');
+
+/** `<extension id>:<name>`, exactly. */
+const splitHook = (hook: string) => {
+  const parts = hook.split(':');
+  return parts.length === 2 ? { owner: parts[0] ?? '', name: parts[1] ?? '' } : undefined;
+};
 
 const loggerFor = (id: string): ExtensionLogger => ({
   info: (message) => {
@@ -32,8 +50,8 @@ const declares = (manifest: ExtensionManifest, name: string) =>
 function hookErrors(registry: ExtensionRegistry, { manifest, server }: RegisteredExtension): string[] {
   const errors: string[] = [];
   for (const hook of Object.keys(server?.hooks ?? {}).filter((name) => !isCoreHook(name))) {
-    const [owner = '', name = ''] = hook.split(':');
-    if (name === '' || RESERVED_EXTENSION_IDS.includes(owner)) {
+    const { owner = '', name = '' } = splitHook(hook) ?? {};
+    if (name === '' || owner === '' || RESERVED_EXTENSION_IDS.includes(owner)) {
       errors.push(`handles "${hook}", which is not a Stackmap hook`);
     } else if (owner !== manifest.id && !manifest.dependsOn.includes(owner) && !manifest.enhances?.includes(owner)) {
       errors.push(`handles "${hook}" but neither depends on nor enhances "${owner}"`);
@@ -73,7 +91,7 @@ export interface ExtensionRuntimeOptions {
 
 export async function startExtensions(
   registry: ExtensionRegistry,
-  _options: ExtensionRuntimeOptions = {},
+  { setupTimeoutMs = SETUP_TIMEOUT_MS, hookTimeoutMs = HOOK_TIMEOUT_MS }: ExtensionRuntimeOptions = {},
 ): Promise<ExtensionRuntime> {
   const trace = process.env.STACKMAP_DEBUG?.split(',').includes('extensions')
     ? (line: string) => {
@@ -87,6 +105,7 @@ export async function startExtensions(
     },
     trace,
     checkPayloads: process.env.NODE_ENV !== 'production',
+    timeoutMs: hookTimeoutMs,
   });
 
   for (const extension of registry.extensions.filter(({ state }) => state === 'active')) {
@@ -101,7 +120,7 @@ export async function startExtensions(
       return registry.extensions.map(({ manifest: { id, version }, state }) => ({ id, version, state }));
     },
     callHook: async (name, payload) => {
-      const [owner, hookName = ''] = name.split(':');
+      const { owner, name: hookName = '' } = splitHook(name) ?? {};
       if (owner !== manifest.id) {
         throw new Error(`"${manifest.id}" can only call its own hooks (${manifest.id}:…), not "${name}"`);
       }
@@ -118,11 +137,11 @@ export async function startExtensions(
       continue;
     }
     try {
-      await server.setup(contextFor(manifest));
+      await withTimeout(Promise.resolve(server.setup(contextFor(manifest))), setupTimeoutMs);
     } catch (error) {
       loggerFor(manifest.id).error(`setup failed: ${messageOf(error)}`, error);
       // Throws for an always-on extension: the app cannot run without it.
-      registry.fail(manifest.id, `setup failed: ${messageOf(error)}`);
+      registry.fail(manifest.id, `setup failed: ${maskSecrets(messageOf(error))}`);
     }
   }
 

@@ -45,16 +45,20 @@ const ownerOf = (key: string) => (key.startsWith('extensions.') ? key.split('.')
 
 /**
  * Merges every source's messages for a language. The key's owner (the app, or the extension of `extensions.<id>.…`)
- * wins with its own translation; otherwise the first source in order (registry order, the app first).
+ * wins with its own translation; otherwise the first pack declaring the language, in order (registry order).
  */
 export function mergeLocaleMessages(
   language: string,
   sources: readonly LocaleSource[],
 ): { messages: Messages; conflicts: LocaleConflict[] } {
   const candidates = new Map<string, { source: string | null; value: string }[]>();
-  for (const { extension, messages } of sources) {
+  for (const { extension, declares = false, messages } of sources) {
     for (const [key, value] of flattenMessages(messages)) {
-      candidates.set(key, [...(candidates.get(key) ?? []), { source: extension, value }]);
+      // Only a key's owner, or a pack that declares the language, may translate it: no other extension can reword
+      // the app's strings (warnings included) or another extension's.
+      if (declares || ownerOf(key) === extension) {
+        candidates.set(key, [...(candidates.get(key) ?? []), { source: extension, value }]);
+      }
     }
   }
 

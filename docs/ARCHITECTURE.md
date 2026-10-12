@@ -95,25 +95,29 @@ admin approves it again _(install flows: phase 5; community extensions: after v1
   declares its own hooks (`<id>:<name>`) and calls them through its context; others may handle them if they depend on
   it or enhance it. Handlers run in registry order, each with its own copy of the payload, which is plain JSON (checked
   outside production) so that extension code can later run in another process. A failing handler is logged with its
-  extension and the others carry on. Hooks observe; they cannot change the payload or cancel the event.
+  extension and the others carry on; so is one that takes over 10 s. Hooks observe; they cannot change the payload or
+  cancel the event. An extension's hooks are frozen when it is defined, so it cannot add handlers after the check.
 - **Registry and failures** (`server/extensions/registry.ts`, started by `server/plugins/00.extensions.ts`): it orders
   extensions dependencies first. An extension that does not fit (missing dependency, cycle, unsupported API version,
   duplicate id, kind or locale clash, code declared but not shipped or the reverse, a hook it may not handle, a
-  `setup` that throws) is marked failed with its errors and turned off, with its dependents; the app keeps running.
-  Only a failed always-on extension stops the server. Failed extensions contribute nothing. `kinds(entity)` and
-  `hasKind(entity, id)` validate the kind columns.
+  `setup` that throws or takes over 30 s) is marked failed with its errors and turned off, with its dependents; the
+  app keeps running. Only a failed always-on extension stops the server. Failed extensions contribute nothing.
+  `kinds(entity)` and `hasKind(entity, id)` validate the kind columns.
 - **Kinds** (host, network, service and protocol kinds) are text values stored by id, unique per entity across
   extensions, so an extension adds one without a migration.
 - **Locale packs**: an extension may add languages (`contributes.locales`), and several may add the same one. At build
-  time, `modules/extension-locales.ts` merges every extension's locale files per language: the key's owner (the app,
-  or the extension of `extensions.<id>.…`) wins with its own translation, then registry order. A key a language does
-  not translate falls back to English, so a pack may lag behind the app. English and French stay complete.
+  time, `modules/extension-locales.ts` merges every extension's locale files per language. Only a key's owner (the
+  app, or the extension of `extensions.<id>.…`) and the packs that declare the language may translate it, so no other
+  extension can reword the app's strings, its warnings included; the owner wins, then the first declaring pack in
+  registry order. A key a language does not translate falls back to English, so a pack may lag behind the app.
+  English and French stay complete.
 - **Diagnostics**: `GET /api/extensions` lists the extensions with their state, kinds and languages (strings are i18n
   keys; `enabled` is `true` until the per-workspace toggles). `GET /api/extensions/diagnostics` (admin) adds their
-  errors, declared code, hooks provided and handled, and per language the coverage, missing keys and conflicts. Logs
-  name the extension (`[extension:<id>]`); `STACKMAP_DEBUG=extensions` traces every hook call on the server (handlers,
-  durations, errors), and `localStorage['stackmap:debug'] = 'extensions'` does the same in the browser. An icon the app
-  cannot show is left out, and `ExtensionIcon` shows a generic fallback icon.
+  errors (credentials masked; the logs keep them whole), declared code, hooks provided and handled, and per language
+  the coverage, missing keys and conflicts. Logs name the extension (`[extension:<id>]`); `STACKMAP_DEBUG=extensions`
+  traces every hook call on the server (handlers, durations, errors), and `localStorage['stackmap:debug'] =
+  'extensions'` does the same in the browser. An icon the app cannot show is left out, and `ExtensionIcon` shows a
+  generic fallback icon.
 
 _(Planned.)_ Extensions will also contribute entity types, fields, flow types, **flow derivers** (turn its entities
 into flows), **trace hop resolvers** (resolve the next hop through its entities), templates, wizard questions and

@@ -81,7 +81,8 @@ export function defineExtensionServer(
   manifest: ExtensionManifest,
   { setup, hooks = {} }: Omit<ExtensionServer, 'extension' | 'hooks'> & { hooks?: HookHandlers<ServerHooks> },
 ): ExtensionServer {
-  return { extension: manifest.id, ...(setup ? { setup } : {}), hooks };
+  // A frozen copy: an extension cannot add handlers after the app checked which hooks it may handle.
+  return { extension: manifest.id, ...(setup ? { setup } : {}), hooks: Object.freeze({ ...hooks }) };
 }
 
 /** Ties an extension's browser code to its manifest. */
@@ -89,7 +90,25 @@ export function defineExtensionClient(
   manifest: ExtensionManifest,
   { hooks = {} }: { hooks?: HookHandlers<ClientHooks> },
 ): ExtensionClient {
-  return { extension: manifest.id, hooks };
+  return { extension: manifest.id, hooks: Object.freeze({ ...hooks }) };
+}
+
+/** Settles like `work`, or rejects with "timed out after N ms"; the work itself cannot be cancelled. */
+export async function withTimeout<T>(work: Promise<T>, timeoutMs: number | undefined): Promise<T> {
+  if (timeoutMs === undefined) {
+    return work;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`timed out after ${String(timeoutMs)} ms`));
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -121,7 +140,7 @@ const since = (start: number) => `${(performance.now() - start).toFixed(1)}ms`;
 /** Calls hooks on the registered extensions, in order, isolating each handler's failure. */
 export function createHookBus<H>(
   registrations: readonly HookRegistration<H>[],
-  { onError, trace, checkPayloads = false }: HookBusOptions,
+  { onError, trace, checkPayloads = false, timeoutMs }: HookBusOptions,
 ): HookBus<H> {
   const handlersOf = (name: keyof H & string) =>
     registrations.filter(({ hooks }) => hooks[name] !== undefined).map(({ extension }) => extension);
@@ -142,7 +161,7 @@ export function createHookBus<H>(
         const start = performance.now();
         try {
           // A copy per handler: one handler cannot change what the next one sees.
-          await handler(structuredClone(payload));
+          await withTimeout(Promise.resolve(handler(structuredClone(payload))), timeoutMs);
           steps.push(`${extension} (${since(start)})`);
         } catch (error) {
           onError(error, { extension, hook: name });
