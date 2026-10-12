@@ -2,6 +2,7 @@ import { createDocument } from 'zod-openapi';
 
 import { Problem, PROBLEMS, problemOf } from './errors';
 import { CONTRACTS } from './index';
+import { SESSION_COOKIE } from './security';
 import { TAGS } from './tags';
 
 import type { Contract, ContractResponse, Role } from './contract';
@@ -25,6 +26,11 @@ them. Every route is generated from its contract, so this reference is always th
 Errors follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457), as \`application/problem+json\`:
 \`type\`, \`title\`, \`status\`, \`detail\` and \`instance\`, plus a stable \`code\` and, for invalid input, \`issues\`.
 Translate errors with \`code\`, not with \`title\` or \`detail\`.
+
+## Authentication
+
+Operations need the session cookie (\`${SESSION_COOKIE}\`) that signing in sets, except public ones. Accounts arrive in
+a later version of Stackmap: until then, every operation is open.
 
 ## Roles
 
@@ -103,6 +109,8 @@ function toOperation(contract: Contract): ZodOpenApiOperationObject {
     description: `${contract.description}\n\n${roleSentence(contract.requiredRole)}`,
     tags: [...contract.tags],
     ...(contract.deprecated ? { deprecated: true } : {}),
+    // Public operations opt out of the session the document requires by default.
+    ...(contract.requiredRole === 'public' ? { security: [] } : {}),
     ...(contract.externalDocs ? { externalDocs: contract.externalDocs } : {}),
     ...(Object.keys(requestParams).length === 0 ? {} : { requestParams }),
     ...(contract.body === undefined
@@ -183,5 +191,17 @@ export function createOpenApiDocument(
       .map(([name, docs]) => ({ name, ...docs })),
     externalDocs: { description: 'Architecture', url: `${REPOSITORY}/blob/develop/docs/ARCHITECTURE.md` },
     paths,
+    components: {
+      securitySchemes: {
+        session: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: SESSION_COOKIE,
+          description: 'The session cookie that signing in sets. Enforced once accounts exist; until then, every '
+            + 'operation is open.',
+        },
+      },
+    },
+    security: [{ session: [] }],
   }));
 }

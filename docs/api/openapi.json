@@ -4,7 +4,7 @@
   "info": {
     "title": "Stackmap API",
     "summary": "Document your infrastructure: hosts, services, DNS, proxies and the flows between them.",
-    "description": "Stackmap documents your infrastructure (hosts, services, DNS, proxies, VPNs) and the flows between\nthem. Every route is generated from its contract, so this reference is always the API itself.\n\n## Errors\n\nErrors follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457), as `application/problem+json`:\n`type`, `title`, `status`, `detail` and `instance`, plus a stable `code` and, for invalid input, `issues`.\nTranslate errors with `code`, not with `title` or `detail`.\n\n## Roles\n\nEach operation states the role it needs (`x-required-role`): `viewer`, `editor`, `admin` or `owner` in a\nworkspace, or `public`. Roles are enforced once accounts exist.\n\n## Strings\n\nNames and labels in responses are i18n keys, such as `extensions.core.name`: the interface translates them.\n\n## Versioning\n\n`info.version` is the version of the API, raised on breaking changes, not with every release of Stackmap.",
+    "description": "Stackmap documents your infrastructure (hosts, services, DNS, proxies, VPNs) and the flows between\nthem. Every route is generated from its contract, so this reference is always the API itself.\n\n## Errors\n\nErrors follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457), as `application/problem+json`:\n`type`, `title`, `status`, `detail` and `instance`, plus a stable `code` and, for invalid input, `issues`.\nTranslate errors with `code`, not with `title` or `detail`.\n\n## Authentication\n\nOperations need the session cookie (`better-auth.session_token`) that signing in sets, except public ones. Accounts arrive in\na later version of Stackmap: until then, every operation is open.\n\n## Roles\n\nEach operation states the role it needs (`x-required-role`): `viewer`, `editor`, `admin` or `owner` in a\nworkspace, or `public`. Roles are enforced once accounts exist.\n\n## Strings\n\nNames and labels in responses are i18n keys, such as `extensions.core.name`: the interface translates them.\n\n## Versioning\n\n`info.version` is the version of the API, raised on breaking changes, not with every release of Stackmap.",
     "version": "1",
     "contact": {
       "name": "Stackmap",
@@ -53,6 +53,11 @@
     "description": "Architecture",
     "url": "https://github.com/MrStanDu33/stackmap/blob/develop/docs/ARCHITECTURE.md"
   },
+  "security": [
+    {
+      "session": []
+    }
+  ],
   "paths": {
     "/api/health": {
       "get": {
@@ -62,6 +67,7 @@
         "tags": [
           "System"
         ],
+        "security": [],
         "x-required-role": "public",
         "responses": {
           "200": {
@@ -114,10 +120,11 @@
       "get": {
         "operationId": "getOpenApiDocument",
         "summary": "Get this OpenAPI document",
-        "description": "The OpenAPI 3.1 description of this API, generated from the contracts of its routes. `/api/docs` shows it as a browsable reference.\n\nPublic: anyone can call it.",
+        "description": "The OpenAPI 3.1 description of this API, generated from the contracts of its routes, with this instance as its server. `/api/docs` shows it as a browsable reference.\n\nPublic: anyone can call it.",
         "tags": [
           "System"
         ],
+        "security": [],
         "x-required-role": "public",
         "responses": {
           "200": {
@@ -167,6 +174,7 @@
                   "type": "object",
                   "properties": {
                     "extensions": {
+                      "maxItems": 100,
                       "type": "array",
                       "items": {
                         "$ref": "#/components/schemas/Extension"
@@ -315,6 +323,7 @@
           },
           "version": {
             "type": "string",
+            "maxLength": 64,
             "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
             "description": "The version of Stackmap running",
             "examples": [
@@ -353,6 +362,7 @@
         "properties": {
           "type": {
             "type": "string",
+            "maxLength": 100,
             "pattern": "^urn:stackmap:problem:[a-z_]+$",
             "description": "Identifies the kind of problem: `urn:stackmap:problem:<code>`",
             "examples": [
@@ -362,6 +372,8 @@
           "title": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
             "description": "A short summary of the kind of problem, the same for every occurrence",
             "examples": [
               "The request does not match the API contract"
@@ -379,6 +391,8 @@
           "detail": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
             "description": "What went wrong this time, for people",
             "examples": [
               "The request does not match the API contract."
@@ -386,7 +400,8 @@
           },
           "instance": {
             "type": "string",
-            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^\\/[\\x21-\\x7E]*$",
             "description": "The path of the request that failed",
             "examples": [
               "/api/things/abc"
@@ -407,7 +422,8 @@
             ]
           },
           "issues": {
-            "description": "Every invalid value, for `validation_failed` and `invalid_response`",
+            "description": "The invalid values (at most 100), for `validation_failed` and `invalid_response`",
+            "maxItems": 100,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProblemIssue"
@@ -447,6 +463,8 @@
           "path": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 500,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
             "description": "Where: `params.<name>`, `query.<name>`, `body.<path>`, or `response.<path>` outside production",
             "examples": [
               "body.name"
@@ -455,6 +473,8 @@
           "message": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 1000,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
             "description": "What is wrong there",
             "examples": [
               "Too small: expected string to have >=1 characters"
@@ -479,23 +499,2280 @@
         "properties": {
           "openapi": {
             "type": "string",
-            "minLength": 1,
-            "description": "The version of the OpenAPI specification",
+            "maxLength": 10,
+            "pattern": "^3\\.1\\.\\d+$",
+            "description": "The OpenAPI version",
             "examples": [
               "3.1.1"
             ]
           },
+          "jsonSchemaDialect": {
+            "description": "The JSON Schema dialect of its schemas",
+            "type": "string",
+            "maxLength": 2048,
+            "pattern": "^https?:\\/\\/\\S+$"
+          },
           "info": {
             "type": "object",
-            "properties": {},
-            "additionalProperties": {},
-            "description": "The API's title, version, description, contact and license"
+            "properties": {
+              "title": {
+                "type": "string",
+                "maxLength": 100,
+                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                "description": "The API's name",
+                "examples": [
+                  "Stackmap API"
+                ]
+              },
+              "summary": {
+                "description": "The API in a line",
+                "type": "string",
+                "maxLength": 300,
+                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+              },
+              "description": {
+                "description": "The API and its conventions, in Markdown",
+                "type": "string",
+                "maxLength": 10000,
+                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+              },
+              "version": {
+                "type": "string",
+                "maxLength": 20,
+                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                "description": "The API's version",
+                "examples": [
+                  "1"
+                ]
+              },
+              "contact": {
+                "description": "Who to contact",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                    "description": "Who maintains it",
+                    "examples": [
+                      "Stackmap"
+                    ]
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https?:\\/\\/\\S+$",
+                    "description": "Where to reach them"
+                  }
+                },
+                "required": [
+                  "name",
+                  "url"
+                ],
+                "additionalProperties": false
+              },
+              "license": {
+                "description": "Under which terms the API may be used",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                    "description": "The license",
+                    "examples": [
+                      "All rights reserved"
+                    ]
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https?:\\/\\/\\S+$",
+                    "description": "Its text"
+                  }
+                },
+                "required": [
+                  "name",
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "title",
+              "version"
+            ],
+            "additionalProperties": false,
+            "description": "About the API"
+          },
+          "servers": {
+            "description": "Where the API is",
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^\\S+$",
+                  "description": "Its URL, possibly a template",
+                  "examples": [
+                    "{scheme}://{host}"
+                  ]
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                  "description": "Which server it is"
+                },
+                "variables": {
+                  "description": "Variables of the URL template",
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[A-Za-z][\\w.-]*$"
+                  },
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "default": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                        "description": "Its value unless set",
+                        "examples": [
+                          "http"
+                        ]
+                      },
+                      "enum": {
+                        "description": "Its allowed values",
+                        "maxItems": 20,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 50,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                        }
+                      },
+                      "description": {
+                        "type": "string",
+                        "maxLength": 500,
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                        "description": "What it is"
+                      }
+                    },
+                    "required": [
+                      "default",
+                      "description"
+                    ],
+                    "additionalProperties": false,
+                    "description": "A variable of the URL"
+                  }
+                }
+              },
+              "required": [
+                "url",
+                "description"
+              ],
+              "additionalProperties": false,
+              "description": "A server"
+            }
+          },
+          "tags": {
+            "description": "The tags of its operations",
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "maxLength": 50,
+                  "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                  "description": "Its name",
+                  "examples": [
+                    "System"
+                  ]
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 1000,
+                  "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                  "description": "What its operations are about"
+                },
+                "externalDocs": {
+                  "type": "object",
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What the link is about",
+                      "examples": [
+                        "Architecture"
+                      ]
+                    },
+                    "url": {
+                      "type": "string",
+                      "maxLength": 2048,
+                      "pattern": "^https?:\\/\\/\\S+$",
+                      "description": "Where it is",
+                      "examples": [
+                        "https://github.com/MrStanDu33/stackmap"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "description",
+                    "url"
+                  ],
+                  "additionalProperties": false,
+                  "description": "A link to documentation"
+                }
+              },
+              "required": [
+                "name",
+                "description"
+              ],
+              "additionalProperties": false,
+              "description": "A tag"
+            }
+          },
+          "externalDocs": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                "description": "What the link is about",
+                "examples": [
+                  "Architecture"
+                ]
+              },
+              "url": {
+                "type": "string",
+                "maxLength": 2048,
+                "pattern": "^https?:\\/\\/\\S+$",
+                "description": "Where it is",
+                "examples": [
+                  "https://github.com/MrStanDu33/stackmap"
+                ]
+              }
+            },
+            "required": [
+              "description",
+              "url"
+            ],
+            "additionalProperties": false,
+            "description": "A link to documentation"
           },
           "paths": {
             "type": "object",
-            "properties": {},
-            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^\\/api(?:\\/[\\w.{}-]+)*$"
+            },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "get": {
+                  "type": "object",
+                  "properties": {
+                    "operationId": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+                      "description": "Unique id",
+                      "examples": [
+                        "getHealth"
+                      ]
+                    },
+                    "summary": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, in a line",
+                      "examples": [
+                        "Check that the app is up"
+                      ]
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 5000,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, and the role it needs"
+                    },
+                    "tags": {
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                      },
+                      "description": "Its tags"
+                    },
+                    "deprecated": {
+                      "description": "Whether it will go away",
+                      "type": "boolean"
+                    },
+                    "externalDocs": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                          "description": "What the link is about",
+                          "examples": [
+                            "Architecture"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "pattern": "^https?:\\/\\/\\S+$",
+                          "description": "Where it is",
+                          "examples": [
+                            "https://github.com/MrStanDu33/stackmap"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "url"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A link to documentation"
+                    },
+                    "security": {
+                      "description": "Its security requirements; empty when public",
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 100,
+                          "pattern": "^[A-Za-z][\\w.-]*$"
+                        },
+                        "additionalProperties": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          }
+                        }
+                      }
+                    },
+                    "parameters": {
+                      "description": "Its parameters",
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "in": {
+                            "type": "string",
+                            "enum": [
+                              "path",
+                              "query",
+                              "header",
+                              "cookie"
+                            ],
+                            "description": "Where it goes",
+                            "examples": [
+                              "path"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[A-Za-z][\\w.-]*$",
+                            "description": "Its name",
+                            "examples": [
+                              "id"
+                            ]
+                          },
+                          "description": {
+                            "description": "What it is",
+                            "type": "string",
+                            "maxLength": 1000,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          },
+                          "required": {
+                            "description": "Whether it is required",
+                            "type": "boolean"
+                          },
+                          "schema": {
+                            "description": "Its JSON Schema",
+                            "$ref": "#/components/schemas/JsonValue"
+                          },
+                          "example": {
+                            "description": "An example value",
+                            "$ref": "#/components/schemas/JsonValue"
+                          }
+                        },
+                        "required": [
+                          "in",
+                          "name",
+                          "schema"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A parameter"
+                      }
+                    },
+                    "requestBody": {
+                      "description": "Its request body",
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "description": "What the body is",
+                          "type": "string",
+                          "maxLength": 1000,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether a body is required"
+                        },
+                        "content": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "description": "The JSON Schema of the content",
+                                "$ref": "#/components/schemas/JsonValue"
+                              },
+                              "examples": {
+                                "description": "Named examples of the content",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[A-Za-z][\\w.-]*$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string",
+                                      "maxLength": 200,
+                                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                      "description": "What the example shows",
+                                      "examples": [
+                                        "Everything is up"
+                                      ]
+                                    },
+                                    "value": {
+                                      "description": "The example itself",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "A named example"
+                                }
+                              }
+                            },
+                            "required": [
+                              "schema"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Content of one media type"
+                          },
+                          "description": "Content by media type"
+                        }
+                      },
+                      "required": [
+                        "required",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "responses": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "maxLength": 3,
+                        "pattern": "^[1-5]\\d\\d$"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "$ref": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^#\\/components\\/responses\\/[\\w.-]+$",
+                                "description": "A shared response"
+                              }
+                            },
+                            "required": [
+                              "$ref"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                                "maxLength": 1000,
+                                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                "description": "What the response means",
+                                "examples": [
+                                  "The app is up"
+                                ]
+                              },
+                              "content": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "schema": {
+                                      "description": "The JSON Schema of the content",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    },
+                                    "examples": {
+                                      "description": "Named examples of the content",
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string",
+                                        "maxLength": 100,
+                                        "pattern": "^[A-Za-z][\\w.-]*$"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "object",
+                                        "properties": {
+                                          "summary": {
+                                            "type": "string",
+                                            "maxLength": 200,
+                                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                            "description": "What the example shows",
+                                            "examples": [
+                                              "Everything is up"
+                                            ]
+                                          },
+                                          "value": {
+                                            "description": "The example itself",
+                                            "$ref": "#/components/schemas/JsonValue"
+                                          }
+                                        },
+                                        "required": [
+                                          "summary",
+                                          "value"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "A named example"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "schema"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "Content of one media type"
+                                },
+                                "description": "Content by media type"
+                              }
+                            },
+                            "required": [
+                              "description"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ],
+                        "description": "A response, or a reference to a shared one"
+                      },
+                      "description": "Its responses, by status"
+                    },
+                    "x-required-role": {
+                      "type": "string",
+                      "enum": [
+                        "public",
+                        "viewer",
+                        "editor",
+                        "admin",
+                        "owner"
+                      ],
+                      "description": "The role it needs",
+                      "examples": [
+                        "viewer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operationId",
+                    "summary",
+                    "description",
+                    "tags",
+                    "responses",
+                    "x-required-role"
+                  ],
+                  "additionalProperties": false,
+                  "description": "An operation"
+                },
+                "post": {
+                  "type": "object",
+                  "properties": {
+                    "operationId": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+                      "description": "Unique id",
+                      "examples": [
+                        "getHealth"
+                      ]
+                    },
+                    "summary": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, in a line",
+                      "examples": [
+                        "Check that the app is up"
+                      ]
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 5000,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, and the role it needs"
+                    },
+                    "tags": {
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                      },
+                      "description": "Its tags"
+                    },
+                    "deprecated": {
+                      "description": "Whether it will go away",
+                      "type": "boolean"
+                    },
+                    "externalDocs": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                          "description": "What the link is about",
+                          "examples": [
+                            "Architecture"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "pattern": "^https?:\\/\\/\\S+$",
+                          "description": "Where it is",
+                          "examples": [
+                            "https://github.com/MrStanDu33/stackmap"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "url"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A link to documentation"
+                    },
+                    "security": {
+                      "description": "Its security requirements; empty when public",
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 100,
+                          "pattern": "^[A-Za-z][\\w.-]*$"
+                        },
+                        "additionalProperties": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          }
+                        }
+                      }
+                    },
+                    "parameters": {
+                      "description": "Its parameters",
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "in": {
+                            "type": "string",
+                            "enum": [
+                              "path",
+                              "query",
+                              "header",
+                              "cookie"
+                            ],
+                            "description": "Where it goes",
+                            "examples": [
+                              "path"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[A-Za-z][\\w.-]*$",
+                            "description": "Its name",
+                            "examples": [
+                              "id"
+                            ]
+                          },
+                          "description": {
+                            "description": "What it is",
+                            "type": "string",
+                            "maxLength": 1000,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          },
+                          "required": {
+                            "description": "Whether it is required",
+                            "type": "boolean"
+                          },
+                          "schema": {
+                            "description": "Its JSON Schema",
+                            "$ref": "#/components/schemas/JsonValue"
+                          },
+                          "example": {
+                            "description": "An example value",
+                            "$ref": "#/components/schemas/JsonValue"
+                          }
+                        },
+                        "required": [
+                          "in",
+                          "name",
+                          "schema"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A parameter"
+                      }
+                    },
+                    "requestBody": {
+                      "description": "Its request body",
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "description": "What the body is",
+                          "type": "string",
+                          "maxLength": 1000,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether a body is required"
+                        },
+                        "content": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "description": "The JSON Schema of the content",
+                                "$ref": "#/components/schemas/JsonValue"
+                              },
+                              "examples": {
+                                "description": "Named examples of the content",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[A-Za-z][\\w.-]*$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string",
+                                      "maxLength": 200,
+                                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                      "description": "What the example shows",
+                                      "examples": [
+                                        "Everything is up"
+                                      ]
+                                    },
+                                    "value": {
+                                      "description": "The example itself",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "A named example"
+                                }
+                              }
+                            },
+                            "required": [
+                              "schema"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Content of one media type"
+                          },
+                          "description": "Content by media type"
+                        }
+                      },
+                      "required": [
+                        "required",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "responses": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "maxLength": 3,
+                        "pattern": "^[1-5]\\d\\d$"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "$ref": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^#\\/components\\/responses\\/[\\w.-]+$",
+                                "description": "A shared response"
+                              }
+                            },
+                            "required": [
+                              "$ref"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                                "maxLength": 1000,
+                                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                "description": "What the response means",
+                                "examples": [
+                                  "The app is up"
+                                ]
+                              },
+                              "content": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "schema": {
+                                      "description": "The JSON Schema of the content",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    },
+                                    "examples": {
+                                      "description": "Named examples of the content",
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string",
+                                        "maxLength": 100,
+                                        "pattern": "^[A-Za-z][\\w.-]*$"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "object",
+                                        "properties": {
+                                          "summary": {
+                                            "type": "string",
+                                            "maxLength": 200,
+                                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                            "description": "What the example shows",
+                                            "examples": [
+                                              "Everything is up"
+                                            ]
+                                          },
+                                          "value": {
+                                            "description": "The example itself",
+                                            "$ref": "#/components/schemas/JsonValue"
+                                          }
+                                        },
+                                        "required": [
+                                          "summary",
+                                          "value"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "A named example"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "schema"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "Content of one media type"
+                                },
+                                "description": "Content by media type"
+                              }
+                            },
+                            "required": [
+                              "description"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ],
+                        "description": "A response, or a reference to a shared one"
+                      },
+                      "description": "Its responses, by status"
+                    },
+                    "x-required-role": {
+                      "type": "string",
+                      "enum": [
+                        "public",
+                        "viewer",
+                        "editor",
+                        "admin",
+                        "owner"
+                      ],
+                      "description": "The role it needs",
+                      "examples": [
+                        "viewer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operationId",
+                    "summary",
+                    "description",
+                    "tags",
+                    "responses",
+                    "x-required-role"
+                  ],
+                  "additionalProperties": false,
+                  "description": "An operation"
+                },
+                "put": {
+                  "type": "object",
+                  "properties": {
+                    "operationId": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+                      "description": "Unique id",
+                      "examples": [
+                        "getHealth"
+                      ]
+                    },
+                    "summary": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, in a line",
+                      "examples": [
+                        "Check that the app is up"
+                      ]
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 5000,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, and the role it needs"
+                    },
+                    "tags": {
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                      },
+                      "description": "Its tags"
+                    },
+                    "deprecated": {
+                      "description": "Whether it will go away",
+                      "type": "boolean"
+                    },
+                    "externalDocs": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                          "description": "What the link is about",
+                          "examples": [
+                            "Architecture"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "pattern": "^https?:\\/\\/\\S+$",
+                          "description": "Where it is",
+                          "examples": [
+                            "https://github.com/MrStanDu33/stackmap"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "url"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A link to documentation"
+                    },
+                    "security": {
+                      "description": "Its security requirements; empty when public",
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 100,
+                          "pattern": "^[A-Za-z][\\w.-]*$"
+                        },
+                        "additionalProperties": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          }
+                        }
+                      }
+                    },
+                    "parameters": {
+                      "description": "Its parameters",
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "in": {
+                            "type": "string",
+                            "enum": [
+                              "path",
+                              "query",
+                              "header",
+                              "cookie"
+                            ],
+                            "description": "Where it goes",
+                            "examples": [
+                              "path"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[A-Za-z][\\w.-]*$",
+                            "description": "Its name",
+                            "examples": [
+                              "id"
+                            ]
+                          },
+                          "description": {
+                            "description": "What it is",
+                            "type": "string",
+                            "maxLength": 1000,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          },
+                          "required": {
+                            "description": "Whether it is required",
+                            "type": "boolean"
+                          },
+                          "schema": {
+                            "description": "Its JSON Schema",
+                            "$ref": "#/components/schemas/JsonValue"
+                          },
+                          "example": {
+                            "description": "An example value",
+                            "$ref": "#/components/schemas/JsonValue"
+                          }
+                        },
+                        "required": [
+                          "in",
+                          "name",
+                          "schema"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A parameter"
+                      }
+                    },
+                    "requestBody": {
+                      "description": "Its request body",
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "description": "What the body is",
+                          "type": "string",
+                          "maxLength": 1000,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether a body is required"
+                        },
+                        "content": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "description": "The JSON Schema of the content",
+                                "$ref": "#/components/schemas/JsonValue"
+                              },
+                              "examples": {
+                                "description": "Named examples of the content",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[A-Za-z][\\w.-]*$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string",
+                                      "maxLength": 200,
+                                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                      "description": "What the example shows",
+                                      "examples": [
+                                        "Everything is up"
+                                      ]
+                                    },
+                                    "value": {
+                                      "description": "The example itself",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "A named example"
+                                }
+                              }
+                            },
+                            "required": [
+                              "schema"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Content of one media type"
+                          },
+                          "description": "Content by media type"
+                        }
+                      },
+                      "required": [
+                        "required",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "responses": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "maxLength": 3,
+                        "pattern": "^[1-5]\\d\\d$"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "$ref": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^#\\/components\\/responses\\/[\\w.-]+$",
+                                "description": "A shared response"
+                              }
+                            },
+                            "required": [
+                              "$ref"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                                "maxLength": 1000,
+                                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                "description": "What the response means",
+                                "examples": [
+                                  "The app is up"
+                                ]
+                              },
+                              "content": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "schema": {
+                                      "description": "The JSON Schema of the content",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    },
+                                    "examples": {
+                                      "description": "Named examples of the content",
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string",
+                                        "maxLength": 100,
+                                        "pattern": "^[A-Za-z][\\w.-]*$"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "object",
+                                        "properties": {
+                                          "summary": {
+                                            "type": "string",
+                                            "maxLength": 200,
+                                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                            "description": "What the example shows",
+                                            "examples": [
+                                              "Everything is up"
+                                            ]
+                                          },
+                                          "value": {
+                                            "description": "The example itself",
+                                            "$ref": "#/components/schemas/JsonValue"
+                                          }
+                                        },
+                                        "required": [
+                                          "summary",
+                                          "value"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "A named example"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "schema"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "Content of one media type"
+                                },
+                                "description": "Content by media type"
+                              }
+                            },
+                            "required": [
+                              "description"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ],
+                        "description": "A response, or a reference to a shared one"
+                      },
+                      "description": "Its responses, by status"
+                    },
+                    "x-required-role": {
+                      "type": "string",
+                      "enum": [
+                        "public",
+                        "viewer",
+                        "editor",
+                        "admin",
+                        "owner"
+                      ],
+                      "description": "The role it needs",
+                      "examples": [
+                        "viewer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operationId",
+                    "summary",
+                    "description",
+                    "tags",
+                    "responses",
+                    "x-required-role"
+                  ],
+                  "additionalProperties": false,
+                  "description": "An operation"
+                },
+                "patch": {
+                  "type": "object",
+                  "properties": {
+                    "operationId": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+                      "description": "Unique id",
+                      "examples": [
+                        "getHealth"
+                      ]
+                    },
+                    "summary": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, in a line",
+                      "examples": [
+                        "Check that the app is up"
+                      ]
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 5000,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, and the role it needs"
+                    },
+                    "tags": {
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                      },
+                      "description": "Its tags"
+                    },
+                    "deprecated": {
+                      "description": "Whether it will go away",
+                      "type": "boolean"
+                    },
+                    "externalDocs": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                          "description": "What the link is about",
+                          "examples": [
+                            "Architecture"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "pattern": "^https?:\\/\\/\\S+$",
+                          "description": "Where it is",
+                          "examples": [
+                            "https://github.com/MrStanDu33/stackmap"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "url"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A link to documentation"
+                    },
+                    "security": {
+                      "description": "Its security requirements; empty when public",
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 100,
+                          "pattern": "^[A-Za-z][\\w.-]*$"
+                        },
+                        "additionalProperties": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          }
+                        }
+                      }
+                    },
+                    "parameters": {
+                      "description": "Its parameters",
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "in": {
+                            "type": "string",
+                            "enum": [
+                              "path",
+                              "query",
+                              "header",
+                              "cookie"
+                            ],
+                            "description": "Where it goes",
+                            "examples": [
+                              "path"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[A-Za-z][\\w.-]*$",
+                            "description": "Its name",
+                            "examples": [
+                              "id"
+                            ]
+                          },
+                          "description": {
+                            "description": "What it is",
+                            "type": "string",
+                            "maxLength": 1000,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          },
+                          "required": {
+                            "description": "Whether it is required",
+                            "type": "boolean"
+                          },
+                          "schema": {
+                            "description": "Its JSON Schema",
+                            "$ref": "#/components/schemas/JsonValue"
+                          },
+                          "example": {
+                            "description": "An example value",
+                            "$ref": "#/components/schemas/JsonValue"
+                          }
+                        },
+                        "required": [
+                          "in",
+                          "name",
+                          "schema"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A parameter"
+                      }
+                    },
+                    "requestBody": {
+                      "description": "Its request body",
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "description": "What the body is",
+                          "type": "string",
+                          "maxLength": 1000,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether a body is required"
+                        },
+                        "content": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "description": "The JSON Schema of the content",
+                                "$ref": "#/components/schemas/JsonValue"
+                              },
+                              "examples": {
+                                "description": "Named examples of the content",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[A-Za-z][\\w.-]*$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string",
+                                      "maxLength": 200,
+                                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                      "description": "What the example shows",
+                                      "examples": [
+                                        "Everything is up"
+                                      ]
+                                    },
+                                    "value": {
+                                      "description": "The example itself",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "A named example"
+                                }
+                              }
+                            },
+                            "required": [
+                              "schema"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Content of one media type"
+                          },
+                          "description": "Content by media type"
+                        }
+                      },
+                      "required": [
+                        "required",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "responses": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "maxLength": 3,
+                        "pattern": "^[1-5]\\d\\d$"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "$ref": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^#\\/components\\/responses\\/[\\w.-]+$",
+                                "description": "A shared response"
+                              }
+                            },
+                            "required": [
+                              "$ref"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                                "maxLength": 1000,
+                                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                "description": "What the response means",
+                                "examples": [
+                                  "The app is up"
+                                ]
+                              },
+                              "content": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "schema": {
+                                      "description": "The JSON Schema of the content",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    },
+                                    "examples": {
+                                      "description": "Named examples of the content",
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string",
+                                        "maxLength": 100,
+                                        "pattern": "^[A-Za-z][\\w.-]*$"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "object",
+                                        "properties": {
+                                          "summary": {
+                                            "type": "string",
+                                            "maxLength": 200,
+                                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                            "description": "What the example shows",
+                                            "examples": [
+                                              "Everything is up"
+                                            ]
+                                          },
+                                          "value": {
+                                            "description": "The example itself",
+                                            "$ref": "#/components/schemas/JsonValue"
+                                          }
+                                        },
+                                        "required": [
+                                          "summary",
+                                          "value"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "A named example"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "schema"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "Content of one media type"
+                                },
+                                "description": "Content by media type"
+                              }
+                            },
+                            "required": [
+                              "description"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ],
+                        "description": "A response, or a reference to a shared one"
+                      },
+                      "description": "Its responses, by status"
+                    },
+                    "x-required-role": {
+                      "type": "string",
+                      "enum": [
+                        "public",
+                        "viewer",
+                        "editor",
+                        "admin",
+                        "owner"
+                      ],
+                      "description": "The role it needs",
+                      "examples": [
+                        "viewer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operationId",
+                    "summary",
+                    "description",
+                    "tags",
+                    "responses",
+                    "x-required-role"
+                  ],
+                  "additionalProperties": false,
+                  "description": "An operation"
+                },
+                "delete": {
+                  "type": "object",
+                  "properties": {
+                    "operationId": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[A-Za-z][A-Za-z0-9]*$",
+                      "description": "Unique id",
+                      "examples": [
+                        "getHealth"
+                      ]
+                    },
+                    "summary": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, in a line",
+                      "examples": [
+                        "Check that the app is up"
+                      ]
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 5000,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it does, and the role it needs"
+                    },
+                    "tags": {
+                      "maxItems": 5,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                      },
+                      "description": "Its tags"
+                    },
+                    "deprecated": {
+                      "description": "Whether it will go away",
+                      "type": "boolean"
+                    },
+                    "externalDocs": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                          "description": "What the link is about",
+                          "examples": [
+                            "Architecture"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "maxLength": 2048,
+                          "pattern": "^https?:\\/\\/\\S+$",
+                          "description": "Where it is",
+                          "examples": [
+                            "https://github.com/MrStanDu33/stackmap"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "description",
+                        "url"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A link to documentation"
+                    },
+                    "security": {
+                      "description": "Its security requirements; empty when public",
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string",
+                          "maxLength": 100,
+                          "pattern": "^[A-Za-z][\\w.-]*$"
+                        },
+                        "additionalProperties": {
+                          "maxItems": 20,
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          }
+                        }
+                      }
+                    },
+                    "parameters": {
+                      "description": "Its parameters",
+                      "maxItems": 50,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "in": {
+                            "type": "string",
+                            "enum": [
+                              "path",
+                              "query",
+                              "header",
+                              "cookie"
+                            ],
+                            "description": "Where it goes",
+                            "examples": [
+                              "path"
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[A-Za-z][\\w.-]*$",
+                            "description": "Its name",
+                            "examples": [
+                              "id"
+                            ]
+                          },
+                          "description": {
+                            "description": "What it is",
+                            "type": "string",
+                            "maxLength": 1000,
+                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                          },
+                          "required": {
+                            "description": "Whether it is required",
+                            "type": "boolean"
+                          },
+                          "schema": {
+                            "description": "Its JSON Schema",
+                            "$ref": "#/components/schemas/JsonValue"
+                          },
+                          "example": {
+                            "description": "An example value",
+                            "$ref": "#/components/schemas/JsonValue"
+                          }
+                        },
+                        "required": [
+                          "in",
+                          "name",
+                          "schema"
+                        ],
+                        "additionalProperties": false,
+                        "description": "A parameter"
+                      }
+                    },
+                    "requestBody": {
+                      "description": "Its request body",
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "description": "What the body is",
+                          "type": "string",
+                          "maxLength": 1000,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                        },
+                        "required": {
+                          "type": "boolean",
+                          "description": "Whether a body is required"
+                        },
+                        "content": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "description": "The JSON Schema of the content",
+                                "$ref": "#/components/schemas/JsonValue"
+                              },
+                              "examples": {
+                                "description": "Named examples of the content",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[A-Za-z][\\w.-]*$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string",
+                                      "maxLength": 200,
+                                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                      "description": "What the example shows",
+                                      "examples": [
+                                        "Everything is up"
+                                      ]
+                                    },
+                                    "value": {
+                                      "description": "The example itself",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "A named example"
+                                }
+                              }
+                            },
+                            "required": [
+                              "schema"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Content of one media type"
+                          },
+                          "description": "Content by media type"
+                        }
+                      },
+                      "required": [
+                        "required",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "responses": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string",
+                        "maxLength": 3,
+                        "pattern": "^[1-5]\\d\\d$"
+                      },
+                      "additionalProperties": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "$ref": {
+                                "type": "string",
+                                "maxLength": 200,
+                                "pattern": "^#\\/components\\/responses\\/[\\w.-]+$",
+                                "description": "A shared response"
+                              }
+                            },
+                            "required": [
+                              "$ref"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "description": {
+                                "type": "string",
+                                "maxLength": 1000,
+                                "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                "description": "What the response means",
+                                "examples": [
+                                  "The app is up"
+                                ]
+                              },
+                              "content": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "schema": {
+                                      "description": "The JSON Schema of the content",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    },
+                                    "examples": {
+                                      "description": "Named examples of the content",
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string",
+                                        "maxLength": 100,
+                                        "pattern": "^[A-Za-z][\\w.-]*$"
+                                      },
+                                      "additionalProperties": {
+                                        "type": "object",
+                                        "properties": {
+                                          "summary": {
+                                            "type": "string",
+                                            "maxLength": 200,
+                                            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                            "description": "What the example shows",
+                                            "examples": [
+                                              "Everything is up"
+                                            ]
+                                          },
+                                          "value": {
+                                            "description": "The example itself",
+                                            "$ref": "#/components/schemas/JsonValue"
+                                          }
+                                        },
+                                        "required": [
+                                          "summary",
+                                          "value"
+                                        ],
+                                        "additionalProperties": false,
+                                        "description": "A named example"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "schema"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "Content of one media type"
+                                },
+                                "description": "Content by media type"
+                              }
+                            },
+                            "required": [
+                              "description"
+                            ],
+                            "additionalProperties": false
+                          }
+                        ],
+                        "description": "A response, or a reference to a shared one"
+                      },
+                      "description": "Its responses, by status"
+                    },
+                    "x-required-role": {
+                      "type": "string",
+                      "enum": [
+                        "public",
+                        "viewer",
+                        "editor",
+                        "admin",
+                        "owner"
+                      ],
+                      "description": "The role it needs",
+                      "examples": [
+                        "viewer"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "operationId",
+                    "summary",
+                    "description",
+                    "tags",
+                    "responses",
+                    "x-required-role"
+                  ],
+                  "additionalProperties": false,
+                  "description": "An operation"
+                }
+              },
+              "additionalProperties": false,
+              "description": "The operations of a path"
+            },
             "description": "Every operation, by path and method"
+          },
+          "components": {
+            "description": "What the document shares between operations",
+            "type": "object",
+            "properties": {
+              "schemas": {
+                "description": "Shared JSON Schemas",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[A-Za-z][\\w.-]*$"
+                },
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                }
+              },
+              "responses": {
+                "description": "Shared responses",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[A-Za-z][\\w.-]*$"
+                },
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "$ref": {
+                          "type": "string",
+                          "maxLength": 200,
+                          "pattern": "^#\\/components\\/responses\\/[\\w.-]+$",
+                          "description": "A shared response"
+                        }
+                      },
+                      "required": [
+                        "$ref"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "maxLength": 1000,
+                          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                          "description": "What the response means",
+                          "examples": [
+                            "The app is up"
+                          ]
+                        },
+                        "content": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string",
+                            "maxLength": 100,
+                            "pattern": "^[\\w.+-]+\\/[\\w.+-]+$"
+                          },
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "schema": {
+                                "description": "The JSON Schema of the content",
+                                "$ref": "#/components/schemas/JsonValue"
+                              },
+                              "examples": {
+                                "description": "Named examples of the content",
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 100,
+                                  "pattern": "^[A-Za-z][\\w.-]*$"
+                                },
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string",
+                                      "maxLength": 200,
+                                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                                      "description": "What the example shows",
+                                      "examples": [
+                                        "Everything is up"
+                                      ]
+                                    },
+                                    "value": {
+                                      "description": "The example itself",
+                                      "$ref": "#/components/schemas/JsonValue"
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "value"
+                                  ],
+                                  "additionalProperties": false,
+                                  "description": "A named example"
+                                }
+                              }
+                            },
+                            "required": [
+                              "schema"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Content of one media type"
+                          },
+                          "description": "Content by media type"
+                        }
+                      },
+                      "required": [
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ],
+                  "description": "A response, or a reference to a shared one"
+                }
+              },
+              "securitySchemes": {
+                "description": "Ways to authenticate",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[A-Za-z][\\w.-]*$"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "apiKey",
+                        "http",
+                        "oauth2",
+                        "openIdConnect"
+                      ],
+                      "description": "Its kind",
+                      "examples": [
+                        "apiKey"
+                      ]
+                    },
+                    "in": {
+                      "type": "string",
+                      "enum": [
+                        "cookie",
+                        "header",
+                        "query"
+                      ],
+                      "description": "Where it goes",
+                      "examples": [
+                        "cookie"
+                      ]
+                    },
+                    "name": {
+                      "type": "string",
+                      "maxLength": 100,
+                      "pattern": "^[A-Za-z][\\w.-]*$",
+                      "description": "The cookie, header or parameter",
+                      "examples": [
+                        "better-auth.session_token"
+                      ]
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 1000,
+                      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+                      "description": "What it is"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "in",
+                    "name",
+                    "description"
+                  ],
+                  "additionalProperties": false,
+                  "description": "A security scheme"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "security": {
+            "description": "What the operations require by default",
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string",
+                "maxLength": 100,
+                "pattern": "^[A-Za-z][\\w.-]*$"
+              },
+              "additionalProperties": {
+                "maxItems": 20,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+                }
+              }
+            }
           }
         },
         "required": [
@@ -503,7 +2780,7 @@
           "info",
           "paths"
         ],
-        "additionalProperties": {},
+        "additionalProperties": false,
         "description": "An OpenAPI 3.1 document",
         "examples": [
           {
@@ -516,11 +2793,74 @@
           }
         ]
       },
+      "JsonArray": {
+        "maxItems": 10000,
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/JsonValue"
+        },
+        "description": "A JSON array",
+        "examples": [
+          [
+            "ok",
+            "error"
+          ]
+        ]
+      },
+      "JsonValue": {
+        "anyOf": [
+          {
+            "type": "string",
+            "maxLength": 10000,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/components/schemas/JsonArray"
+          },
+          {
+            "$ref": "#/components/schemas/JsonObject"
+          }
+        ],
+        "description": "Any JSON value",
+        "examples": [
+          {
+            "type": "string",
+            "maxLength": 40
+          }
+        ]
+      },
+      "JsonObject": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+        },
+        "additionalProperties": {
+          "$ref": "#/components/schemas/JsonValue"
+        },
+        "description": "A JSON object",
+        "examples": [
+          {
+            "type": "string"
+          }
+        ]
+      },
       "Extension": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
+            "maxLength": 40,
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
             "description": "Unique, kebab-case",
             "examples": [
@@ -529,6 +2869,7 @@
           },
           "version": {
             "type": "string",
+            "maxLength": 64,
             "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
             "description": "Its semantic version",
             "examples": [
@@ -537,7 +2878,8 @@
           },
           "name": {
             "type": "string",
-            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$",
             "description": "i18n key of its name",
             "examples": [
               "extensions.core.name"
@@ -545,7 +2887,8 @@
           },
           "description": {
             "type": "string",
-            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$",
             "description": "i18n key of what it adds",
             "examples": [
               "extensions.core.description"
@@ -557,7 +2900,8 @@
               "i-lucide-layers"
             ],
             "type": "string",
-            "minLength": 1
+            "maxLength": 200,
+            "pattern": "^(?:i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*|\\/extensions\\/[a-z0-9-]+\\/[\\w/-]+\\.(?:svg|png|webp))$"
           },
           "alwaysOn": {
             "type": "boolean",
@@ -567,9 +2911,11 @@
             ]
           },
           "dependsOn": {
+            "maxItems": 50,
             "type": "array",
             "items": {
               "type": "string",
+              "maxLength": 40,
               "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
             },
             "description": "Ids of the extensions it needs"
@@ -596,6 +2942,7 @@
             "type": "object",
             "properties": {
               "host": {
+                "maxItems": 200,
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/ExtensionKind"
@@ -603,6 +2950,7 @@
                 "description": "Kinds it adds to hosts"
               },
               "network": {
+                "maxItems": 200,
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/ExtensionKind"
@@ -610,6 +2958,7 @@
                 "description": "Kinds it adds to networks"
               },
               "service": {
+                "maxItems": 200,
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/ExtensionKind"
@@ -617,6 +2966,7 @@
                 "description": "Kinds it adds to services"
               },
               "protocol": {
+                "maxItems": 200,
                 "type": "array",
                 "items": {
                   "$ref": "#/components/schemas/ExtensionKind"
@@ -634,6 +2984,7 @@
             "description": "Kinds it adds, by core entity; empty when it failed"
           },
           "locales": {
+            "maxItems": 50,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExtensionLocale"
@@ -687,6 +3038,7 @@
         "properties": {
           "id": {
             "type": "string",
+            "maxLength": 40,
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
             "description": "Stored in the database; unique per entity",
             "examples": [
@@ -695,7 +3047,8 @@
           },
           "label": {
             "type": "string",
-            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$",
             "description": "i18n key of its name",
             "examples": [
               "extensions.core.kinds.network.lan"
@@ -707,7 +3060,8 @@
               "i-lucide-network"
             ],
             "type": "string",
-            "minLength": 1
+            "maxLength": 200,
+            "pattern": "^(?:i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*|\\/extensions\\/[a-z0-9-]+\\/[\\w/-]+\\.(?:svg|png|webp))$"
           }
         },
         "required": [
@@ -729,6 +3083,7 @@
         "properties": {
           "code": {
             "type": "string",
+            "maxLength": 12,
             "pattern": "^[a-z]{2,3}(?:-[A-Z]{2}|-[A-Z][a-z]{3})?$",
             "description": "Locale code, as in settings",
             "examples": [
@@ -737,6 +3092,7 @@
           },
           "language": {
             "type": "string",
+            "maxLength": 35,
             "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
             "description": "BCP 47 language tag",
             "examples": [
@@ -746,6 +3102,8 @@
           "name": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
             "description": "The language's name, in that language",
             "examples": [
               "Deutsch"
@@ -771,12 +3129,14 @@
         "type": "object",
         "properties": {
           "extensions": {
+            "maxItems": 100,
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
                 "id": {
                   "type": "string",
+                  "maxLength": 40,
                   "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
                   "description": "Its id",
                   "examples": [
@@ -785,6 +3145,7 @@
                 },
                 "version": {
                   "type": "string",
+                  "maxLength": 64,
                   "pattern": "^(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$",
                   "description": "Its version",
                   "examples": [
@@ -803,10 +3164,13 @@
                   ]
                 },
                 "errors": {
+                  "maxItems": 50,
                   "type": "array",
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 1000,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
                   },
                   "description": "Why it failed (credentials masked; the server logs have the full errors)"
                 },
@@ -839,18 +3203,22 @@
                   "type": "object",
                   "properties": {
                     "provides": {
+                      "maxItems": 100,
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "minLength": 1
+                        "maxLength": 81,
+                        "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
                       },
                       "description": "Hooks it declares, as `<id>:<name>`"
                     },
                     "handles": {
+                      "maxItems": 100,
                       "type": "array",
                       "items": {
                         "type": "string",
-                        "minLength": 1
+                        "maxLength": 81,
+                        "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
                       },
                       "description": "Server hooks it handles"
                     }
@@ -876,12 +3244,14 @@
             "description": "Every installed extension, in registry order"
           },
           "languages": {
+            "maxItems": 50,
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
                 "code": {
                   "type": "string",
+                  "maxLength": 12,
                   "pattern": "^[a-z]{2,3}(?:-[A-Z]{2}|-[A-Z][a-z]{3})?$",
                   "description": "Locale code, as in settings",
                   "examples": [
@@ -890,6 +3260,7 @@
                 },
                 "language": {
                   "type": "string",
+                  "maxLength": 35,
                   "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
                   "description": "BCP 47 language tag",
                   "examples": [
@@ -899,6 +3270,8 @@
                 "name": {
                   "type": "string",
                   "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
                   "description": "The language's name, in that language",
                   "examples": [
                     "Deutsch"
@@ -914,45 +3287,62 @@
                   ]
                 },
                 "missing": {
+                  "maxItems": 10000,
                   "type": "array",
                   "items": {
                     "type": "string",
-                    "minLength": 1
+                    "maxLength": 200,
+                    "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$"
                   },
                   "description": "Keys it does not translate: they show in English"
                 },
                 "conflicts": {
+                  "maxItems": 10000,
                   "type": "array",
                   "items": {
                     "type": "object",
                     "properties": {
                       "key": {
                         "type": "string",
-                        "minLength": 1,
+                        "maxLength": 200,
+                        "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$",
                         "description": "The key translated more than once",
                         "examples": [
                           "app.name"
                         ]
                       },
                       "winner": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 40,
+                            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
                         "description": "Whose translation is used; `null`: the app",
                         "examples": [
                           null
-                        ],
-                        "type": [
-                          "string",
-                          "null"
                         ]
                       },
                       "ignored": {
+                        "maxItems": 50,
                         "type": "array",
                         "items": {
-                          "type": [
-                            "string",
-                            "null"
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 40,
+                              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                            },
+                            {
+                              "type": "null"
+                            }
                           ]
                         },
-                        "description": "Whose translations are ignored"
+                        "description": "Whose translations are ignored; `null`: the app"
                       }
                     },
                     "required": [
@@ -1066,6 +3456,14 @@
             }
           }
         }
+      }
+    },
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "The session cookie that signing in sets. Enforced once accounts exist; until then, every operation is open."
       }
     }
   }
