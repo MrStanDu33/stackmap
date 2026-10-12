@@ -153,7 +153,7 @@ function undeclaredFields(sent: unknown, parsed: unknown, path: string[] = []): 
       if (value === undefined) {
         return [];
       }
-      return key in parsed ? undeclaredFields(value, parsed[key], [...path, key]) : [[...path, key].join('.')];
+      return Object.hasOwn(parsed, key) ? undeclaredFields(value, parsed[key], [...path, key]) : [[...path, key].join('.')];
     });
   }
   return [];
