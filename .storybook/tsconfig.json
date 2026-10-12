@@ -4,5 +4,6 @@
   "compilerOptions": {
     "types": ["node", "vite/client"]
   },
-  "include": ["./**/*.ts", "./**/*.vue", "../app/vue-shim.d.ts"]
+  // Nitro's auto-imports: route types ($fetch) reach the server routes, which use them.
+  "include": ["./**/*.ts", "./**/*.vue", "../app/vue-shim.d.ts", "../.nuxt/types/nitro-imports.d.ts"]
 }

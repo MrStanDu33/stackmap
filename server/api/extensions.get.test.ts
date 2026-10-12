@@ -121,14 +121,15 @@ describe('GET /api/extensions: states and locales', () => {
 
     const { json } = await get([german, broken]);
 
+    // Registry order (dependencies first, then id), whatever the state.
     expect(json.extensions.map(({ id, state, locales, kinds }) => ({ id, state, locales, kinds }))).toEqual([
+      { id: 'broken', state: 'failed', locales: [], kinds: { host: [], network: [], service: [], protocol: [] } },
       {
         id: 'german',
         state: 'active',
         locales: [{ code: 'de', language: 'de-DE', name: 'Deutsch' }],
         kinds: { host: [], network: [], service: [], protocol: [] },
       },
-      { id: 'broken', state: 'failed', locales: [], kinds: { host: [], network: [], service: [], protocol: [] } },
     ]);
   });
 });
