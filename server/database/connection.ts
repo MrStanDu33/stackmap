@@ -70,7 +70,7 @@ function describeLocation(config: DatabaseConfig): string {
 export async function connectDatabase(config: DatabaseConfig): Promise<Kysely<Database>> {
   const db = config.dialect === 'sqlite' ? openSqlite(config.path) : openPostgres(config.url);
   try {
-    await sql`select 1`.execute(db);
+    await pingDatabase(db);
     return db;
   } catch (error) {
     await db.destroy();
@@ -82,6 +82,6 @@ export async function connectDatabase(config: DatabaseConfig): Promise<Kysely<Da
 }
 
 /** Checks that the database answers. */
-export function pingDatabase(_db: Kysely<Database>): Promise<void> {
-  return Promise.reject(new Error('Not implemented'));
+export async function pingDatabase(db: Kysely<Database>): Promise<void> {
+  await sql`select 1`.execute(db);
 }
