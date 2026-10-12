@@ -44,7 +44,12 @@ function workerDatabaseUrl(baseUrl: string): Promise<string> {
     try {
       const { rows } = await sql`select 1 from pg_database where datname = ${name}`.execute(admin);
       if (rows.length === 0) {
-        await sql`create database ${sql.id(name)}`.execute(admin);
+        // Another run with the same pool id (an IDE runner and the CLI) may create it at the same time.
+        await sql`create database ${sql.id(name)}`.execute(admin).catch((error: unknown) => {
+          if ((error as { code?: unknown }).code !== '42P04') {
+            throw error;
+          }
+        });
       }
     } finally {
       await admin.destroy();
