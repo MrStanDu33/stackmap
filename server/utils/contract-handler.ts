@@ -9,7 +9,7 @@ import {
   setResponseStatus,
 } from 'h3';
 
-import { problemOf } from '../../shared/contracts/errors';
+import { MAX_ISSUES, problemOf } from '../../shared/contracts/errors';
 
 import type { Contract } from '../../shared/contracts/contract';
 import type { Problem, ProblemCode } from '../../shared/contracts/errors';
@@ -39,8 +39,16 @@ type Issue = NonNullable<Problem['issues']>[number];
 
 /** Thrown to answer with an API problem instead of the handler's response. */
 class ApiFailure extends Error {
-  constructor(readonly code: ProblemCode, detail: string, readonly issues?: Issue[]) {
-    super(detail);
+  readonly issues?: Issue[];
+
+  constructor(readonly code: ProblemCode, detail: string, issues?: Issue[]) {
+    // A bounded answer: at most MAX_ISSUES issues, and the detail says how many there were.
+    super(issues && issues.length > MAX_ISSUES
+      ? `${detail} Showing the first ${String(MAX_ISSUES)} of ${String(issues.length)} issues.`
+      : detail);
+    if (issues) {
+      this.issues = issues.slice(0, MAX_ISSUES);
+    }
   }
 }
 

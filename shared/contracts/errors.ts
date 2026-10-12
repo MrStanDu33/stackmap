@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { PATH, text } from './formats';
+
 /** Every problem the API answers with: its HTTP status, its title (fixed per code) and when it happens. */
 export const PROBLEMS = {
   validation_failed: {
@@ -33,12 +35,18 @@ export type ProblemCode = keyof typeof PROBLEMS;
 
 const CODES = Object.keys(PROBLEMS) as [ProblemCode, ...ProblemCode[]];
 
+/** How many issues a problem lists at most; its detail says how many there were. */
+export const MAX_ISSUES = 100;
+
 export const ProblemIssue = z.object({
-  path: z.string().min(1).meta({
+  path: text(500).min(1).meta({
     description: 'Where: `params.<name>`, `query.<name>`, `body.<path>`, or `response.<path>` outside production',
     examples: ['body.name'],
   }),
-  message: z.string().min(1).meta({ description: 'What is wrong there', examples: ['Too small: expected string to have >=1 characters'] }),
+  message: text(1000).min(1).meta({
+    description: 'What is wrong there',
+    examples: ['Too small: expected string to have >=1 characters'],
+  }),
 }).meta({
   id: 'ProblemIssue',
   description: 'One invalid value',
@@ -47,28 +55,31 @@ export const ProblemIssue = z.object({
 
 /** An API error, as RFC 9457 Problem Details. */
 export const Problem = z.object({
-  type: z.string().regex(/^urn:stackmap:problem:[a-z_]+$/).meta({
+  type: z.string().max(100).regex(/^urn:stackmap:problem:[a-z_]+$/).meta({
     description: 'Identifies the kind of problem: `urn:stackmap:problem:<code>`',
     examples: ['urn:stackmap:problem:validation_failed'],
   }),
-  title: z.string().min(1).meta({
+  title: text(200).min(1).meta({
     description: 'A short summary of the kind of problem, the same for every occurrence',
     examples: [PROBLEMS.validation_failed.title],
   }),
   status: z.number().int().min(400).max(599).meta({ description: 'The HTTP status code', examples: [400] }),
-  detail: z.string().min(1).meta({
+  detail: text(2000).min(1).meta({
     description: 'What went wrong this time, for people',
     examples: ['The request does not match the API contract.'],
   }),
-  instance: z.string().min(1).meta({ description: 'The path of the request that failed', examples: ['/api/things/abc'] }),
+  instance: z.string().max(2048).regex(PATH).meta({
+    description: 'The path of the request that failed',
+    examples: ['/api/things/abc'],
+  }),
   code: z.enum(CODES).meta({
     description: `The kind of problem, stable and machine-readable so the interface can translate it:\n\n${
       Object.entries(PROBLEMS).map(([code, { status, description }]) =>
         `- \`${code}\` (${String(status)}): ${description}`).join('\n')}`,
     examples: ['validation_failed'],
   }),
-  issues: z.array(ProblemIssue).optional().meta({
-    description: 'Every invalid value, for `validation_failed` and `invalid_response`',
+  issues: z.array(ProblemIssue).max(MAX_ISSUES).optional().meta({
+    description: `The invalid values (at most ${String(MAX_ISSUES)}), for \`validation_failed\` and \`invalid_response\``,
   }),
 }).meta({
   id: 'Problem',
