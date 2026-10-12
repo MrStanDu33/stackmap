@@ -1,0 +1,25 @@
+# Lint of the OpenAPI document (shared/contracts/openapi.lint.test.ts): valid, and as complete as the specification
+# allows for this API. Every rule turned off says why.
+extends:
+  - recommended-strict
+
+rules:
+  info-contact: error
+  info-license: error
+  info-license-strict: error
+  operation-summary: error
+  operation-description: error
+  operation-operationId: error
+  operation-tag-defined: error
+  tag-description: error
+  operation-4xx-problem-details-rfc7807: error
+  parameter-description: error
+  no-invalid-media-type-examples: error
+  no-invalid-schema-examples: error
+  no-invalid-parameter-examples: error
+  no-unused-components: error
+  # Public operations without input (health, this document) have no client error to document. The test
+  # "documents 500 for every operation, 400 with input, 413 and 415 with a body" checks the others.
+  operation-4xx-response: off
+  # No authentication yet: security schemes arrive with accounts (phase 4).
+  security-defined: off

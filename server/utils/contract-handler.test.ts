@@ -12,14 +12,23 @@ const thing = defineContract({
   path: '/api/things/:id',
   operationId: 'updateThing',
   summary: 'Update a thing',
+  description: 'Renames a thing.',
   tags: ['Things'],
   requiredRole: 'editor',
   params: z.object({ id: z.string().regex(/^\d+$/) }),
   query: z.object({ dryRun: z.enum(['yes', 'no']).optional() }),
   body: z.object({ name: z.string().min(1) }),
   responses: {
-    200: { description: 'Updated', schema: z.object({ id: z.string(), name: z.string(), dryRun: z.boolean() }) },
-    409: { description: 'Conflict', schema: z.object({ reason: z.string() }) },
+    200: {
+      description: 'Updated',
+      schema: z.object({ id: z.string(), name: z.string(), dryRun: z.boolean() }),
+      examples: { renamed: { summary: 'Renamed', value: { id: '42', name: 'Proxy', dryRun: false } } },
+    },
+    409: {
+      description: 'Conflict',
+      schema: z.object({ reason: z.string() }),
+      examples: { taken: { summary: 'Name taken', value: { reason: 'taken' } } },
+    },
   },
 });
 
@@ -66,7 +75,7 @@ describe('defineContractHandler', () => {
     const { status, json } = await request('/api/things/abc?dryRun=maybe', JSON.stringify({ name: '' }));
 
     expect(status).toBe(400);
-    expect(json).toMatchObject({ statusCode: 400, code: 'validation_failed' });
+    expect(json).toMatchObject({ status: 400, code: 'validation_failed' });
     expect((json.issues as { path: string }[]).map(({ path }) => path).sort()).toEqual(['body.name', 'params.id', 'query.dryRun']);
     expect(handler).not.toHaveBeenCalled();
   });
@@ -76,7 +85,7 @@ describe('defineContractHandler', () => {
 
     expect(await request('/api/things/42', '{not json')).toMatchObject({
       status: 400,
-      json: { statusCode: 400, code: 'validation_failed' },
+      json: { status: 400, code: 'validation_failed' },
     });
   });
 
@@ -97,7 +106,7 @@ describe('defineContractHandler', () => {
     const request = serve(defineContractHandler(thing, handler));
 
     expect(await request('/api/things/42', JSON.stringify({ name: 'Proxy' }), { 'content-type': 'text/plain' }))
-      .toMatchObject({ status: 415, json: { statusCode: 415, code: 'unsupported_media_type' } });
+      .toMatchObject({ status: 415, json: { status: 415, code: 'unsupported_media_type' } });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -107,7 +116,7 @@ describe('defineContractHandler', () => {
 
     expect(await request('/api/things/42', JSON.stringify({ name: 'Proxy' }), {
       'content-length': String(MAX_BODY_BYTES + 1),
-    })).toMatchObject({ status: 413, json: { statusCode: 413, code: 'payload_too_large' } });
+    })).toMatchObject({ status: 413, json: { status: 413, code: 'payload_too_large' } });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -116,7 +125,7 @@ describe('defineContractHandler', () => {
     const request = serve(defineContractHandler(thing, handler));
 
     expect(await request('/api/things/42', JSON.stringify({ name: 'x'.repeat(MAX_BODY_BYTES) })))
-      .toMatchObject({ status: 413, json: { statusCode: 413, code: 'payload_too_large' } });
+      .toMatchObject({ status: 413, json: { status: 413, code: 'payload_too_large' } });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -127,8 +136,8 @@ describe('defineContractHandler', () => {
     const { status, json } = await request('/api/things/42', JSON.stringify({ name: 'Proxy' }));
 
     expect(status).toBe(500);
-    expect(json).toMatchObject({ statusCode: 500, code: 'invalid_response' });
-    expect(json.message).toContain('updateThing');
+    expect(json).toMatchObject({ status: 500, code: 'invalid_response' });
+    expect(json.detail).toContain('updateThing');
   });
 
   it('in production, sends the response without validating it', async () => {
@@ -153,25 +162,36 @@ describe('defineContractHandler', () => {
       .toMatchObject({ status: 500, json: { code: 'invalid_response' } });
   });
 
-  it('answers every error with { statusCode, code, message }', async () => {
+  it('never reveals the details of an unexpected error', async () => {
     const failing = serve(defineContractHandler(thing, () => {
       throw new Error('database exploded');
     }));
-    const invalid = serve(defineContractHandler(thing, vi.fn()));
 
-    const errors = [
-      (await failing('/api/things/42', JSON.stringify({ name: 'Proxy' }))).json,
-      (await invalid('/api/things/abc', '{}')).json,
-    ];
-    for (const error of errors) {
-      expect(error).toEqual(expect.objectContaining({
-        statusCode: expect.any(Number) as number,
-        code: expect.any(String) as string,
-        message: expect.any(String) as string,
-      }));
-    }
-    // Unexpected errors do not leak their details.
-    expect(errors[0]).toMatchObject({ statusCode: 500, code: 'internal_error' });
-    expect(JSON.stringify(errors[0])).not.toContain('exploded');
+    const { json } = await failing('/api/things/42', JSON.stringify({ name: 'Proxy' }));
+
+    expect(json).toMatchObject({ status: 500, code: 'internal_error' });
+    expect(JSON.stringify(json)).not.toContain('exploded');
+  });
+});
+
+describe('defineContractHandler: Problem Details', () => {
+  it('answers every error as application/problem+json: type, title, status, detail, instance, code', async () => {
+    const app = createApp().use(createRouter().post('/api/things/:id', defineContractHandler(thing, vi.fn())));
+    const response = await toWebHandler(app)(new Request('http://localhost/api/things/abc?dryRun=yes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Proxy' }),
+    }));
+
+    expect(response.headers.get('content-type')).toBe('application/problem+json');
+    expect(await response.json()).toEqual({
+      type: 'urn:stackmap:problem:validation_failed',
+      title: 'The request does not match the API contract',
+      status: 400,
+      detail: expect.stringMatching(/\S/) as string,
+      instance: '/api/things/abc',
+      code: 'validation_failed',
+      issues: [{ path: 'params.id', message: expect.any(String) as string }],
+    });
   });
 });

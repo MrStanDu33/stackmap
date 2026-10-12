@@ -2,8 +2,10 @@ import { createDocument } from 'zod-openapi';
 
 import { ApiError } from './errors';
 import { CONTRACTS } from './index';
+import { TAGS } from './tags';
 
 import type { Contract } from './contract';
+import type { TagDocs } from './tags';
 import type { z } from 'zod';
 import type { ZodOpenApiOperationObject, ZodOpenApiPathsObject } from 'zod-openapi';
 
@@ -48,7 +50,10 @@ function toOperation(contract: Contract): ZodOpenApiOperationObject {
 }
 
 /** The OpenAPI 3.1 document of the given contracts. */
-export function createOpenApiDocument(contracts: readonly Contract[] = CONTRACTS): OpenApiDocument {
+export function createOpenApiDocument(
+  contracts: readonly Contract[] = CONTRACTS,
+  _tags: Readonly<Record<string, TagDocs>> = TAGS,
+): OpenApiDocument {
   const paths: ZodOpenApiPathsObject = {};
   for (const contract of contracts) {
     const path = toOpenApiPath(contract.path);

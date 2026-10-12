@@ -8,6 +8,8 @@ export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 export interface ContractResponse {
   description: string;
   schema: z.ZodType;
+  /** Named examples, shown in the API reference and checked against the schema. */
+  examples?: Readonly<Record<string, { summary: string; value: unknown }>>;
 }
 
 /** An API operation: its route, documentation, access and schemas. Route handlers implement exactly one. */
@@ -20,6 +22,8 @@ export interface Contract {
   description?: string;
   tags: readonly string[];
   requiredRole: Role;
+  deprecated?: true;
+  externalDocs?: { description: string; url: string };
   params?: z.ZodObject;
   query?: z.ZodObject;
   body?: z.ZodType;
