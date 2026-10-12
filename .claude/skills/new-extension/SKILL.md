@@ -15,6 +15,9 @@ argument-hint: <extension-id>
    `pnpm install`, then `pnpm test:unit` and see the tests fail.
 3. Write `manifest.ts` with `defineExtension()`: `apiVersion: 1`, name, description and kind labels as keys under
    `extensions.<id>.`, Lucide icons (or images in `public/extensions/<id>/`).
-4. Add `nuxt.config.ts` (the layer: `i18n.locales` with `en.json` and `fr.json`) and both locale files with every key.
+4. Add `nuxt.config.ts` (the layer: `defineNuxtConfig({})`) and `i18n/locales/en.json` and `fr.json` with every key;
+   the build merges them with the app's. For code, declare `code` in the manifest and add `server.ts` or `client.ts`
+   (with `"./server"` or `"./client"` in `exports`), listed in `server/extensions/builtin.ts` or
+   `app/extensions/builtin.ts`; test its hooks first.
 5. Run `pnpm test:unit` (the built-in extension tests check the listing, translations, icons and versions),
    `pnpm lint`, `pnpm typecheck`, and `pnpm build` to see the layer load.

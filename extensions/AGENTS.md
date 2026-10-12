@@ -14,3 +14,13 @@
   `server/extensions/builtin.test.ts` check it is listed, translated and versioned; the registry refuses duplicate
   kinds, missing dependencies and cycles at startup.
 - An always-on extension may only depend on other always-on extensions.
+- Code: declare it in the manifest (`code: { server: true }`, `code: { client: true }`) and ship `server.ts`
+  (`defineExtensionServer`) or `client.ts` (`defineExtensionClient`), exported as `./server` and `./client` and listed
+  in `server/extensions/builtin.ts` or `app/extensions/builtin.ts`. Users are warned before installing code.
+- Hooks: handle the app's hooks, your own (`<id>:<name>`, declared in `contributes.hooks`) and those of extensions you
+  depend on or enhance (`enhances`). Payloads are plain JSON: ids and summaries, not whole entities. A handler that
+  throws is logged and skipped; it never breaks the app.
+- Locale packs: declare the languages you add in `contributes.locales` and ship `i18n/locales/<code>.json`; in those
+  languages you may translate any key. Missing keys fall back to English.
+- Debug with `STACKMAP_DEBUG=extensions` (server) or `localStorage['stackmap:debug'] = 'extensions'` (browser), and
+  `GET /api/extensions/diagnostics`.
