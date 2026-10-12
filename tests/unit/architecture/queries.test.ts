@@ -37,11 +37,10 @@ describe('database access', () => {
 });
 
 describe('coverage', () => {
-  it('requires 90% coverage of the repositories and the entity schemas', () => {
+  it('requires 90% coverage of the repositories', () => {
     const thresholds = (config.test?.coverage as { thresholds?: Record<string, unknown> } | undefined)?.thresholds;
     const strict = { lines: 90, functions: 90, branches: 90, statements: 90 };
 
     expect(thresholds?.['server/repositories/**']).toEqual(strict);
-    expect(thresholds?.['shared/entities/**']).toEqual(strict);
   });
 });

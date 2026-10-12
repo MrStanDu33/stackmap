@@ -1,11 +1,10 @@
-import { parseEntity } from './entity-repository';
-import { EntityConflictError } from './errors';
-import { workspaceSchema } from '../../shared/entities';
+import { EntityConflictError, parseEntity } from './errors';
+import { workspaceSchema } from '../../shared/workspace';
 import { isUniqueViolation } from '../database/errors';
 import { newId } from '../database/ids';
 import { fromTimestamp, toTimestamp } from '../database/serialize';
 
-import type { Workspace, WorkspaceInput } from '../../shared/entities';
+import type { Workspace, WorkspaceInput } from '../../shared/workspace';
 import type { Database, WorkspaceTable } from '../database/types/schema';
 import type { Kysely } from 'kysely';
 

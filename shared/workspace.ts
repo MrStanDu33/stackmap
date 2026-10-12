@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-import { entityName } from './common';
-import { KEBAB_CASE } from '../contracts/formats';
+import { KEBAB_CASE, LINE } from './contracts/formats';
 
 export interface WorkspaceInput {
   name: string;
@@ -16,6 +15,6 @@ export interface Workspace extends WorkspaceInput {
 }
 
 export const workspaceSchema: z.ZodType<WorkspaceInput, WorkspaceInput> = z.strictObject({
-  name: entityName(),
+  name: z.string().trim().min(1).max(100).regex(LINE),
   slug: z.string().max(48).regex(KEBAB_CASE),
 });

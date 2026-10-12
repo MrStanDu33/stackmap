@@ -10,6 +10,9 @@ import { z } from 'zod';
  */
 // eslint-disable-next-line no-control-regex -- the point is to refuse control characters.
 export const TEXT = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B\u200C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]*$/;
+/** One line of text: no control characters at all (no tabs or line breaks either), and nothing `TEXT` refuses. */
+// eslint-disable-next-line no-control-regex -- the point is to refuse control characters.
+export const LINE = /^[^\u0000-\u001F\u007F-\u009F\u200B\u200C\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]*$/;
 export const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 /** A semantic version: 1.4.0, 2.0.0-beta.1. */
 export const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -30,6 +33,7 @@ export const PATH = /^\/[\x21-\x7E]*$/;
 export const NAME = /^[A-Za-z][\w.-]*$/;
 
 export const text = (maxLength: number) => z.string().max(maxLength).regex(TEXT);
+export const line = (maxLength: number) => z.string().max(maxLength).regex(LINE);
 export const kebabId = () => z.string().max(40).regex(KEBAB_CASE);
 export const semver = () => z.string().max(64).regex(SEMVER);
 export const i18nKey = () => z.string().max(200).regex(I18N_KEY);

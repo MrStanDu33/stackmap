@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { workspaceSchema } from './workspace';
-import { issuePaths } from '../../tests/support/issues';
+import { issuePaths } from '../tests/support/issues';
 
 describe('workspace schema', () => {
   it('requires a name of 1 to 100 characters and a kebab-case slug of up to 48', () => {

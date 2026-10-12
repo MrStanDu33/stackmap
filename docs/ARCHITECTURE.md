@@ -8,9 +8,9 @@ This is the target architecture. Parts that are not built yet are marked _(plann
 Stackmap is one Nuxt 4 application, shipped as one container:
 
 - the **app** (`app/`): Vue 3 pages and components, Nuxt UI, Vue Flow for graphs, Pinia for editor state;
-- the **server** (`server/`): the database layer (`server/database/`), the workspace-scoped repositories
-  (`server/repositories/`), the Nitro API routes, and later the domain logic;
-- **shared code** (`shared/`): code used by both, such as the API contracts, the entity schemas and the design rules;
+- the **server** (`server/`): the database layer (`server/database/`), and later Nitro API routes and the domain
+  logic;
+- **shared code** (`shared/`): code used by both, such as the API contracts and the design rules;
 - **built-in extensions** (`extensions/<id>/`): Nuxt layers that add entity types and features;
 - the **extension SDK** (`packages/extension-sdk/`).
 
@@ -23,12 +23,10 @@ Kysely, with one code path for both (`server/database/`):
   `serialize.ts`; camelCase tables and columns, like Better Auth's;
 - migrations listed in `migrations/index.ts`, each with `up` and `down`, applied at startup before any request is
   served; a database migrated by a newer version is refused; `migrateTo` moves to any migration;
-- every entity table has the common columns (`migrations/entity-columns.ts`) and a `workspaceId`; references between
-  entities are composite foreign keys, `(workspaceId, parentId)` to `(workspaceId, id)`, so the database itself
-  refuses a row that points into another workspace. Deleting a referenced row is refused (`no action`, checked at the
-  end of the statement, so deleting a workspace cascades through its rows); rows an entity owns (a host's addresses, a
-  service's listeners, a domain's DNS records) are deleted with it;
-- constraint violations are recognized on both drivers (`errors.ts`: `isUniqueViolation`, `isForeignKeyViolation`);
+- constraint violations are recognized on both drivers (`errors.ts`: `isUniqueViolation`, `isForeignKeyViolation`),
+  so a race between two requests gets the same answer as two requests one after the other;
+- only `server/database/` and the repositories (`server/repositories/`) query the database, and nothing selects every
+  column: a test fails otherwise;
 - integration tests run every migration and query on both databases, and check that both end with the same schema.
 
 ## Repository layout
@@ -36,34 +34,26 @@ Kysely, with one code path for both (`server/database/`):
 | Path                 | Contents                                                                   |
 | -------------------- | -------------------------------------------------------------------------- |
 | `app/`               | Pages, components (atomic design), CSS tokens, app config                  |
-| `server/`            | API routes, database, migrations, repositories, demo stack; later domain   |
-| `shared/`            | Code shared by the app and the server: contracts, entity schemas, design   |
+| `server/`            | API routes, database and migrations; later domain logic and repositories   |
+| `shared/`            | Code shared by the app and the server: contracts, design rules             |
 | `extensions/`        | Built-in extensions, each a Nuxt layer; `core` is always on                |
 | `packages/`          | The extension SDK (`@stackmap/extension-sdk`)                              |
 | `i18n/locales/`      | English and French messages                                                |
-| `tests/`             | Cross-module unit tests, factories, test support, smoke and e2e tests      |
+| `tests/`             | Unit tests that are not next to their code, fixtures, end-to-end tests     |
 | `scripts/`           | Convention rules, release tooling and CI checks                            |
 | `.storybook/`        | Storybook configuration and foundation pages                               |
 | `docs/`              | Roadmap, architecture, CLA, the generated OpenAPI document                 |
 
-## Domain model
+## Domain model _(planned)_
 
 Every entity belongs to a **workspace** and has a status (`planned`, `active` or `deprecated`), tags, markdown notes,
-links, custom fields, an origin (`manual` or a connector) and audit fields. Their schemas (`shared/entities/`) are
-shared by forms and the server; IP addresses, networks and DNS names are normalized (IPv6 per RFC 5952, lowercase DNS
-names), so equal values are stored the same way.
+links, custom fields, an origin (`manual` or a connector) and audit fields.
 
-- A **site** contains **hosts** (physical, VM, LXC, VPS, network device). Hosts have IP addresses on **networks**,
-  inside the network's CIDR when it has one.
-- A **service** (app, database, cache, DNS, external API…) runs on a host, or on none for an external API, and
-  exposes **listeners** (port, transport, protocol, bind address, published port; no bind address for a port only
-  reachable on a container network).
-- A **domain** (unique in its workspace) has **DNS records**, relative to it (`@`, `www`, `*.dev`). Extensions add
-  **proxy routes**, **certificates**, **VPNs**, **NAT rules** and **access policies** (ordered authentication
-  chains) _(planned)_.
-
-_(Planned.)_
-
+- A **site** contains **hosts** (physical, VM, LXC, VPS, network device). Hosts have IP addresses on **networks**.
+- A **service** (app, database, cache, DNS, external API…) runs on a host and exposes **listeners** (port, protocol,
+  bind address, published port).
+- A **domain** has **DNS records**. Extensions add **proxy routes**, **certificates**, **VPNs**, **NAT rules** and
+  **access policies** (ordered authentication chains).
 - A **flow** is an edge from a service to a listener: protocol, purpose, encryption, access policy. Flows are
   **derived** from DNS records, proxy routes, NAT rules and so on, or added by hand.
 - A **trace** is computed for a hostname: client → DNS → public IP, NAT or tunnel → proxy → upstream → dependencies.
@@ -73,38 +63,16 @@ _(Planned.)_
   a generic table.
 
 Kinds (host kinds, service kinds, protocols…) are text values validated against the extension registry, so an
-extension can add one without a migration. A kind is checked when it is set or changed, so an entity keeps working
-when the extension of its kind is turned off. Fields that an extension adds to a core entity live in the extension's
-own table _(planned)_.
-
-The **demo stack** (`server/demo/demo-stack.ts`) is a fictional home lab, described with references by name: a home
-server behind an edge router, a website and its database behind Nginx Proxy Manager, `homelab.example`. Tests use it,
-and the app seeds it into its demo workspace.
+extension can add one without a migration. Fields that an extension adds to a core entity live in the extension's own
+table.
 
 ## Workspaces and isolation
 
-Every entity belongs to a workspace (`workspace` table). All data access goes through the repositories of one
-workspace, `workspaceRepositories(db, { workspaceId, actorId, kinds })` (`server/repositories/`):
-
-- every query is limited to the workspace, so another workspace's entity is invisible: reading it gives nothing,
-  updating it changes nothing, removing it removes nothing;
-- a reference to an entity of another workspace (or to none) fails with a `WorkspaceReferenceError` naming the field,
-  and the composite foreign keys refuse it in the database too;
-- input is validated with the entity schemas, and kinds against the active extensions (`EntityValidationError` with
-  every issue); a duplicate unique value is an `EntityConflictError`, removing a referenced entity an
-  `EntityInUseError` naming its dependents; routes turn these into Problem Details;
-- queries select named columns, never `*`, so a column added for something else never reaches a response;
-- a malformed id finds nothing, filters are validated, and the scope is copied and frozen, so changing the caller's
-  object afterwards cannot move the repositories to another workspace;
-- `repos.transaction(work)` runs the work on one transaction, all or nothing.
-
-A shared test suite (`tests/support/scoped-repository-suite.ts`) runs every repository through the same isolation
-checks on both databases, and a test fails when code outside `server/repositories/` and `server/database/` queries
-the database or when anything selects every column.
-
-Members, roles (`owner`, `admin`, `editor`, `viewer`) and invitations come from Better Auth's organization plugin,
-mapped onto the `workspace` table _(planned, phase 4)_. An entitlements service, `can(workspace, feature)`, allows
-everything in v1 and prepares paid plans _(planned)_.
+Every entity belongs to a **workspace** (`workspace` table: name, unique kebab-case slug), created, read and deleted
+with `server/repositories/workspaces.ts`. _(Planned.)_ Workspaces, members, roles (`owner`, `admin`, `editor`, `viewer`) and invitations come from Better Auth's organization
+plugin. All data access goes through repositories scoped
+to a workspace; tests prove that one workspace cannot read or change another's data. An entitlements service,
+`can(workspace, feature)`, allows everything in v1 and prepares paid plans.
 
 ## Extensions
 
@@ -185,10 +153,9 @@ in `server/api/` implements exactly one contract with `defineContractHandler`, w
 - passes the parsed input, typed, to the handler, which returns `{ status, body }` for one of the declared statuses;
 - sends the response parsed with its schema, so a field the contract does not declare never leaves the server (a
   loose schema, such as `z.unknown()` or a passthrough object, lets everything under it through, so response
-  schemas avoid them);
-  outside production, such a field or a response that does not match answers `500 invalid_response`, so contract
-  drift fails in tests; in production, a response that does not match answers `500 internal_error` and is logged,
-  never sent unvalidated;
+  schemas avoid them); outside production, such a field or a response that does not match answers
+  `500 invalid_response`, so contract drift fails in tests; in production, a response that does not match answers
+  `500 internal_error` and is logged, never sent unvalidated;
 - answers unexpected errors with `500 internal_error`, logging the details without returning them.
 
 Every error is RFC 9457 Problem Details, as `application/problem+json`: `type` (`urn:stackmap:problem:<code>`),
@@ -201,7 +168,8 @@ describes everything the specification offers that applies: info (summary, conve
 server as `{scheme}://{host}` (the served document names the instance itself, behind a proxy too), tags, external
 docs, shared error responses, every operation's role, examples and errors, and every property. Every string has a
 maximum length and an anchored pattern, every array a maximum size, and every value a type (`shared/contracts/
-formats.ts`), so responses validate tightly and API security audits (42Crunch) find no open-ended schema. The
+formats.ts`; free text and one-line text refuse control, invisible and direction-changing characters, which make text
+read differently than it is), so responses validate tightly and API security audits (42Crunch) find no open-ended schema. The
 document requires the session cookie (`better-auth.session_token`, `shared/contracts/security.ts`) except on public
 operations; it is enforced once accounts exist (phase 4), which must use that cookie. Tests prove it: it is valid
 OpenAPI, the strict Redocly lint (`redocly.yaml`) reports nothing, and every example matches its schema.
@@ -229,9 +197,8 @@ healthcheck calls it. The database error goes to the logs, never to the response
 Tests are the specification: acceptance criteria are written as test names before the code. Layers: unit tests
 (Vitest), integration tests against SQLite and Postgres, stories as component tests, Docker image smoke tests, and
 end-to-end tests with Playwright and axe _(planned)_. Coverage thresholds and nightly mutation testing guard the domain
-logic. Test data comes from the factories (`tests/factories/`) and the demo stack, with fictional values only
-(documentation and private IP ranges, `.example` names), which tests check. On Postgres, each test gets its own schema
-in a database of its Vitest worker. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+logic. On Postgres, each test gets its own schema, in a database of its Vitest worker. See
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Glossary
 
