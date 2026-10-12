@@ -66,6 +66,23 @@ describe('checkExtension', () => {
       .toEqual(['extensions.vpn.name is empty in fr']);
   });
 
+  it('given a locale key outside extensions.<id>., reports it: an extension cannot override other strings', () => {
+    const { messages, publicFiles } = files();
+    const en = { ...messages.en, app: { name: 'Hijacked' } };
+    const fr = { ...messages.fr, app: { name: 'Détourné' } };
+
+    expect(checkExtension(vpn, { messages: { en, fr }, publicFiles })).toEqual(['app.name is outside extensions.vpn.']);
+  });
+
+  it('given a public file outside public/extensions/<id>/, reports it: an extension cannot override other files', () => {
+    const publicFiles = ['extensions/vpn/wireguard.svg', 'favicon.ico', 'extensions/core/logo.svg'];
+
+    expect(checkExtension(vpn, { ...files(), publicFiles })).toEqual([
+      'public/favicon.ico is outside public/extensions/vpn/',
+      'public/extensions/core/logo.svg is outside public/extensions/vpn/',
+    ]);
+  });
+
   it('given a Lucide icon that does not exist or an image missing from public/, reports the icon; no icon is fine', () => {
     const broken: ExtensionManifest = { ...vpn, icon: 'i-lucide-not-a-real-icon' };
 

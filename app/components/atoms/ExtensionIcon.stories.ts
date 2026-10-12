@@ -1,4 +1,4 @@
-import { expect, waitFor } from 'storybook/test';
+import { expect, waitFor, within } from 'storybook/test';
 
 import ExtensionIcon from './ExtensionIcon.vue';
 
@@ -6,10 +6,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
 const FALLBACK = 'i-lucide-puzzle';
 
-/** A small image, inline so the story needs no file. */
-const IMAGE = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#7c3aed"/></svg>',
-)}`;
+/** An image an extension ships, served from .storybook/public/ as the app serves extension layers' public/. */
+const IMAGE = '/extensions/storybook/icon.svg';
 
 const meta = {
   title: 'Atoms/ExtensionIcon',
@@ -36,6 +34,8 @@ const shownIcon = (canvasElement: HTMLElement) => {
 
 /** Decorative: hidden from assistive technologies, and images have an empty alt. */
 const expectDecorative = async (element: HTMLElement) => {
+  // What a screen reader gets: no image at all.
+  await expect(within(element.parentElement ?? element).queryByRole('img')).toBeNull();
   await expect(element).toHaveAttribute('aria-hidden', 'true');
   if (element instanceof HTMLImageElement) {
     await expect(element).toHaveAttribute('alt', '');
@@ -49,6 +49,7 @@ export const Lucide: Story = {
     const element = shownIcon(canvasElement);
 
     await expect(element).toHaveAttribute('data-icon', 'i-lucide-router');
+    // In Storybook (plain Vue) UIcon renders an inline SVG; in the app it is a CSS-masked span.
     await waitFor(() => expect(element.closest('svg') ?? element.querySelector('svg')).not.toBeNull());
     await expectDecorative(element);
   },
@@ -62,7 +63,24 @@ export const Image: Story = {
 
     await expect(element).toBeInstanceOf(HTMLImageElement);
     await expect(element).toHaveAttribute('src', IMAGE);
+    // The size class of the caller wins over the default size.
+    await expect(element.getBoundingClientRect().width).toBe(32);
     await expectDecorative(element);
+  },
+};
+
+/** An image without a size class is 1em, like icons, so it follows the text size. */
+export const ImageDefaultSize: Story = {
+  args: { icon: IMAGE },
+  render: (args) => ({
+    components: { ExtensionIcon },
+    setup: () => ({ args }),
+    template: '<span style="font-size: 20px"><ExtensionIcon v-bind="args" /></span>',
+  }),
+  play: async ({ canvasElement }) => {
+    const { width, height } = shownIcon(canvasElement).getBoundingClientRect();
+
+    await expect({ width, height }).toEqual({ width: 20, height: 20 });
   },
 };
 
@@ -74,6 +92,15 @@ export const NoIcon: Story = {
 
     await expect(element).toHaveAttribute('data-icon', FALLBACK);
     await expectDecorative(element);
+  },
+};
+
+/** A remote image is never loaded: the generic fallback replaces it. */
+export const RemoteImage: Story = {
+  args: { icon: 'https://cdn.example/icon.svg' },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelector('img')).toBeNull();
+    await expect(shownIcon(canvasElement)).toHaveAttribute('data-icon', FALLBACK);
   },
 };
 
