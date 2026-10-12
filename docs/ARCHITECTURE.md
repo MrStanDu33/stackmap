@@ -94,6 +94,8 @@ workspace, `workspaceRepositories(db, { workspaceId, actorId, kinds })` (`server
   every issue); a duplicate unique value is an `EntityConflictError`, removing a referenced entity an
   `EntityInUseError` naming its dependents; routes turn these into Problem Details;
 - queries select named columns, never `*`, so a column added for something else never reaches a response;
+- a malformed id finds nothing, filters are validated, and the scope is copied and frozen, so changing the caller's
+  object afterwards cannot move the repositories to another workspace;
 - `repos.transaction(work)` runs the work on one transaction, all or nothing.
 
 A shared test suite (`tests/support/scoped-repository-suite.ts`) runs every repository through the same isolation
@@ -181,7 +183,9 @@ in `server/api/` implements exactly one contract with `defineContractHandler`, w
   and up to 1 MiB (`413 payload_too_large`, refused while reading);
 - validates the input and answers `400 validation_failed` with the issues, without running the handler;
 - passes the parsed input, typed, to the handler, which returns `{ status, body }` for one of the declared statuses;
-- sends the response parsed with its schema, so a field the contract does not declare never leaves the server;
+- sends the response parsed with its schema, so a field the contract does not declare never leaves the server (a
+  loose schema, such as `z.unknown()` or a passthrough object, lets everything under it through, so response
+  schemas avoid them);
   outside production, such a field or a response that does not match answers `500 invalid_response`, so contract
   drift fails in tests; in production, a response that does not match answers `500 internal_error` and is logged,
   never sent unvalidated;
