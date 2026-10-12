@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { defineContract } from './contract';
 import { PROBLEMS } from './errors';
 import { API_VERSION, createOpenApiDocument } from './openapi';
+import { SESSION_COOKIE } from './security';
 
 import type { oas31 } from 'zod-openapi';
 
@@ -282,5 +283,100 @@ describe('OpenAPI document: schemas', () => {
     expect(property('ExtensionLocale', 'code').pattern).toBeDefined();
     const languages = property('ExtensionDiagnostics', 'languages').items as oas31.SchemaObject;
     expect(languages.properties?.coverage).toMatchObject({ minimum: 0, maximum: 1 });
+  });
+});
+
+/** Every schema object in the document, anywhere (components, parameters, bodies, responses), with its JSON path. */
+const everySchema = (doc: typeof api) => {
+  const found: [string, Record<string, unknown>][] = [];
+  const visit = (node: unknown, where: string, inSchema: boolean) => {
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => {
+        visit(item, `${where}[${String(index)}]`, inSchema);
+      });
+      return;
+    }
+    if (typeof node !== 'object' || node === null) {
+      return;
+    }
+    const record = node as Record<string, unknown>;
+    if (inSchema && !('$ref' in record)) {
+      found.push([where, record]);
+    }
+    for (const [key, value] of Object.entries(record)) {
+      // Examples are values, not schemas.
+      if (key === 'examples' || key === 'example') {
+        continue;
+      }
+      const schemaChild = key === 'schema' || (inSchema && ['items', 'additionalProperties', 'not'].includes(key));
+      if (inSchema && ['properties', 'patternProperties', '$defs'].includes(key)) {
+        for (const [name, child] of Object.entries(value as Record<string, unknown>)) {
+          visit(child, `${where}.${key}.${name}`, true);
+        }
+      } else if (inSchema && ['anyOf', 'oneOf', 'allOf', 'prefixItems'].includes(key)) {
+        visit(value, `${where}.${key}`, true);
+      } else if (key === 'schemas' && where.endsWith('components')) {
+        for (const [name, child] of Object.entries(value as Record<string, unknown>)) {
+          visit(child, `${where}.schemas.${name}`, true);
+        }
+      } else if (schemaChild || !inSchema) {
+        visit(value, `${where}.${key}`, schemaChild);
+      }
+    }
+  };
+  visit(doc, '#', false);
+  return found;
+};
+
+const typesOf = (schema: Record<string, unknown>) =>
+  (Array.isArray(schema.type) ? schema.type : [schema.type]) as unknown[];
+
+describe('OpenAPI document: 42Crunch audit', () => {
+  it('bounds every string with a maxLength and an anchored pattern, except enums', () => {
+    const unbounded = everySchema(api)
+      .filter(([, schema]) => typesOf(schema).includes('string') && schema.enum === undefined)
+      .filter(([, schema]) => schema.maxLength === undefined || typeof schema.pattern !== 'string'
+        || !schema.pattern.startsWith('^') || !schema.pattern.endsWith('$'))
+      .map(([where]) => where);
+
+    expect(unbounded).toEqual([]);
+  });
+
+  it('bounds every array with a maxItems', () => {
+    const unbounded = everySchema(api)
+      .filter(([, schema]) => typesOf(schema).includes('array') && schema.maxItems === undefined)
+      .map(([where]) => where);
+
+    expect(unbounded).toEqual([]);
+  });
+
+  it('types every value: every schema has a type, and no object accepts properties of any type', () => {
+    const untyped = everySchema(api)
+      .filter(([, schema]) => schema.type === undefined && ['anyOf', 'oneOf', 'allOf', 'enum', 'const']
+        .every((keyword) => schema[keyword] === undefined))
+      .map(([where]) => where);
+    const openEnded = everySchema(api)
+      .filter(([, schema]) => schema.additionalProperties === true
+        || (typeof schema.additionalProperties === 'object' && schema.additionalProperties !== null
+          && Object.keys(schema.additionalProperties).length === 0))
+      .map(([where]) => `${where}.additionalProperties`);
+
+    expect([...untyped, ...openEnded]).toEqual([]);
+  });
+
+  it('requires the session cookie, except on public operations, and says when it is enforced', () => {
+    expect(api.components?.securitySchemes).toEqual({
+      session: {
+        type: 'apiKey',
+        in: 'cookie',
+        name: SESSION_COOKIE,
+        description: expect.stringMatching(/\S/) as string,
+      },
+    });
+    expect(api.security).toEqual([{ session: [] }]);
+    expect(api.paths?.['/api/health']?.get?.security).toEqual([]);
+    expect(api.paths?.['/api/openapi.json']?.get?.security).toEqual([]);
+    expect(api.paths?.['/api/extensions']?.get).not.toHaveProperty('security');
+    expect(api.info.description).toContain('## Authentication');
   });
 });

@@ -21,5 +21,3 @@ rules:
   # Public operations without input (health, this document) have no client error to document. The test
   # "documents 500 for every operation, 400 with input, 413 and 415 with a body" checks the others.
   operation-4xx-response: off
-  # No authentication yet: security schemes arrive with accounts (phase 4).
-  security-defined: off

@@ -174,6 +174,29 @@ describe('defineContractHandler', () => {
   });
 });
 
+describe('defineContractHandler: bounded problems', () => {
+  it('keeps at most 100 issues, and says how many there were', async () => {
+    const many = defineContract({
+      method: 'post',
+      path: '/api/things/:id',
+      operationId: 'tagThings',
+      summary: 'Tag things',
+      description: 'Tags many things.',
+      tags: ['Things'],
+      requiredRole: 'editor',
+      body: z.object({ tags: z.array(z.string().min(1)) }),
+      responses: { 204: { description: 'Tagged', schema: z.null(), examples: { done: { summary: 'Done', value: null } } } },
+    });
+    const request = serve(defineContractHandler(many, vi.fn()));
+
+    const { status, json } = await request('/api/things/42', JSON.stringify({ tags: Array.from({ length: 150 }, () => '') }));
+
+    expect(status).toBe(400);
+    expect(json.issues).toHaveLength(100);
+    expect(json.detail).toMatch(/first 100 of 150/);
+  });
+});
+
 describe('defineContractHandler: Problem Details', () => {
   it('answers every error as application/problem+json: type, title, status, detail, instance, code', async () => {
     const app = createApp().use(createRouter().post('/api/things/:id', defineContractHandler(thing, vi.fn())));
