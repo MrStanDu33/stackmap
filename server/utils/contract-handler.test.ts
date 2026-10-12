@@ -211,7 +211,8 @@ describe('defineContractHandler', () => {
 
     expect(status).toBe(500);
     expect(json).toMatchObject({ status: 500, code: 'internal_error' });
-    expect(JSON.stringify(json)).not.toContain('42');
+    expect(json).not.toHaveProperty('issues');
+    expect(json.detail).toBe('An unexpected error happened; the server logs have the details.');
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('updateThing'), expect.anything());
   });
 

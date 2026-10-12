@@ -16,6 +16,8 @@ import type { Problem, ProblemCode } from '../../shared/contracts/errors';
 import type { EventHandler, H3Event } from 'h3';
 import type { z } from 'zod';
 
+const INTERNAL_ERROR = 'An unexpected error happened; the server logs have the details.';
+
 /** Largest request body the API reads, in bytes. */
 export const MAX_BODY_BYTES = 1024 * 1024;
 
@@ -138,18 +140,52 @@ async function parseInput<C extends Contract>(contract: C, event: H3Event): Prom
   return input as unknown as ContractInput<C>;
 }
 
-/** Outside production, checks that the handler answered with a declared status and a body matching its schema. */
-function checkResult(contract: Contract, { status, body }: { status: number; body: unknown }): void {
-  if (process.env.NODE_ENV === 'production') {
-    return;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Paths of the fields the handler sent that its response schema dropped: fields the contract does not declare. */
+function undeclaredFields(sent: unknown, parsed: unknown, path: string[] = []): string[] {
+  if (Array.isArray(sent) && Array.isArray(parsed)) {
+    return sent.flatMap((item, index) => undeclaredFields(item, parsed[index], [...path, String(index)]));
   }
+  if (isRecord(sent) && isRecord(parsed)) {
+    return Object.entries(sent).flatMap(([key, value]) => {
+      if (value === undefined) {
+        return [];
+      }
+      return key in parsed ? undeclaredFields(value, parsed[key], [...path, key]) : [[...path, key].join('.')];
+    });
+  }
+  return [];
+}
+
+/**
+ * The body to send: the response parsed with its schema, so a field the contract does not declare (a password hash
+ * a query selected by mistake) never leaves the server. Outside production, an undeclared field or a body that does
+ * not match fails with `invalid_response`, so contract drift fails in tests; in production, a body that does not match
+ * is never sent unvalidated.
+ */
+function responseBody(contract: Contract, { status, body }: { status: number; body: unknown }): unknown {
+  const production = process.env.NODE_ENV === 'production';
   const declared = contract.responses[status];
   const result = declared?.schema.safeParse(body);
-  if (result?.success !== true) {
-    const issues = result ? toIssues('response', result.error) : [{ path: 'status', message: `Undeclared status ${String(status)}` }];
-    console.error(`[api] ${contract.operationId} answered ${String(status)} with a response that does not match its contract`, issues);
-    throw new ApiFailure('invalid_response', `The response of ${contract.operationId} does not match its contract.`, issues);
+  const issues = !result
+    ? [{ path: 'status', message: `Undeclared status ${String(status)}` }]
+    : result.success
+      ? undeclaredFields(body, result.data).map((path) => ({ path: `response.${path}`, message: 'Undeclared field' }))
+      : toIssues('response', result.error);
+  if (issues.length === 0 && result?.success) {
+    return result.data;
   }
+  const answered = `${contract.operationId} answered ${String(status)}`;
+  console.error(`[api] ${answered} with a response that does not match its contract`, issues);
+  if (production && result?.success) {
+    return result.data;
+  }
+  if (production) {
+    throw new ApiFailure('internal_error', INTERNAL_ERROR);
+  }
+  throw new ApiFailure('invalid_response', `The response of ${contract.operationId} does not match its contract.`, issues);
 }
 
 /** A route handler that implements a contract: validated input in, a declared response out. */
@@ -161,13 +197,13 @@ export function defineContractHandler<C extends Contract, const R extends Contra
   const eventHandler = defineEventHandler(async (event) => {
     try {
       const result: { status: number; body: unknown } = await handler(await parseInput(contract, event), event);
-      checkResult(contract, result);
+      const body = responseBody(contract, result);
       setResponseStatus(event, result.status);
-      return result.body;
+      return body;
     } catch (error) {
       const failure = error instanceof ApiFailure
         ? error
-        : new ApiFailure('internal_error', 'An unexpected error happened; the server logs have the details.');
+        : new ApiFailure('internal_error', INTERNAL_ERROR);
       if (!(error instanceof ApiFailure)) {
         console.error(`[api] ${contract.operationId} failed`, error);
       }
