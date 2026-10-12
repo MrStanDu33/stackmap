@@ -1,14 +1,11 @@
-import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-// Every built-in extension is a Nuxt layer: its locale files now, its pages and components later.
-const extensionLayers = readdirSync(new URL('./extensions', import.meta.url), { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => `./extensions/${entry.name}`)
-  .sort();
+import { findExtensionLayers } from './scripts/extensions/layers.mjs';
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  extends: extensionLayers,
+  // Every built-in extension is a Nuxt layer: its locale files now, its pages and components later.
+  extends: findExtensionLayers(fileURLToPath(new URL('.', import.meta.url))),
 
   modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxtjs/i18n', '@scalar/nuxt'],
 
