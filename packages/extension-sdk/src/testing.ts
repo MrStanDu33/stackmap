@@ -1,14 +1,17 @@
 import { KIND_ENTITIES, lucideIconExists } from './manifest';
 
+import type { Messages } from './locales';
 import type { ExtensionManifest } from './manifest';
 
-export interface Messages { [key: string]: string | Messages }
+export type { Messages } from './locales';
 
 export interface ExtensionFiles {
   /** The extension's locale files, by locale code. */
   messages: Readonly<Record<string, Messages>>;
   /** Files of the extension's public/ directory, relative to it (`extensions/<id>/icon.svg`). */
   publicFiles: readonly string[];
+  /** English messages of the app and the other extensions, to check a locale pack's placeholders. */
+  reference?: Messages;
 }
 
 /** Every built-in extension is translated into the app's locales. */

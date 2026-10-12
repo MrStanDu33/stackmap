@@ -52,6 +52,8 @@ export default defineConfig({
             'server/**/*.test.ts',
             'packages/*/src/**/*.test.ts',
             'extensions/*/**/*.test.ts',
+            'app/**/*.test.ts',
+            'modules/**/*.test.ts',
           ],
           exclude: ['**/node_modules/**', '**/*.integration.test.ts'],
         },

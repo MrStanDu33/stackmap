@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import { checkExtension } from '@stackmap/extension-sdk/testing';
 import { describe, expect, it } from 'vitest';
 
-import { BUILTIN_EXTENSIONS } from './builtin';
+import { BUILTIN_EXTENSION_SERVERS, BUILTIN_EXTENSIONS } from './builtin';
 import { createExtensionRegistry } from './registry';
 
 import type { Messages } from '@stackmap/extension-sdk/testing';
@@ -59,6 +59,18 @@ describe('built-in extensions', () => {
   it('form a valid registry in which core is always on', () => {
     const registry = createExtensionRegistry(BUILTIN_EXTENSIONS);
 
-    expect(registry.get('core')?.alwaysOn).toBe(true);
+    expect(registry.get('core')).toMatchObject({ state: 'active', manifest: { alwaysOn: true } });
+  });
+});
+
+describe('built-in extension code', () => {
+  it('lists every extensions/*/server.ts with its manifest', () => {
+    const withServerCode = packages.filter((id) => existsSync(join(EXTENSIONS_DIR, id, 'server.ts')));
+
+    expect(BUILTIN_EXTENSION_SERVERS.map(({ extension }) => extension).sort()).toEqual(withServerCode);
+    for (const id of packages) {
+      const declared = BUILTIN_EXTENSIONS.find((extension) => extension.id === id)?.code?.server ?? false;
+      expect({ id, declared }).toEqual({ id, declared: withServerCode.includes(id) });
+    }
   });
 });

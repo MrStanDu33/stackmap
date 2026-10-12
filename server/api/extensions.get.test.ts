@@ -57,6 +57,7 @@ describe('GET /api/extensions', () => {
             icon: 'i-lucide-layers',
             alwaysOn: true,
             dependsOn: [],
+            state: 'active',
             enabled: true,
             kinds: {
               host: [],
@@ -64,6 +65,7 @@ describe('GET /api/extensions', () => {
               service: [],
               protocol: [],
             },
+            locales: [],
           },
           {
             id: 'vpn',
@@ -73,8 +75,10 @@ describe('GET /api/extensions', () => {
             icon: '/extensions/vpn/wireguard.svg',
             alwaysOn: false,
             dependsOn: ['core'],
+            state: 'active',
             enabled: true,
             kinds: { host: [], network: [{ id: 'vpn', label: 'extensions.vpn.kinds.network.vpn' }], service: [], protocol: [] },
+            locales: [],
           },
         ],
       },
@@ -99,5 +103,32 @@ describe('GET /api/extensions', () => {
 
   it('requires the viewer role', () => {
     expect(handler.contract.requiredRole).toBe('viewer');
+  });
+});
+
+describe('GET /api/extensions: states and locales', () => {
+  it('adds each extension\'s state and contributed locales; failed extensions contribute nothing', async () => {
+    const german: ExtensionManifest = {
+      ...vpn,
+      id: 'german',
+      name: 'extensions.german.name',
+      description: 'extensions.german.description',
+      icon: undefined,
+      dependsOn: [],
+      contributes: { kinds: {}, locales: [{ code: 'de', language: 'de-DE', name: 'Deutsch' }] },
+    };
+    const broken: ExtensionManifest = { ...german, id: 'broken', apiVersion: 99 };
+
+    const { json } = await get([german, broken]);
+
+    expect(json.extensions.map(({ id, state, locales, kinds }) => ({ id, state, locales, kinds }))).toEqual([
+      {
+        id: 'german',
+        state: 'active',
+        locales: [{ code: 'de', language: 'de-DE', name: 'Deutsch' }],
+        kinds: { host: [], network: [], service: [], protocol: [] },
+      },
+      { id: 'broken', state: 'failed', locales: [], kinds: { host: [], network: [], service: [], protocol: [] } },
+    ]);
   });
 });

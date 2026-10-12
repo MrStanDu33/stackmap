@@ -21,6 +21,23 @@ export interface Kind {
 
 export type KindContributions = Partial<Record<KindEntity, readonly Kind[]>>;
 
+/** A hook an extension declares; others call it `<extension id>:<name>`. */
+export interface HookDeclaration {
+  name: string;
+  side: 'server' | 'client';
+  description: string;
+}
+
+/** A language an extension adds (a locale pack). */
+export interface LocaleDeclaration {
+  /** As used in URLs and settings: `de`, `pt-BR`. */
+  code: string;
+  /** BCP 47 language tag: `de-DE`. */
+  language: string;
+  /** The language's name in that language: "Deutsch". */
+  name: string;
+}
+
 export interface ExtensionManifest {
   id: string;
   version: string;
@@ -31,14 +48,22 @@ export interface ExtensionManifest {
   /** Cannot be turned off (the core). */
   alwaysOn: boolean;
   dependsOn: readonly string[];
-  contributes: { kinds: KindContributions };
+  /** Optional dependencies: extensions this one extends when they are there. */
+  enhances?: readonly string[];
+  /** Whether the extension runs code; users are warned before installing one that does. */
+  code?: { server?: boolean; client?: boolean };
+  contributes: {
+    kinds: KindContributions;
+    hooks?: readonly HookDeclaration[];
+    locales?: readonly LocaleDeclaration[];
+  };
 }
 
 /** What an extension declares; defineExtension fills in the defaults. */
 export type ExtensionManifestInput = Omit<ExtensionManifest, 'alwaysOn' | 'dependsOn' | 'contributes'> & {
   alwaysOn?: boolean;
   dependsOn?: readonly string[];
-  contributes?: { kinds?: KindContributions };
+  contributes?: Partial<ExtensionManifest['contributes']>;
 };
 
 export class ExtensionManifestError extends Error {
