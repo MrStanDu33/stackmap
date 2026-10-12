@@ -4,6 +4,7 @@
  */
 export interface Database {
   appSetting: AppSettingTable;
+  workspace: WorkspaceTable;
 }
 
 /** Instance-wide settings (registration toggle, default landing page…), one JSON value per key. */
@@ -12,5 +13,14 @@ export interface AppSettingTable {
   /** JSON text. */
   value: string;
   /** ISO-8601 UTC timestamp text. */
+  updatedAt: string;
+}
+
+/** Workspaces: every entity belongs to one. */
+export interface WorkspaceTable {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
   updatedAt: string;
 }

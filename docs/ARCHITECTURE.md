@@ -11,8 +11,8 @@ Stackmap is one Nuxt 4 application, shipped as one container:
 - the **server** (`server/`): the database layer (`server/database/`), and later Nitro API routes and the domain
   logic;
 - **shared code** (`shared/`): code used by both, such as the API contracts and the design rules;
-- **built-in extensions** (`extensions/<id>/`) _(planned)_: Nuxt layers that add entity types and features;
-- the **extension SDK** (`packages/extension-sdk/`) _(planned)_.
+- **built-in extensions** (`extensions/<id>/`): Nuxt layers that add entity types and features;
+- the **extension SDK** (`packages/extension-sdk/`).
 
 ## Database
 
@@ -23,6 +23,10 @@ Kysely, with one code path for both (`server/database/`):
   `serialize.ts`; camelCase tables and columns, like Better Auth's;
 - migrations listed in `migrations/index.ts`, each with `up` and `down`, applied at startup before any request is
   served; a database migrated by a newer version is refused; `migrateTo` moves to any migration;
+- constraint violations are recognized on both drivers (`errors.ts`: `isUniqueViolation`, `isForeignKeyViolation`),
+  so a race between two requests gets the same answer as two requests one after the other;
+- only `server/database/` and the repositories (`server/repositories/`) query the database, and nothing selects every
+  column: a test fails otherwise;
 - integration tests run every migration and query on both databases, and check that both end with the same schema.
 
 ## Repository layout
@@ -62,9 +66,10 @@ Kinds (host kinds, service kinds, protocols…) are text values validated agains
 extension can add one without a migration. Fields that an extension adds to a core entity live in the extension's own
 table.
 
-## Workspaces and isolation _(planned)_
+## Workspaces and isolation
 
-Workspaces, members, roles (`owner`, `admin`, `editor`, `viewer`) and invitations come from Better Auth's organization
+Every entity belongs to a **workspace** (`workspace` table: name, unique kebab-case slug), created, read and deleted
+with `server/repositories/workspaces.ts`. _(Planned.)_ Workspaces, members, roles (`owner`, `admin`, `editor`, `viewer`) and invitations come from Better Auth's organization
 plugin. All data access goes through repositories scoped
 to a workspace; tests prove that one workspace cannot read or change another's data. An entitlements service,
 `can(workspace, feature)`, allows everything in v1 and prepares paid plans.
@@ -146,8 +151,11 @@ in `server/api/` implements exactly one contract with `defineContractHandler`, w
   and up to 1 MiB (`413 payload_too_large`, refused while reading);
 - validates the input and answers `400 validation_failed` with the issues, without running the handler;
 - passes the parsed input, typed, to the handler, which returns `{ status, body }` for one of the declared statuses;
-- outside production, checks the response against its schema and answers `500 invalid_response` when it does not
-  match, so contract drift fails in tests;
+- sends the response parsed with its schema, so a field the contract does not declare never leaves the server (a
+  loose schema, such as `z.unknown()` or a passthrough object, lets everything under it through, so response
+  schemas avoid them); outside production, such a field or a response that does not match answers
+  `500 invalid_response`, so contract drift fails in tests; in production, a response that does not match answers
+  `500 internal_error` and is logged, never sent unvalidated;
 - answers unexpected errors with `500 internal_error`, logging the details without returning them.
 
 Every error is RFC 9457 Problem Details, as `application/problem+json`: `type` (`urn:stackmap:problem:<code>`),
@@ -160,7 +168,8 @@ describes everything the specification offers that applies: info (summary, conve
 server as `{scheme}://{host}` (the served document names the instance itself, behind a proxy too), tags, external
 docs, shared error responses, every operation's role, examples and errors, and every property. Every string has a
 maximum length and an anchored pattern, every array a maximum size, and every value a type (`shared/contracts/
-formats.ts`), so responses validate tightly and API security audits (42Crunch) find no open-ended schema. The
+formats.ts`; free text and one-line text refuse control, invisible and direction-changing characters, which make text
+read differently than it is), so responses validate tightly and API security audits (42Crunch) find no open-ended schema. The
 document requires the session cookie (`better-auth.session_token`, `shared/contracts/security.ts`) except on public
 operations; it is enforced once accounts exist (phase 4), which must use that cookie. Tests prove it: it is valid
 OpenAPI, the strict Redocly lint (`redocly.yaml`) reports nothing, and every example matches its schema.
@@ -188,7 +197,8 @@ healthcheck calls it. The database error goes to the logs, never to the response
 Tests are the specification: acceptance criteria are written as test names before the code. Layers: unit tests
 (Vitest), integration tests against SQLite and Postgres, stories as component tests, Docker image smoke tests, and
 end-to-end tests with Playwright and axe _(planned)_. Coverage thresholds and nightly mutation testing guard the domain
-logic. See [CONTRIBUTING.md](../CONTRIBUTING.md).
+logic. On Postgres, each test gets its own schema, in a database of its Vitest worker. See
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Glossary
 
