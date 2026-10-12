@@ -74,21 +74,80 @@ export interface HookBus<H> {
 export const CORE_SERVER_HOOKS: readonly (keyof ServerHooks)[] = ['app:ready', 'app:close'];
 export const CORE_CLIENT_HOOKS: readonly (keyof ClientHooks)[] = ['app:mounted', 'route:changed', 'locale:changed'];
 
+/** Ties an extension's server code to its manifest. */
 export function defineExtensionServer(
-  _manifest: ExtensionManifest,
-  _definition: Omit<ExtensionServer, 'extension' | 'hooks'> & { hooks?: HookHandlers<ServerHooks> },
+  manifest: ExtensionManifest,
+  { setup, hooks = {} }: Omit<ExtensionServer, 'extension' | 'hooks'> & { hooks?: HookHandlers<ServerHooks> },
 ): ExtensionServer {
-  throw new Error('Not implemented');
+  return { extension: manifest.id, ...(setup ? { setup } : {}), hooks };
 }
 
+/** Ties an extension's browser code to its manifest. */
 export function defineExtensionClient(
-  _manifest: ExtensionManifest,
-  _definition: { hooks?: HookHandlers<ClientHooks> },
+  manifest: ExtensionManifest,
+  { hooks = {} }: { hooks?: HookHandlers<ClientHooks> },
 ): ExtensionClient {
-  throw new Error('Not implemented');
+  return { extension: manifest.id, hooks };
 }
+
+/**
+ * Plain JSON, which can cross to another process unchanged: no dates, functions, class instances, undefined values
+ * or cycles.
+ */
+const isPlainJson = (value: unknown, ancestors = new WeakSet<object>()): boolean => {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return true;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value);
+  }
+  if (typeof value !== 'object' || ancestors.has(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value) as unknown;
+  if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+    return false;
+  }
+  ancestors.add(value);
+  const plain = Object.values(value).every((item) => isPlainJson(item, ancestors));
+  ancestors.delete(value);
+  return plain;
+};
+
+const since = (start: number) => `${(performance.now() - start).toFixed(1)}ms`;
 
 /** Calls hooks on the registered extensions, in order, isolating each handler's failure. */
-export function createHookBus<H>(_registrations: readonly HookRegistration<H>[], _options: HookBusOptions): HookBus<H> {
-  throw new Error('Not implemented');
+export function createHookBus<H>(
+  registrations: readonly HookRegistration<H>[],
+  { onError, trace, checkPayloads = false }: HookBusOptions,
+): HookBus<H> {
+  const handlersOf = (name: keyof H & string) =>
+    registrations.filter(({ hooks }) => hooks[name] !== undefined).map(({ extension }) => extension);
+
+  return {
+    handlersOf,
+    callHook: async (name, payload) => {
+      if (checkPayloads && !isPlainJson(payload)) {
+        throw new TypeError(`The payload of "${name}" is not plain JSON: hooks pass JSON data only, `
+          + 'without dates, functions, class instances, undefined values or cycles.');
+      }
+      const steps: string[] = [];
+      for (const { extension, hooks } of registrations) {
+        const handler = hooks[name];
+        if (!handler) {
+          continue;
+        }
+        const start = performance.now();
+        try {
+          // A copy per handler: one handler cannot change what the next one sees.
+          await handler(structuredClone(payload));
+          steps.push(`${extension} (${since(start)})`);
+        } catch (error) {
+          onError(error, { extension, hook: name });
+          steps.push(`${extension} (${since(start)}, failed: ${error instanceof Error ? error.message : String(error)})`);
+        }
+      }
+      trace?.(`${name} → ${steps.length > 0 ? steps.join(', ') : 'no handler'}`);
+    },
+  };
 }
