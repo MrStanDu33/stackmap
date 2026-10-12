@@ -103,6 +103,18 @@ export function describeScopedRepository(c: RepositoryCase): void {
       expect(await repository(a.repos).get('not-an-id')).toBeUndefined();
     });
 
+    it('given a malformed id (not a UUID, an array, an object), finds nothing and changes nothing', async () => {
+      const { a } = c.workspaces;
+      const entity = await create(a.repos);
+
+      for (const id of ['not-an-id', [entity.id, entity.id], { id: entity.id }] as unknown as string[]) {
+        expect(await repository(a.repos).get(id)).toBeUndefined();
+        expect(await repository(a.repos).update(id, c.patch)).toBeUndefined();
+        expect(await repository(a.repos).remove(id)).toBe(false);
+      }
+      expect(await repository(a.repos).get(entity.id)).toEqual(entity);
+    });
+
     it('lists the workspace\'s entities in creation order', async () => {
       const { a } = c.workspaces;
       const first = await create(a.repos);

@@ -14,7 +14,7 @@ describe('DNS record schema', () => {
       expect(parse({ name }).data?.name, name).toBe(name);
     }
     expect(parse({ name: 'WWW' }).data?.name).toBe('www');
-    for (const name of ['', 'a..b', 'www.*', '-www', 'w w', 'app.homelab.example.', '@.dev']) {
+    for (const name of ['', 'a..b', 'www.*', '-www', 'w w', 'app.homelab.example.', '@.dev', '\u212Aelvin']) {
       expect(issuePaths(parse({ name })), name).toEqual(['name']);
     }
   });

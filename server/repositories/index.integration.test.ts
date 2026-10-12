@@ -21,6 +21,18 @@ describe.each(DIALECTS)('workspace repositories on %s', (dialect: Dialect) => {
     expect(await repos.sites.create(buildSite())).toMatchObject({ workspaceId: scope.workspaceId, createdBy: null });
   });
 
+  it('keeps the workspace it was created for when the scope object changes afterwards', async () => {
+    const { a, b, db } = workspaces;
+    const scope: RepositoryScope = { workspaceId: a.workspace.id, actorId: 'actor-a', kinds: BUILTIN_KINDS };
+    const repos = workspaceRepositories(db, scope);
+
+    scope.workspaceId = b.workspace.id;
+
+    expect(await repos.sites.create(buildSite())).toMatchObject({ workspaceId: a.workspace.id });
+    expect(await repos.transaction((tx) => tx.sites.list())).toHaveLength(1);
+    expect(await b.repos.sites.list()).toEqual([]);
+  });
+
   it('given a transaction that throws, keeps nothing it wrote', async () => {
     const { a, db } = workspaces;
 

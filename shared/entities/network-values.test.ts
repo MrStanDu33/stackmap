@@ -88,5 +88,7 @@ describe('DNS names', () => {
   it('accepts punycode labels and refuses Unicode names', () => {
     expect(dnsName().parse('xn--caf-dma.example')).toBe('xn--caf-dma.example');
     expect(dnsName().safeParse('café.example').success).toBe(false);
+    // The Kelvin sign lowercases to an ASCII k: refused, not silently rewritten.
+    expect(dnsName().safeParse('\u212Aelvin.example').success).toBe(false);
   });
 });

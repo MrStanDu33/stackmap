@@ -86,6 +86,16 @@ describe('common entity fields', () => {
     expect(parse({ notes: '# Notes\n\n- item\twith a tab' }).data?.notes).toBe('# Notes\n\n- item\twith a tab');
   });
 
+  it('refuses bidi, zero-width and C1 control characters in every text field, and keeps other Unicode', () => {
+    expect(issuePaths(parse({ name: 'admin\u202Egnp.exe' }))).toEqual(['name']);
+    expect(issuePaths(parse({ tags: ['a\u200Bb'] }))).toEqual(['tags.0']);
+    expect(issuePaths(parse({ notes: 'before \u2066isolated\u2069 after' }))).toEqual(['notes']);
+    expect(issuePaths(parse({ customFields: { owner: 'next\u0085line' } }))).toEqual(['customFields.owner']);
+    expect(issuePaths(parse({ externalRef: '\uFEFFvm-104' }))).toEqual(['externalRef']);
+    // U+200D joins emoji sequences, so it stays allowed.
+    expect(parse({ name: 'Café — serveur ✓', notes: 'Ünïcödé 日本語 مرحبا 👨\u200D👩\u200D👧' }).success).toBe(true);
+  });
+
   it('given duplicate tags, keeps each once in its first order', () => {
     expect(parse({ tags: ['web', 'prod', 'web'] }).data?.tags).toEqual(['web', 'prod']);
   });

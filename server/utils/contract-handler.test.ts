@@ -185,6 +185,19 @@ describe('defineContractHandler', () => {
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('getAccount'), expect.anything());
   });
 
+  it('outside production, reports undeclared fields named like Object properties', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const body = { user: { name: 'Ada', constructor: 'leak', toString: 'leak' }, items: [] as { id: string }[] };
+    const request = serve(defineContractHandler(account, () => ({ status: 200, body })));
+
+    const { json } = await request('/api/things/42');
+
+    expect(json.issues).toEqual([
+      { path: 'response.user.constructor', message: 'Undeclared field' },
+      { path: 'response.user.toString', message: 'Undeclared field' },
+    ]);
+  });
+
   it('in production, sends the response without its undeclared fields', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     const request = serve(defineContractHandler(account, () => ({ status: 200, body: LEAKY_ACCOUNT })));

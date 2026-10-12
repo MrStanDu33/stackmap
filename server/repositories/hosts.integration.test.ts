@@ -36,6 +36,19 @@ describe.each(DIALECTS)('hosts on %s', (dialect: Dialect) => {
     expect((await hosts().list({ siteId: site.id })).map(({ id }) => id)).toEqual([onSite.id]);
   });
 
+  it('given another workspace\'s site as a filter, lists nothing', async () => {
+    const theirSite = await createSite(workspaces.b.repos);
+    await createHost(workspaces.b.repos, { siteId: theirSite.id });
+
+    expect(await hosts().list({ siteId: theirSite.id })).toEqual([]);
+  });
+
+  it('given a malformed or unknown filter, fails with a validation error', async () => {
+    for (const filter of [{ siteId: 'not-an-id' }, { siteId: ['a', 'b'] }, { name: 'Home server' }]) {
+      await expect(hosts().list(filter as never)).rejects.toBeInstanceOf(EntityValidationError);
+    }
+  });
+
   it('given a kind no active extension provides, fails with a validation error on kind', async () => {
     const host = await createHost(workspaces.a.repos);
 
