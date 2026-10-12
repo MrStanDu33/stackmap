@@ -1,6 +1,9 @@
 import { isDeepStrictEqual } from 'node:util';
 
+import { z } from 'zod';
+
 import { EntityConflictError, EntityInUseError, EntityValidationError, WorkspaceReferenceError } from './errors';
+import { entityId } from '../../shared/entities';
 import { isForeignKeyViolation, isUniqueViolation } from '../database/errors';
 import { newId } from '../database/ids';
 import { fromBoolean, fromJson, fromTimestamp, toBoolean, toJson, toTimestamp } from '../database/serialize';
@@ -11,7 +14,6 @@ import type { Database } from '../database/types/schema';
 import type { ExtensionRegistry } from '../extensions/registry';
 import type { KindEntity } from '@stackmap/extension-sdk';
 import type { Kysely } from 'kysely';
-import type { z } from 'zod';
 
 /** Tells which kinds the active extensions provide. */
 export type KindCatalog = Pick<ExtensionRegistry, 'hasKind'>;
@@ -104,6 +106,9 @@ export function parseEntity<T, I>(schema: z.ZodType<T, I>, value: unknown): T {
   return result.data;
 }
 
+/** Ids are UUIDs: anything else finds nothing, without a query. */
+const isId = (id: unknown): id is string => entityId().safeParse(id).success;
+
 const pick = (source: Row, keys: readonly string[]): Row =>
   Object.fromEntries(keys.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]));
 
@@ -112,6 +117,14 @@ export function defineEntityRepository<Entity, Fields, Input, Patch, Filter exte
   definition: EntityDefinition<Fields, Input>,
 ): (context: RepositoryContext) => ScopedRepository<Entity, Input, Patch, Filter> {
   const { table } = definition;
+  for (const column of [...definition.columns, ...(definition.filters ?? []), ...(definition.ownedFields ?? [])]) {
+    if (META_COLUMNS.includes(column)) {
+      throw new Error(`The ${table} repository cannot store, filter or own ${column}: the repository sets it.`);
+    }
+  }
+  const filterSchema = z.strictObject(
+    Object.fromEntries((definition.filters ?? []).map((field) => [field, entityId().optional()])),
+  );
   const stored = [...COMMON_COLUMNS, ...definition.columns];
   const selected = [...META_COLUMNS, ...stored];
   const inputFields = [...stored, ...(definition.ownedFields ?? [])];
@@ -221,10 +234,11 @@ export function defineEntityRepository<Entity, Fields, Input, Patch, Filter exte
         return inTransaction(db, async (trx) => {
           const id = newId();
           const now = toTimestamp(new Date());
+          // The id, workspace and audit fields last: no stored field can override them.
           return save(trx, id, fields, changed, () => loose(trx).insertInto(table).values({
+            ...toRow(fields),
             id,
             workspaceId: scope.workspaceId,
-            ...toRow(fields),
             createdBy: scope.actorId,
             updatedBy: scope.actorId,
             createdAt: now,
@@ -233,12 +247,18 @@ export function defineEntityRepository<Entity, Fields, Input, Patch, Filter exte
         });
       },
 
-      get: async (id) => (await find(db, { id }))[0] as Entity | undefined,
+      get: async (id) => (isId(id) ? (await find(db, { id }))[0] as Entity | undefined : undefined),
 
-      list: async (filter) => (await find(db, pick((filter ?? {}), definition.filters ?? []))) as Entity[],
+      list: async (filter) => {
+        const where = parseEntity(filterSchema, filter ?? {}) as Row;
+        return (await find(db, pick(where, definition.filters ?? []))) as Entity[];
+      },
 
       update: async (id, patch) => {
         const changes = parseEntity(definition.schema.patch, patch) as Row;
+        if (!isId(id)) {
+          return undefined;
+        }
         return inTransaction(db, async (trx) => {
           const [current] = await find(trx, { id });
           if (!current) {
@@ -257,6 +277,9 @@ export function defineEntityRepository<Entity, Fields, Input, Patch, Filter exte
       },
 
       remove: async (id) => {
+        if (!isId(id)) {
+          return false;
+        }
         const dependents = await countDependents(db, id);
         if (dependents.length > 0) {
           throw new EntityInUseError(dependents);

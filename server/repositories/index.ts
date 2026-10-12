@@ -33,8 +33,10 @@ export interface WorkspaceRepositories {
   transaction: <T>(work: (repos: WorkspaceRepositories) => Promise<T>) => Promise<T>;
 }
 
+/** The scope is copied and frozen: changing the caller's object afterwards cannot move them to another workspace. */
 export function workspaceRepositories(db: Kysely<Database>, scope: RepositoryScope): WorkspaceRepositories {
-  const context = { db, scope };
+  const frozen: RepositoryScope = Object.isFrozen(scope) ? scope : Object.freeze({ ...scope });
+  const context = { db, scope: frozen };
   return {
     sites: siteRepository(context),
     networks: networkRepository(context),
@@ -43,6 +45,6 @@ export function workspaceRepositories(db: Kysely<Database>, scope: RepositorySco
     listeners: listenerRepository(context),
     domains: domainRepository(context),
     dnsRecords: dnsRecordRepository(context),
-    transaction: (work) => inTransaction(db, (trx) => work(workspaceRepositories(trx, scope))),
+    transaction: (work) => inTransaction(db, (trx) => work(workspaceRepositories(trx, frozen))),
   };
 }

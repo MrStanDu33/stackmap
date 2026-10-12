@@ -46,7 +46,10 @@ export interface Dependent {
 export class EntityInUseError extends Error {
   override name = 'EntityInUseError';
 
+  /** Without dependents when they are unknown: one appeared after they were counted. */
   constructor(readonly dependents: Dependent[]) {
-    super(`The entity is still used by ${dependents.map(({ entity, count }) => `${String(count)} ${entity}`).join(', ')}.`);
+    super(dependents.length === 0
+      ? 'The entity is still used by other entities.'
+      : `The entity is still used by ${dependents.map(({ entity, count }) => `${String(count)} ${entity}`).join(', ')}.`);
   }
 }
