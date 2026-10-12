@@ -1,1 +1,38 @@
-{}
+{
+  "extensions": {
+    "core": {
+      "name": "Core",
+      "description": "Sites, hosts, networks, services, flows and DNS. Always on.",
+      "kinds": {
+        "host": {
+          "physical": "Physical server",
+          "vm": "Virtual machine",
+          "vps": "VPS",
+          "router": "Router"
+        },
+        "network": {
+          "lan": "LAN",
+          "dmz": "DMZ",
+          "public": "Public"
+        },
+        "service": {
+          "app": "Application",
+          "database": "Database",
+          "cache": "Cache",
+          "dns": "DNS server",
+          "externalApi": "External API",
+          "other": "Other"
+        },
+        "protocol": {
+          "tcp": "TCP",
+          "udp": "UDP",
+          "http": "HTTP",
+          "https": "HTTPS",
+          "ssh": "SSH",
+          "ftp": "FTP",
+          "sftp": "SFTP"
+        }
+      }
+    }
+  }
+}
