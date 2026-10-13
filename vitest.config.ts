@@ -78,6 +78,8 @@ export default defineConfig({
         'shared/**/*.ts',
         'server/**/*.ts',
         'extensions/*/server/**/*.ts',
+        'extensions/*/server.ts',
+        'extensions/*/entities/**/*.ts',
         'packages/*/src/**/*.ts',
         'scripts/**/*.mjs',
       ],
@@ -92,8 +94,10 @@ export default defineConfig({
         'extensions/*/server/domain/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
         'packages/*/src/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
         'server/database/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
-        // Workspace isolation, which everything else relies on.
+        // Workspace isolation, which everything else relies on, and the entities extensions build on it.
         'server/repositories/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        'extensions/*/entities/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
+        'extensions/*/server/**': { lines: 90, functions: 90, branches: 90, statements: 90 },
       },
     },
   },
