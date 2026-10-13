@@ -1,4 +1,5 @@
-import { unimplementedSchema } from '@stackmap/extension-sdk/entities';
+import { cidr, defineEntitySchema, entityId, entityName, kindId } from '@stackmap/extension-sdk/entities';
+import { z } from 'zod';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from '@stackmap/extension-sdk/entities';
 
@@ -21,4 +22,10 @@ export type NetworkInput = CommonInput & {
 };
 export type NetworkPatch = Partial<NetworkInput>;
 
-export const networkSchema: EntitySchema<NetworkFields, NetworkInput> = unimplementedSchema();
+export const networkSchema: EntitySchema<NetworkFields, NetworkInput> = defineEntitySchema({
+  name: entityName(),
+  kind: kindId(),
+  cidr: cidr().nullable().default(null),
+  vlan: z.number().int().min(1).max(4094).nullable().default(null),
+  siteId: entityId().nullable().default(null),
+});

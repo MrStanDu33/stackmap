@@ -1,8 +1,8 @@
-import type { ExtensionServer } from '@stackmap/extension-sdk';
+import { defineExtensionServer } from '@stackmap/extension-sdk';
 
-import type {} from './server/repositories';
+import manifest from './manifest';
+import { MIGRATIONS } from './server/migrations';
+import { REPOSITORIES } from './server/repositories';
 
 /** The core's server code: the migrations and repositories of its entities. */
-const server: ExtensionServer | undefined = undefined;
-
-export default server;
+export default defineExtensionServer(manifest, { migrations: MIGRATIONS, repositories: REPOSITORIES });

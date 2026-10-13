@@ -1,4 +1,4 @@
-import { unimplementedSchema } from '@stackmap/extension-sdk/entities';
+import { defineEntitySchema, dnsName } from '@stackmap/extension-sdk/entities';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from '@stackmap/extension-sdk/entities';
 
@@ -11,4 +11,6 @@ export type Domain = EntityMeta & DomainFields;
 export type DomainInput = CommonInput & { name: string };
 export type DomainPatch = Partial<DomainInput>;
 
-export const domainSchema: EntitySchema<DomainFields, DomainInput> = unimplementedSchema();
+export const domainSchema: EntitySchema<DomainFields, DomainInput> = defineEntitySchema({
+  name: dnsName({ minLabels: 2 }),
+});

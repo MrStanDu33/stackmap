@@ -1,4 +1,4 @@
-import { unimplementedSchema } from '@stackmap/extension-sdk/entities';
+import { defineEntitySchema, entityName } from '@stackmap/extension-sdk/entities';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from '@stackmap/extension-sdk/entities';
 
@@ -11,4 +11,4 @@ export type Site = EntityMeta & SiteFields;
 export type SiteInput = CommonInput & { name: string };
 export type SitePatch = Partial<SiteInput>;
 
-export const siteSchema: EntitySchema<SiteFields, SiteInput> = unimplementedSchema();
+export const siteSchema: EntitySchema<SiteFields, SiteInput> = defineEntitySchema({ name: entityName() });
