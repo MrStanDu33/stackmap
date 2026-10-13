@@ -86,6 +86,27 @@ function ownErrors(entry: Entry, installed: ReadonlyMap<string, Entry>): string[
   if (server && !manifest.code?.server) {
     errors.push('ships server code but does not declare code.server');
   }
+  return [...errors, ...entityErrors(entry)];
+}
+
+/** The manifest declares the entities and their tables; the server code defines one repository for each. */
+function entityErrors({ manifest, server }: Entry): string[] {
+  const errors: string[] = [];
+  const declared = new Map((manifest.contributes.entities ?? []).map(({ id, table }) => [id, table]));
+  const defined = server?.repositories ?? [];
+  for (const { entity, table } of defined) {
+    const declaredTable = declared.get(entity);
+    if (declaredTable === undefined) {
+      errors.push(`defines a repository for entity "${entity}", which its manifest does not declare`);
+    } else if (table !== declaredTable) {
+      errors.push(`stores entity "${entity}" in table "${table}", but its manifest declares "${declaredTable}"`);
+    }
+  }
+  for (const id of declared.keys()) {
+    if (!defined.some(({ entity }) => entity === id)) {
+      errors.push(`declares entity "${id}" but defines no repository for it`);
+    }
+  }
   return errors;
 }
 
@@ -124,13 +145,34 @@ function sortByDependencies(installed: ReadonlyMap<string, Entry>) {
   return { sorted, unordered, cycles };
 }
 
-/** Kinds and locales are shared: the later extension in registry order fails when it clashes with an earlier one. */
+/**
+ * Kinds, locales, tables and repository keys are shared: the later extension in registry order fails when it clashes
+ * with an earlier one.
+ */
 function contributionErrors(ordered: readonly Entry[], appLocales: readonly LocaleDeclaration[]) {
   const describe = ({ name, language }: LocaleDeclaration) => `${name} (${language})`;
   const locales = new Map(appLocales.map((locale) => [locale.code, { locale, by: 'the app' }]));
   const kinds = new Map(KIND_ENTITIES.map((entity) => [entity, new Map<string, string>()]));
+  const tables = new Map<string, string>();
+  const repositoryKeys = new Map<string, string>();
   for (const entry of ordered.filter((candidate) => !isFailed(candidate))) {
     const errors: string[] = [];
+    for (const { table } of entry.manifest.contributes.entities ?? []) {
+      const owner = tables.get(table);
+      if (owner === undefined) {
+        tables.set(table, entry.manifest.id);
+      } else {
+        errors.push(`declares table "${table}", which "${owner}" already declares`);
+      }
+    }
+    for (const { key } of entry.server?.repositories ?? []) {
+      const owner = repositoryKeys.get(key);
+      if (owner === undefined) {
+        repositoryKeys.set(key, entry.manifest.id);
+      } else {
+        errors.push(`defines repository "${key}", which "${owner}" already defines`);
+      }
+    }
     for (const entity of KIND_ENTITIES) {
       const owners = kinds.get(entity) ?? new Map<string, string>();
       for (const { id } of entry.manifest.contributes.kinds[entity] ?? []) {
@@ -242,8 +284,6 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
-    repositories: () => {
-      throw new Error('Not implemented');
-    },
+    repositories: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ server }) => server?.repositories ?? []),
   };
 }
