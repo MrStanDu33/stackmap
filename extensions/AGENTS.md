@@ -17,6 +17,13 @@
 - Code: declare it in the manifest (`code: { server: true }`, `code: { client: true }`) and ship `server.ts`
   (`defineExtensionServer`) or `client.ts` (`defineExtensionClient`), exported as `./server` and `./client` and listed
   in `server/extensions/builtin.ts` or `app/extensions/builtin.ts`. Users are warned before installing code.
+- Entities: declare each in `contributes.entities` (`{ id, table, label }`; the table is
+  `<snake_case id>_<camelCaseName>`), write its schema with `defineEntitySchema` (`@stackmap/extension-sdk/entities`),
+  its migration with `withEntityColumns` and composite `(workspaceId, …)` foreign keys, and its repository with
+  `defineEntityRepository` (`@stackmap/extension-sdk/server`); ship them in `server.ts` (`migrations`,
+  `repositories`) and augment `EntityRepositories` with its typed repository. Callbacks that query get a context
+  whose `scope.workspaceId` they must filter by. Test it with `describeScopedRepository` and a factory; reference
+  another extension's tables only if you depend on it.
 - Hooks: handle the app's hooks, your own (`<id>:<name>`, declared in `contributes.hooks`) and those of extensions you
   depend on or enhance (`enhances`). Payloads are plain JSON: ids and summaries, not whole entities. A handler that
   throws is logged and skipped; it never breaks the app.
