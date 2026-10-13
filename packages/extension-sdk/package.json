@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./entities": "./src/entities/index.ts",
+    "./formats": "./src/formats.ts",
     "./server": "./src/server.ts",
     "./testing": "./src/testing.ts"
   },
