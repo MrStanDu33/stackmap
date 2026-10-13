@@ -1,3 +1,5 @@
+import { defineExtensionServer } from '@stackmap/extension-sdk';
+import { defineEntityRepository } from '@stackmap/extension-sdk/server';
 import { createApp, toWebHandler } from 'h3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -5,7 +7,7 @@ import handler from './extensions.get';
 import { createExtensionRegistry } from '../extensions/registry';
 import { setExtensionRegistry } from '../utils/extensions';
 
-import type { ExtensionManifest } from '@stackmap/extension-sdk';
+import type { ExtensionManifest, ExtensionServer } from '@stackmap/extension-sdk';
 
 const core: ExtensionManifest = {
   id: 'core',
@@ -31,8 +33,8 @@ const vpn: ExtensionManifest = {
   contributes: { kinds: { network: [{ id: 'vpn', label: 'extensions.vpn.kinds.network.vpn' }] } },
 };
 
-const get = async (manifests: ExtensionManifest[]) => {
-  setExtensionRegistry(createExtensionRegistry(manifests));
+const get = async (manifests: ExtensionManifest[], servers: ExtensionServer[] = []) => {
+  setExtensionRegistry(createExtensionRegistry(manifests, { servers }));
   const response = await toWebHandler(createApp().use('/api/extensions', handler))(
     new Request('http://localhost/api/extensions'),
   );
@@ -65,6 +67,7 @@ describe('GET /api/extensions', () => {
               service: [],
               protocol: [],
             },
+            entities: [],
             locales: [],
           },
           {
@@ -78,6 +81,7 @@ describe('GET /api/extensions', () => {
             state: 'active',
             enabled: true,
             kinds: { host: [], network: [{ id: 'vpn', label: 'extensions.vpn.kinds.network.vpn' }], service: [], protocol: [] },
+            entities: [],
             locales: [],
           },
         ],
@@ -138,10 +142,14 @@ describe('GET /api/extensions: entities', () => {
   it('lists each extension\'s entities with their id and label', async () => {
     const withHosts: ExtensionManifest = {
       ...core,
+      code: { server: true },
       contributes: { ...core.contributes, entities: [{ id: 'host', table: 'core_host', label: 'extensions.core.entities.host' }] },
     };
+    const hosts = defineEntityRepository({
+      entity: 'host', key: 'hosts', table: 'core_host', schema: { input: {}, patch: {} } as never, columns: [],
+    });
 
-    const { status, json } = await get([withHosts, vpn]);
+    const { status, json } = await get([withHosts, vpn], [defineExtensionServer(withHosts, { repositories: [hosts] })]);
 
     expect(status).toBe(200);
     expect(json.extensions.map(({ id, entities }) => ({ id, entities }))).toEqual([
