@@ -1,6 +1,8 @@
 import { icons as lucide } from '@iconify-json/lucide';
 import { z } from 'zod';
 
+import { KEBAB_CASE, LANGUAGE_TAG, LOCALE_CODE, SEMVER } from './formats';
+
 /** Version of the extension API; a manifest declares the one it targets. */
 export const EXTENSION_API_VERSION = 1;
 
@@ -94,12 +96,6 @@ export const lucideIconExists = (icon: string): boolean => {
 /** Prefixes of the app's own hooks (`app:ready`, `route:changed`…): no extension may take them as its id. */
 export const RESERVED_EXTENSION_IDS: readonly string[] = ['app', 'route', 'locale', 'extension'];
 
-const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-/** `de`, `pt-BR`, `zh-Hant`. */
-const LOCALE_CODE = /^[a-z]{2,3}(?:-[A-Z]{2}|-[A-Z][a-z]{3})?$/;
-/** A BCP 47 tag: `de-DE`, `pt-BR`. */
-const LANGUAGE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
-const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const LUCIDE_ICON = /^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** An image path inside the extension's own directory: no `..`, no other extension, local formats only. */
 const IMAGE_PATH = /^[\w-]+(?:\/[\w-]+)*\.(?:svg|png|webp)$/;
@@ -113,6 +109,11 @@ const hooks = z.array(z.strictObject({
   side: z.enum(['server', 'client']),
   description: z.string().trim().min(1, 'must not be empty'),
 })).optional();
+
+/** At most this many entity types per extension. */
+const MAX_ENTITIES = 50;
+
+const entities = z.array(z.strictObject({ id: kebabCase, table: z.string(), label: z.string() })).max(MAX_ENTITIES);
 
 const locales = z.array(z.strictObject({
   code: z.string().regex(LOCALE_CODE, 'must be a locale code, such as de or pt-BR'),
@@ -135,6 +136,7 @@ const manifestSchema = z.strictObject({
   code: z.strictObject({ server: z.boolean().optional(), client: z.boolean().optional() }).optional(),
   contributes: z.strictObject({
     kinds: z.strictObject({ host: kinds, network: kinds, service: kinds, protocol: kinds }).default({}),
+    entities: entities.optional(),
     hooks,
     locales,
   }).default({ kinds: {} }),
@@ -175,6 +177,25 @@ const manifestSchema = z.strictObject({
       checkIcon(kind.icon, [...path, 'icon']);
     }
   }
+  const tablePrefix = extensionTablePrefix(manifest.id);
+  const table = new RegExp(`^${tablePrefix}_[a-z][a-zA-Z0-9]*$`);
+  const seenEntities = new Set<string>();
+  for (const [index, entity] of (manifest.contributes.entities ?? []).entries()) {
+    const path = ['contributes', 'entities', index];
+    if (seenEntities.has(entity.id)) {
+      context.addIssue({ code: 'custom', path: [...path, 'id'], message: `declares entity "${entity.id}" more than once` });
+    }
+    seenEntities.add(entity.id);
+    // The extension's prefix keeps two extensions' tables apart; the name is camelCase, like every table and column.
+    if (!table.test(entity.table)) {
+      context.addIssue({
+        code: 'custom',
+        path: [...path, 'table'],
+        message: `must be ${tablePrefix}_ followed by a camelCase name, such as ${tablePrefix}_peer`,
+      });
+    }
+    checkKey(entity.label, [...path, 'label']);
+  }
 });
 
 /** Validates an extension manifest when it is defined and returns it with its defaults. */
@@ -189,6 +210,6 @@ export function defineExtension(manifest: ExtensionManifestInput): ExtensionMani
 }
 
 /** The prefix of an extension's tables and migration history: its id in snake case, `reverse_proxy`. */
-export function extensionTablePrefix(_id: string): string {
-  throw new Error('Not implemented');
+export function extensionTablePrefix(id: string): string {
+  return id.replaceAll('-', '_');
 }

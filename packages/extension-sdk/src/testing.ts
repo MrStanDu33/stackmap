@@ -53,6 +53,7 @@ export function checkExtension(
     manifest.name,
     manifest.description,
     ...kindsOf(manifest).map(({ label }) => label),
+    ...(manifest.contributes.entities ?? []).map(({ label }) => label),
     ...[...locales]
       .filter(([locale]) => !contributed.has(locale))
       .flatMap(([, flat]) => [...flat.keys()].filter((key) => key.startsWith(keyPrefix))),

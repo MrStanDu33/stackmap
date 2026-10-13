@@ -84,10 +84,18 @@ export const CORE_CLIENT_HOOKS: readonly (keyof ClientHooks)[] = ['app:mounted',
 /** Ties an extension's server code to its manifest. */
 export function defineExtensionServer(
   manifest: ExtensionManifest,
-  { setup, hooks = {} }: Omit<ExtensionServer, 'extension' | 'hooks'> & { hooks?: HookHandlers<ServerHooks> },
+  { setup, hooks = {}, migrations, repositories }: Omit<ExtensionServer, 'extension' | 'hooks'> & {
+    hooks?: HookHandlers<ServerHooks>;
+  },
 ): ExtensionServer {
   // A frozen copy: an extension cannot add handlers after the app checked which hooks it may handle.
-  return { extension: manifest.id, ...(setup ? { setup } : {}), hooks: Object.freeze({ ...hooks }) };
+  return {
+    extension: manifest.id,
+    ...(setup ? { setup } : {}),
+    hooks: Object.freeze({ ...hooks }),
+    ...(migrations ? { migrations } : {}),
+    ...(repositories ? { repositories } : {}),
+  };
 }
 
 /** Ties an extension's browser code to its manifest. */

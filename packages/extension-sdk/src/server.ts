@@ -46,6 +46,8 @@ export interface EntityRepositories {}
 export interface RepositoryContext<DB = unknown> {
   db: Kysely<DB>;
   scope: RepositoryScope;
+  /** A new id, for rows an entity owns: UUIDv7, like every id. */
+  newId: () => string;
 }
 
 /** A field that refers to another entity, which must be in the same workspace. */
@@ -80,8 +82,8 @@ export interface EntityRepositoryDefinition<Fields = unknown, Input = unknown, D
   /** Fields whose combination is unique in the workspace, reported on a conflict. */
   unique?: readonly string[];
   references?(fields: Fields): EntityReference[];
-  /** Rows of other tables that refer to this entity and prevent removing it. */
-  dependents?: readonly { table: string; column: string }[];
+  /** Rows of other tables that refer to this entity and prevent removing it; `entity` names them in the error. */
+  dependents?: readonly { entity: string; table: string; column: string }[];
   /** Checks that need the database, on the changed fields. */
   check?(context: RepositoryContext<DB>, fields: Fields, changed: ReadonlySet<string>): Promise<EntityIssue[]>;
   /** Writes the rows the entity owns, when their fields changed. */
@@ -99,11 +101,27 @@ export function defineEntityRepository<Fields, Input, DB = unknown>(
 
 /**
  * Adds the common entity columns, a `workspaceId` referencing the workspace, and `unique (workspaceId, id)`, which
- * composite foreign keys point to so that a row can only refer to a row of its own workspace.
+ * composite foreign keys point to so that a row can only refer to a row of its own workspace. A migration that used
+ * it keeps these columns: a later change to them goes in a new migration, never here.
  */
 export function withEntityColumns<T extends string>(
-  _table: CreateTableBuilder<T>,
-  _name: string,
+  table: CreateTableBuilder<T>,
+  name: string,
 ): CreateTableBuilder<T, string> {
-  throw new Error('Not implemented');
+  return table
+    // SQLite allows NULL in a text primary key unless it is declared NOT NULL.
+    .addColumn('id', 'text', (column) => column.primaryKey().notNull())
+    .addColumn('workspaceId', 'text', (column) => column.notNull().references('workspace.id').onDelete('cascade'))
+    .addColumn('status', 'text', (column) => column.notNull())
+    .addColumn('tags', 'text', (column) => column.notNull())
+    .addColumn('notes', 'text', (column) => column.notNull())
+    .addColumn('links', 'text', (column) => column.notNull())
+    .addColumn('customFields', 'text', (column) => column.notNull())
+    .addColumn('origin', 'text', (column) => column.notNull())
+    .addColumn('externalRef', 'text')
+    .addColumn('createdBy', 'text')
+    .addColumn('updatedBy', 'text')
+    .addColumn('createdAt', 'text', (column) => column.notNull())
+    .addColumn('updatedAt', 'text', (column) => column.notNull())
+    .addUniqueConstraint(`${name}_workspace_id_unique`, ['workspaceId', 'id']);
 }

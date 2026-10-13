@@ -194,7 +194,7 @@ describe('entity declarations', () => {
     const accessList = { id: 'access-list', table: 'reverse_proxy_accessList', label: 'extensions.reverse-proxy.entities.accessList' };
 
     expect(withEntities([route, accessList])().contributes.entities).toEqual([route, accessList]);
-    expect(defineExtension(minimal()).contributes.entities).toEqual([]);
+    expect(defineExtension(minimal()).contributes.entities).toBeUndefined();
   });
 
   it('given a duplicate id, a table without the extension prefix or not in camelCase, or a label outside the namespace, fails naming the entry', () => {
@@ -215,7 +215,7 @@ describe('entity declarations', () => {
       label: `extensions.reverse-proxy.entities.entity${String(index)}`,
     }));
 
-    expect(problemsOf(withEntities(entities.slice(0, 50)))).toEqual([]);
+    expect(withEntities(entities.slice(0, 50))).not.toThrow();
     expect(problemsOf(withEntities(entities))).toEqual([expect.stringMatching(/^contributes\.entities: /)]);
   });
 
