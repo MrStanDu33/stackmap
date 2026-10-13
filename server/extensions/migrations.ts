@@ -1,3 +1,7 @@
+import { extensionTablePrefix } from '@stackmap/extension-sdk';
+
+import { migrateTo, migrateToLatest } from '../database/migrator';
+
 import type { ExtensionRegistry } from './registry';
 import type { Database } from '../database/types/schema';
 import type { ExtensionServer } from '@stackmap/extension-sdk';
@@ -6,25 +10,44 @@ import type { NO_MIGRATIONS } from 'kysely/migration';
 
 export interface MigrationLogger {
   info: (message: string) => void;
+  error?: (message: string) => void;
 }
 
+const historyOf = (extension: string) => ({ history: extensionTablePrefix(extension) });
+
 /**
- * Applies the active extensions' migrations, in registry order, each in its own history. A failing extension is
- * turned off with its dependents; a failing always-on extension throws.
+ * Applies the active extensions' migrations after the app's, in registry order (dependencies first, so a table can
+ * refer to one of an extension it depends on), each in its own history. A failing migration rolls back and turns its
+ * extension off with its dependents, and the app keeps running; a failing always-on extension throws.
  */
-export function migrateExtensions(
-  _db: Kysely<Database>,
-  _registry: ExtensionRegistry,
-  _logger: MigrationLogger,
+export async function migrateExtensions(
+  db: Kysely<Database>,
+  registry: ExtensionRegistry,
+  logger: MigrationLogger,
 ): Promise<void> {
-  return Promise.reject(new Error('Not implemented'));
+  for (const { manifest, server, state } of registry.extensions) {
+    // An extension may fail while an earlier one migrates: its dependents are then skipped too.
+    if (state !== 'active' || registry.get(manifest.id)?.state !== 'active' || !server?.migrations) {
+      continue;
+    }
+    try {
+      const applied = await migrateToLatest(db, { ...server.migrations }, historyOf(manifest.id));
+      logger.info(`[extension:${manifest.id}] ${applied.length > 0
+        ? `Applied database migrations: ${applied.join(', ')}`
+        : 'Database tables are up to date'}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error?.(`[extension:${manifest.id}] failed: ${message}`);
+      registry.fail(manifest.id, message);
+    }
+  }
 }
 
 /** Moves one extension's tables up or down to exactly `target`. */
 export function migrateExtensionTo(
-  _db: Kysely<Database>,
-  _server: ExtensionServer,
-  _target: string | typeof NO_MIGRATIONS,
+  db: Kysely<Database>,
+  server: ExtensionServer,
+  target: string | typeof NO_MIGRATIONS,
 ): Promise<string[]> {
-  return Promise.reject(new Error('Not implemented'));
+  return migrateTo(db, target, { ...server.migrations }, historyOf(server.extension));
 }
