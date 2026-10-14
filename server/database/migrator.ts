@@ -31,7 +31,10 @@ async function migrationTableSchema<DB>(db: Kysely<DB>): Promise<string | undefi
 
 /** Where a set of migrations records what ran: the app's history by default, or an extension's own. */
 export interface MigrationHistory {
-  /** Suffix of the history tables: `core` gives `kysely_migration_core` and `kysely_migration_lock_core`. */
+  /**
+   * Suffix of the history tables: `core` gives `kysely_migration__core` and `kysely_migration_lock__core`. The double
+   * underscore cannot come from a prefix, so `lock-vpn` and `vpn` never share one.
+   */
   history?: string;
 }
 
@@ -46,8 +49,8 @@ async function createMigrator<DB>(
     ...(history === undefined
       ? {}
       : {
-          migrationTableName: `kysely_migration_${history}`,
-          migrationLockTableName: `kysely_migration_lock_${history}`,
+          migrationTableName: `kysely_migration__${history}`,
+          migrationLockTableName: `kysely_migration_lock__${history}`,
         }),
     migrationTableSchema: await migrationTableSchema(db),
   });

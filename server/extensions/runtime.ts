@@ -17,7 +17,7 @@ export const HOOK_TIMEOUT_MS = 10_000;
  * Masks credentials in an error kept for diagnostics (the logs keep the full message): passwords in URLs and secret
  * query parameters.
  */
-const maskSecrets = (message: string) => message
+export const maskSecrets = (message: string) => message
   .replace(/(\b[a-z][\w+.-]*:\/\/[^:/\s@]+:)[^@\s]+@/gi, '$1***@')
   .replace(/\b(password|passwd|pwd|secret|token|api[_-]?key)=[^&\s]+/gi, '$1=***');
 
