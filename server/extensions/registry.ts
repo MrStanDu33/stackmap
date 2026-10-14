@@ -1,4 +1,4 @@
-import { EXTENSION_API_VERSION, KIND_ENTITIES } from '@stackmap/extension-sdk';
+import { EXTENSION_API_VERSION, extensionTablePrefix, KIND_ENTITIES, manifestProblems } from '@stackmap/extension-sdk';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
 import type { EntityRepositoryDefinition } from '@stackmap/extension-sdk/server';
@@ -13,6 +13,9 @@ export interface RegisteredLocale extends LocaleDeclaration {
 }
 
 export type ExtensionState = 'active' | 'failed';
+
+/** A repository definition, with the table prefixes its extension may refer to: its own and its dependencies'. */
+export type RegisteredRepository = EntityRepositoryDefinition & { tablePrefixes: readonly string[] };
 
 export interface RegisteredExtension {
   manifest: ExtensionManifest;
@@ -37,7 +40,7 @@ export interface ExtensionRegistry {
   /** Marks an extension failed at runtime (its setup threw), with its dependents. Throws for an always-on one. */
   fail: (id: string, error: string) => void;
   /** The repository definitions of the active extensions, in registry order. */
-  repositories: () => readonly EntityRepositoryDefinition[];
+  repositories: () => readonly RegisteredRepository[];
 }
 
 export interface ExtensionRegistryOptions {
@@ -86,12 +89,36 @@ function ownErrors(entry: Entry, installed: ReadonlyMap<string, Entry>): string[
   if (server && !manifest.code?.server) {
     errors.push('ships server code but does not declare code.server');
   }
-  return [...errors, ...entityErrors(entry)];
+  // Manifests that did not go through defineExtension (custom ones, later) get the same checks.
+  return [...manifestProblems(manifest), ...errors, ...entityErrors(entry)];
 }
+
+const REPOSITORY_KEY = /^[a-z][a-zA-Z0-9]{0,39}$/;
+/** Set by the repository for every entity; a definition may not store, filter or own them. */
+const SET_BY_THE_REPOSITORY = ['id', 'workspaceId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'];
+
+/** An extension may use its own tables and those of the extensions it depends on. */
+const tablePrefixesOf = (manifest: ExtensionManifest) =>
+  [manifest.id, ...manifest.dependsOn].map((id) => `${extensionTablePrefix(id)}_`);
 
 /** The manifest declares the entities and their tables; the server code defines one repository for each. */
 function entityErrors({ manifest, server }: Entry): string[] {
   const errors: string[] = [];
+  const prefixes = tablePrefixesOf(manifest);
+  for (const { key, columns, filters = [], ownedFields = [], dependents = [] } of server?.repositories ?? []) {
+    if (!REPOSITORY_KEY.test(key) || key === 'transaction') {
+      errors.push(`defines repository "${key}", whose key must be camelCase, at most 40 characters, and not transaction`);
+      continue;
+    }
+    const fields = [...columns, ...filters, ...ownedFields];
+    for (const field of fields.filter((name) => SET_BY_THE_REPOSITORY.includes(name))) {
+      errors.push(`repository "${key}" cannot store, filter or own ${field}: the repository sets it`);
+    }
+    const outside = dependents.filter((dependent) => !prefixes.some((prefix) => dependent.table.startsWith(prefix)));
+    for (const { table } of outside) {
+      errors.push(`repository "${key}" counts dependents in "${table}", which is neither its table nor a dependency's`);
+    }
+  }
   const declared = new Map((manifest.contributes.entities ?? []).map(({ id, table }) => [id, table]));
   const defined = server?.repositories ?? [];
   for (const { entity, table } of defined) {
@@ -284,6 +311,8 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
-    repositories: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ server }) => server?.repositories ?? []),
+    // Each with the table prefixes it may refer to, which the repositories enforce at runtime.
+    repositories: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
+      (server?.repositories ?? []).map((definition) => ({ ...definition, tablePrefixes: tablePrefixesOf(manifest) }))),
   };
 }

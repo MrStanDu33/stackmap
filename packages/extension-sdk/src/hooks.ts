@@ -93,9 +93,30 @@ export function defineExtensionServer(
     extension: manifest.id,
     ...(setup ? { setup } : {}),
     hooks: Object.freeze({ ...hooks }),
-    ...(migrations ? { migrations } : {}),
-    ...(repositories ? { repositories } : {}),
+    ...(migrations ? { migrations: Object.freeze({ ...migrations }) } : {}),
+    ...(repositories ? { repositories: Object.freeze(repositories.map(freezeDefinition)) } : {}),
   };
+}
+
+/**
+ * A frozen copy of a repository definition and of its lists, so that setup cannot change what the registry checked.
+ * The schema is left as it is: Zod caches on its instances.
+ */
+function freezeDefinition(definition: EntityRepositoryDefinition): EntityRepositoryDefinition {
+  const list = <T>(values: readonly T[] | undefined) => (values
+    ? Object.freeze(values.map((item) => (
+        typeof item === 'object' && item !== null ? Object.freeze({ ...item }) : item)))
+    : undefined);
+  return Object.freeze({
+    ...definition,
+    columns: list(definition.columns) ?? [],
+    ...(definition.ownedFields ? { ownedFields: list(definition.ownedFields) } : {}),
+    ...(definition.booleans ? { booleans: list(definition.booleans) } : {}),
+    ...(definition.filters ? { filters: list(definition.filters) } : {}),
+    ...(definition.unique ? { unique: list(definition.unique) } : {}),
+    ...(definition.dependents ? { dependents: list(definition.dependents) } : {}),
+    ...(definition.kinds ? { kinds: Object.freeze({ ...definition.kinds }) } : {}),
+  });
 }
 
 /** Ties an extension's browser code to its manifest. */

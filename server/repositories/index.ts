@@ -1,6 +1,7 @@
 import { createEntityRepository, inTransaction } from './entity-repository';
 
 import type { Database } from '../database/types/schema';
+import type { KindEntity } from '@stackmap/extension-sdk';
 import type { EntityRepositories, EntityRepositoryDefinition, RepositoryScope } from '@stackmap/extension-sdk/server';
 import type { Kysely } from 'kysely';
 
@@ -15,11 +16,16 @@ export type WorkspaceRepositories = EntityRepositories & {
  * frozen: changing the caller's object afterwards cannot move them to another workspace.
  */
 export function createWorkspaceRepositories(
-  definitions: readonly EntityRepositoryDefinition[],
+  definitions: readonly (EntityRepositoryDefinition & { tablePrefixes?: readonly string[] })[],
 ): (db: Kysely<Database>, scope: RepositoryScope) => WorkspaceRepositories {
   const factories = definitions.map((definition) => [definition.key, createEntityRepository(definition)] as const);
   const build = (db: Kysely<Database>, scope: RepositoryScope): WorkspaceRepositories => {
-    const frozen: RepositoryScope = Object.isFrozen(scope) ? scope : Object.freeze({ ...scope });
+    // The callbacks of definitions get the scope: kinds answer hasKind and nothing else of the registry.
+    const { kinds } = scope;
+    const frozen: RepositoryScope = Object.freeze({
+      ...scope,
+      kinds: Object.freeze({ hasKind: (entity: KindEntity, id: string) => kinds.hasKind(entity, id) }),
+    });
     const repositories = Object.fromEntries(factories.map(([key, factory]) => [key, factory({ db, scope: frozen })]));
     return {
       ...repositories,

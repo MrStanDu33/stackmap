@@ -50,7 +50,7 @@ const pick = (source: Row, keys: readonly string[]): Row =>
  * named columns.
  */
 export function createEntityRepository<Fields, Input, DB>(
-  definition: EntityRepositoryDefinition<Fields, Input, DB>,
+  definition: EntityRepositoryDefinition<Fields, Input, DB> & { tablePrefixes?: readonly string[] },
 ): (context: RepositoryContext) => ScopedRepository<unknown, unknown, unknown, object> {
   const { table } = definition;
   for (const column of [...definition.columns, ...(definition.filters ?? []), ...(definition.ownedFields ?? [])]) {
@@ -113,6 +113,11 @@ export function createEntityRepository<Fields, Input, DB>(
 
     const checkReferences = async (trx: Kysely<Database>, references: EntityReference[]) => {
       for (const { field, table: target, id } of references) {
+        // An extension refers to its own tables and its dependencies', never to the platform's or another's.
+        if (definition.tablePrefixes && !definition.tablePrefixes.some((prefix) => target.startsWith(prefix))) {
+          throw new Error(`The ${definition.key} repository refers to table "${target}", which is neither its own `
+            + 'nor a dependency\'s.');
+        }
         const found = await loose(trx).selectFrom(target).select('id')
           .where('workspaceId', '=', scope.workspaceId)
           .where('id', '=', id)

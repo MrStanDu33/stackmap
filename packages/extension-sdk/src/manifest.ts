@@ -102,7 +102,16 @@ const IMAGE_PATH = /^[\w-]+(?:\/[\w-]+)*\.(?:svg|png|webp)$/;
 
 const kebabCase = z.string().regex(KEBAB_CASE, 'must be kebab-case (lowercase letters, digits and single dashes)');
 
-const kinds = z.array(z.strictObject({ id: kebabCase, label: z.string(), icon: z.string().optional() })).optional();
+/** Ids are stored and named in tables and constraints: bounded so that every derived name fits Postgres' 63. */
+const MAX_ID = 40;
+const MAX_LABEL = 200;
+const MAX_TABLE = 43;
+
+const kinds = z.array(z.strictObject({
+  id: kebabCase.max(MAX_ID),
+  label: z.string().max(MAX_LABEL),
+  icon: z.string().max(MAX_LABEL).optional(),
+})).optional();
 
 const hooks = z.array(z.strictObject({
   name: kebabCase,
@@ -113,7 +122,12 @@ const hooks = z.array(z.strictObject({
 /** At most this many entity types per extension. */
 const MAX_ENTITIES = 50;
 
-const entities = z.array(z.strictObject({ id: kebabCase, table: z.string(), label: z.string() })).max(MAX_ENTITIES);
+const entities = z.array(z.strictObject({
+  id: kebabCase.max(MAX_ID),
+  // `<table>_workspace_id_unique` and the other derived constraint names must fit in 63 characters.
+  table: z.string().max(MAX_TABLE),
+  label: z.string().max(MAX_LABEL),
+})).max(MAX_ENTITIES);
 
 const locales = z.array(z.strictObject({
   code: z.string().regex(LOCALE_CODE, 'must be a locale code, such as de or pt-BR'),
@@ -124,7 +138,9 @@ const locales = z.array(z.strictObject({
 const manifestSchema = z.strictObject({
   id: kebabCase
     .max(40, 'must be at most 40 characters')
-    .refine((id) => !RESERVED_EXTENSION_IDS.includes(id), 'is reserved for the app\'s own hooks'),
+    .refine((id) => !RESERVED_EXTENSION_IDS.includes(id), 'is reserved for the app\'s own hooks')
+    // Its table prefix would name the migration history tables (`kysely_migration…`).
+    .refine((id) => id !== 'kysely' && !id.startsWith('kysely-'), 'is reserved for the migration history tables'),
   version: z.string().regex(SEMVER, 'must be a semantic version, such as 1.2.0'),
   apiVersion: z.number().int().positive(),
   name: z.string(),
@@ -199,14 +215,36 @@ const manifestSchema = z.strictObject({
 });
 
 /** Validates an extension manifest when it is defined and returns it with its defaults. */
+/** What is wrong with a manifest, one problem per line (`contributes.entities.0.table: …`); empty when it is valid. */
+export function manifestProblems(manifest: unknown): string[] {
+  const result = manifestSchema.safeParse(manifest);
+  return result.success
+    ? []
+    : result.error.issues.map(({ path, message }) => `${path.length > 0 ? path.join('.') : 'manifest'}: ${message}`);
+}
+
+/** Freezes plain data, deeply. */
+export function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+
+/**
+ * Validates an extension manifest when it is defined and returns it with its defaults, frozen: nothing can change it
+ * after the registry checked it.
+ */
 export function defineExtension(manifest: ExtensionManifestInput): ExtensionManifest {
   const result = manifestSchema.safeParse(manifest);
   if (!result.success) {
-    throw new ExtensionManifestError(manifest.id, result.error.issues.map(({ path, message }) =>
-      `${path.length > 0 ? path.join('.') : 'manifest'}: ${message}`));
+    throw new ExtensionManifestError(manifest.id, manifestProblems(manifest));
   }
   // The refinement checked the icons, which the schema can only type as strings.
-  return result.data as ExtensionManifest;
+  return deepFreeze(result.data as ExtensionManifest);
 }
 
 /** The prefix of an extension's tables and migration history: its id in snake case, `reverse_proxy`. */
