@@ -12,7 +12,12 @@
   },
   "dependencies": {
     "@stackmap/extension-sdk": "workspace:*",
-    "kysely": "^0.29.6",
     "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "kysely": "^0.29.6"
+  },
+  "devDependencies": {
+    "kysely": "^0.29.6"
   }
 }
