@@ -9,7 +9,17 @@ export default defineExtension({
   description: 'extensions.core.description',
   icon: 'i-lucide-layers',
   alwaysOn: true,
+  code: { server: true },
   contributes: {
+    entities: [
+      { id: 'site', table: 'core_site', label: 'extensions.core.entities.site' },
+      { id: 'network', table: 'core_network', label: 'extensions.core.entities.network' },
+      { id: 'host', table: 'core_host', label: 'extensions.core.entities.host' },
+      { id: 'service', table: 'core_service', label: 'extensions.core.entities.service' },
+      { id: 'listener', table: 'core_listener', label: 'extensions.core.entities.listener' },
+      { id: 'domain', table: 'core_domain', label: 'extensions.core.entities.domain' },
+      { id: 'dns-record', table: 'core_dnsRecord', label: 'extensions.core.entities.dns-record' },
+    ],
     kinds: {
       host: [
         { id: 'physical', label: 'extensions.core.kinds.host.physical', icon: 'i-lucide-server' },

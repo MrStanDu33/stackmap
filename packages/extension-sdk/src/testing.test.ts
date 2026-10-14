@@ -146,3 +146,17 @@ describe('checkExtension: locale packs', () => {
     ]);
   });
 });
+
+describe('checkExtension: entities', () => {
+  it('reports an entity label missing from English or French', () => {
+    const withPeer: ExtensionManifest = {
+      ...vpn,
+      contributes: { ...vpn.contributes, entities: [{ id: 'peer', table: 'vpn_peer', label: 'extensions.vpn.entities.peer' }] },
+    };
+    const { messages, publicFiles } = files();
+    const en = { extensions: { vpn: { ...(messages.en?.extensions as { vpn: object }).vpn, entities: { peer: 'Peer' } } } };
+
+    expect(checkExtension(withPeer, { messages: { ...messages, en }, publicFiles }))
+      .toEqual(['extensions.vpn.entities.peer is missing in fr']);
+  });
+});

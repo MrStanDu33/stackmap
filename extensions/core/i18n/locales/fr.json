@@ -32,6 +32,15 @@
           "ftp": "FTP",
           "sftp": "SFTP"
         }
+      },
+      "entities": {
+        "site": "Site",
+        "network": "Réseau",
+        "host": "Hôte",
+        "service": "Service",
+        "listener": "Port d’écoute",
+        "domain": "Domaine",
+        "dns-record": "Enregistrement DNS"
       }
     }
   }

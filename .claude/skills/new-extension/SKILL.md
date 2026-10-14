@@ -19,5 +19,8 @@ argument-hint: <extension-id>
    the build merges them with the app's. For code, declare `code` in the manifest and add `server.ts` or `client.ts`
    (with `"./server"` or `"./client"` in `exports`), listed in `server/extensions/builtin.ts` or
    `app/extensions/builtin.ts`; test its hooks first.
-5. Run `pnpm test:unit` (the built-in extension tests check the listing, translations, icons and versions),
+5. For entities, follow `extensions/AGENTS.md`: test first (its schema test, then an integration test running
+   `describeScopedRepository`), then the manifest entry, schema, migration (`server/migrations/0001_…`), repository
+   definition and `EntityRepositories` augmentation, a factory in `testing/`, and both locales' entity labels.
+6. Run `pnpm test:unit` (the built-in extension tests check the listing, translations, icons and versions),
    `pnpm lint`, `pnpm typecheck`, and `pnpm build` to see the layer load.

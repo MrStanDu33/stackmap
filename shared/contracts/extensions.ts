@@ -19,6 +19,13 @@ export const ExtensionKind = z.object({
 
 const kindsOf = (entity: string) => z.array(ExtensionKind).max(200).meta({ description: `Kinds it adds to ${entity}` });
 
+const host = { id: 'host', label: 'extensions.core.entities.host' };
+
+export const ExtensionEntity = z.object({
+  id: kebabId().meta({ description: 'Unique in the extension', examples: ['host'] }),
+  label: i18nKey().meta({ description: 'i18n key of its name', examples: [host.label] }),
+}).meta({ id: 'ExtensionEntity', description: 'An entity type an extension adds', examples: [host] });
+
 export const ExtensionLocale = z.object({
   code: z.string().max(12).regex(LOCALE_CODE).meta({ description: 'Locale code, as in settings', examples: ['de'] }),
   language: z.string().max(35).regex(LANGUAGE_TAG).meta({ description: 'BCP 47 language tag', examples: ['de-DE'] }),
@@ -41,6 +48,7 @@ const core = {
   state: 'active',
   enabled: true,
   kinds: { host: [], network: [lan], service: [], protocol: [] },
+  entities: [host],
   locales: [],
 };
 
@@ -60,6 +68,7 @@ export const Extension = z.object({
     service: kindsOf('services'),
     protocol: kindsOf('flows (protocols)'),
   }).meta({ description: 'Kinds it adds, by core entity; empty when it failed' }),
+  entities: z.array(ExtensionEntity).max(50).meta({ description: 'Entity types it adds; empty when it failed' }),
   locales: z.array(ExtensionLocale).max(50).meta({ description: 'Languages it adds; empty when it failed' }),
 }).meta({ id: 'Extension', description: 'An installed extension', examples: [core] });
 

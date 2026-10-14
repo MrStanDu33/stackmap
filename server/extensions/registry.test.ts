@@ -1,4 +1,5 @@
-import { EXTENSION_API_VERSION } from '@stackmap/extension-sdk';
+import { defineExtensionServer, EXTENSION_API_VERSION } from '@stackmap/extension-sdk';
+import { defineEntityRepository } from '@stackmap/extension-sdk/server';
 import { describe, expect, it } from 'vitest';
 
 import { createExtensionRegistry, ExtensionRegistryError } from './registry';
@@ -237,5 +238,109 @@ describe('createExtensionRegistry: states', () => {
     expect(() => {
       registry.fail('core', 'setup failed: boom');
     }).toThrow(ExtensionRegistryError);
+  });
+});
+
+describe('extension registry: entities', () => {
+  const entity = (extension: string, id: string, table = `${extension}_${id}`) =>
+    ({ id, table, label: `extensions.${extension}.entities.${id}` });
+  const withEntities = (id: string, entities: ReturnType<typeof entity>[], options: Options = {}) => {
+    const base = manifest(id, { ...options, code: { server: true } });
+    return { ...base, contributes: { ...base.contributes, entities } } satisfies ExtensionManifest;
+  };
+  const repository = (entityId: string, key: string, table: string) =>
+    defineEntityRepository({ entity: entityId, key, table, schema: { input: {}, patch: {} } as never, columns: [] });
+  const serverOf = (extension: ExtensionManifest, repositories: ReturnType<typeof repository>[]) =>
+    defineExtensionServer(extension, { repositories });
+
+  it('given a table outside the extension\'s prefix (another extension\'s, or a platform table), fails it: the registry re-validates manifests', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing', 'alpha_thing')]);
+    const gamma = withEntities('gamma', [entity('gamma', 'thing', 'workspace')]);
+
+    expect(summary([alpha, beta, gamma], {
+      servers: [
+        serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]),
+        serverOf(beta, [repository('thing', 'betaThings', 'alpha_thing')]),
+        serverOf(gamma, [repository('thing', 'gammaThings', 'workspace')]),
+      ],
+    })).toEqual([
+      'alpha active',
+      expect.stringMatching(/^beta failed: contributes\.entities\.0\.table: must be beta_/),
+      expect.stringMatching(/^gamma failed: contributes\.entities\.0\.table: must be gamma_/),
+    ]);
+  });
+
+  it('given two extensions defining the same repository key, fails the later one naming the other', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')]);
+
+    expect(summary([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [repository('thing', 'things', 'beta_thing')])],
+    })).toEqual(['alpha active', 'beta failed: defines repository "things", which "alpha" already defines']);
+  });
+
+  it('given a repository for an entity the manifest does not declare, or a declared entity without a repository, fails the extension naming the entity', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+
+    expect(summary([alpha], { servers: [serverOf(alpha, [repository('other', 'others', 'alpha_other')])] })).toEqual([
+      'alpha failed: defines a repository for entity "other", which its manifest does not declare; '
+      + 'declares entity "thing" but defines no repository for it',
+    ]);
+  });
+
+  it('given a repository whose table is not the one the manifest declares, fails the extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+
+    expect(summary([alpha], { servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_other')])] })).toEqual([
+      'alpha failed: stores entity "thing" in table "alpha_other", but its manifest declares "alpha_thing"',
+    ]);
+  });
+
+  it('given a repository key that is not camelCase, too long, or transaction, fails the extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    for (const key of ['transaction', 'Things', 'some-things', '__proto__', `t${'h'.repeat(40)}`]) {
+      expect(summary([alpha], { servers: [serverOf(alpha, [repository('thing', key, 'alpha_thing')])] }), key)
+        .toEqual([expect.stringMatching(new RegExp(`^alpha failed: defines repository "${key.replace(/[_]/g, '_')}"`))]);
+    }
+  });
+
+  it('given a definition that stores, filters or owns a field the repository sets, fails only that extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')]);
+    const bad = { ...repository('thing', 'betaThings', 'beta_thing'), columns: ['workspaceId'] };
+
+    expect(summary([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]), serverOf(beta, [bad])],
+    })).toEqual(['alpha active', 'beta failed: repository "betaThings" cannot store, filter or own workspaceId: the repository sets it']);
+  });
+
+  it('given dependents in a table that is neither the extension\'s nor a dependency\'s, fails the extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')], { dependsOn: ['alpha'] });
+    const gamma = withEntities('gamma', [entity('gamma', 'thing')]);
+    const dependents = (table: string) => ({ ...repository('thing', 'betaThings', 'beta_thing'), dependents: [{ entity: 'x', table, column: 'thingId' }] });
+
+    expect(summary([alpha, beta, gamma], {
+      servers: [
+        serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]),
+        serverOf(beta, [dependents('alpha_other')]),
+        serverOf(gamma, [{ ...repository('thing', 'gammaThings', 'gamma_thing'), dependents: [{ entity: 'x', table: 'alpha_thing', column: 'thingId' }] }]),
+      ],
+    })).toEqual([
+      'alpha active',
+      'beta active',
+      'gamma failed: repository "gammaThings" counts dependents in "alpha_thing", which is neither its table nor a dependency\'s',
+    ]);
+  });
+
+  it('lists the repository definitions of the active extensions, in registry order', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')], { dependsOn: ['alpha'] });
+    const registry = createExtensionRegistry([beta, alpha], {
+      servers: [serverOf(beta, [repository('thing', 'betaThings', 'beta_thing')]), serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')])],
+    });
+
+    expect(registry.repositories().map(({ key }) => key)).toEqual(['alphaThings', 'betaThings']);
   });
 });

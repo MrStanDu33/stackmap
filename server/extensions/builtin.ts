@@ -1,4 +1,5 @@
 import core from '@stackmap/extension-core';
+import coreServer from '@stackmap/extension-core/server';
 
 import type { ExtensionManifest, ExtensionServer } from '@stackmap/extension-sdk';
 
@@ -6,4 +7,4 @@ import type { ExtensionManifest, ExtensionServer } from '@stackmap/extension-sdk
 export const BUILTIN_EXTENSIONS: readonly ExtensionManifest[] = [core];
 
 /** The server code of the built-in extensions that ship some (`extensions/<id>/server.ts`). */
-export const BUILTIN_EXTENSION_SERVERS: readonly ExtensionServer[] = [];
+export const BUILTIN_EXTENSION_SERVERS: readonly ExtensionServer[] = [coreServer];

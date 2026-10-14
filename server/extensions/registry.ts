@@ -1,6 +1,7 @@
-import { EXTENSION_API_VERSION, KIND_ENTITIES } from '@stackmap/extension-sdk';
+import { EXTENSION_API_VERSION, extensionTablePrefix, KIND_ENTITIES, manifestProblems } from '@stackmap/extension-sdk';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
+import type { EntityRepositoryDefinition } from '@stackmap/extension-sdk/server';
 
 export interface RegisteredKind extends Kind {
   /** Id of the extension that contributes it. */
@@ -12,6 +13,9 @@ export interface RegisteredLocale extends LocaleDeclaration {
 }
 
 export type ExtensionState = 'active' | 'failed';
+
+/** A repository definition, with the table prefixes its extension may refer to: its own and its dependencies'. */
+export type RegisteredRepository = EntityRepositoryDefinition & { tablePrefixes: readonly string[] };
 
 export interface RegisteredExtension {
   manifest: ExtensionManifest;
@@ -35,6 +39,8 @@ export interface ExtensionRegistry {
   locales: () => readonly RegisteredLocale[];
   /** Marks an extension failed at runtime (its setup threw), with its dependents. Throws for an always-on one. */
   fail: (id: string, error: string) => void;
+  /** The repository definitions of the active extensions, in registry order. */
+  repositories: () => readonly RegisteredRepository[];
 }
 
 export interface ExtensionRegistryOptions {
@@ -83,6 +89,51 @@ function ownErrors(entry: Entry, installed: ReadonlyMap<string, Entry>): string[
   if (server && !manifest.code?.server) {
     errors.push('ships server code but does not declare code.server');
   }
+  // Manifests that did not go through defineExtension (custom ones, later) get the same checks.
+  return [...manifestProblems(manifest), ...errors, ...entityErrors(entry)];
+}
+
+const REPOSITORY_KEY = /^[a-z][a-zA-Z0-9]{0,39}$/;
+/** Set by the repository for every entity; a definition may not store, filter or own them. */
+const SET_BY_THE_REPOSITORY = ['id', 'workspaceId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'];
+
+/** An extension may use its own tables and those of the extensions it depends on. */
+const tablePrefixesOf = (manifest: ExtensionManifest) =>
+  [manifest.id, ...manifest.dependsOn].map((id) => `${extensionTablePrefix(id)}_`);
+
+/** The manifest declares the entities and their tables; the server code defines one repository for each. */
+function entityErrors({ manifest, server }: Entry): string[] {
+  const errors: string[] = [];
+  const prefixes = tablePrefixesOf(manifest);
+  for (const { key, columns, filters = [], ownedFields = [], dependents = [] } of server?.repositories ?? []) {
+    if (!REPOSITORY_KEY.test(key) || key === 'transaction') {
+      errors.push(`defines repository "${key}", whose key must be camelCase, at most 40 characters, and not transaction`);
+      continue;
+    }
+    const fields = [...columns, ...filters, ...ownedFields];
+    for (const field of fields.filter((name) => SET_BY_THE_REPOSITORY.includes(name))) {
+      errors.push(`repository "${key}" cannot store, filter or own ${field}: the repository sets it`);
+    }
+    const outside = dependents.filter((dependent) => !prefixes.some((prefix) => dependent.table.startsWith(prefix)));
+    for (const { table } of outside) {
+      errors.push(`repository "${key}" counts dependents in "${table}", which is neither its table nor a dependency's`);
+    }
+  }
+  const declared = new Map((manifest.contributes.entities ?? []).map(({ id, table }) => [id, table]));
+  const defined = server?.repositories ?? [];
+  for (const { entity, table } of defined) {
+    const declaredTable = declared.get(entity);
+    if (declaredTable === undefined) {
+      errors.push(`defines a repository for entity "${entity}", which its manifest does not declare`);
+    } else if (table !== declaredTable) {
+      errors.push(`stores entity "${entity}" in table "${table}", but its manifest declares "${declaredTable}"`);
+    }
+  }
+  for (const id of declared.keys()) {
+    if (!defined.some(({ entity }) => entity === id)) {
+      errors.push(`declares entity "${id}" but defines no repository for it`);
+    }
+  }
   return errors;
 }
 
@@ -121,13 +172,34 @@ function sortByDependencies(installed: ReadonlyMap<string, Entry>) {
   return { sorted, unordered, cycles };
 }
 
-/** Kinds and locales are shared: the later extension in registry order fails when it clashes with an earlier one. */
+/**
+ * Kinds, locales, tables and repository keys are shared: the later extension in registry order fails when it clashes
+ * with an earlier one.
+ */
 function contributionErrors(ordered: readonly Entry[], appLocales: readonly LocaleDeclaration[]) {
   const describe = ({ name, language }: LocaleDeclaration) => `${name} (${language})`;
   const locales = new Map(appLocales.map((locale) => [locale.code, { locale, by: 'the app' }]));
   const kinds = new Map(KIND_ENTITIES.map((entity) => [entity, new Map<string, string>()]));
+  const tables = new Map<string, string>();
+  const repositoryKeys = new Map<string, string>();
   for (const entry of ordered.filter((candidate) => !isFailed(candidate))) {
     const errors: string[] = [];
+    for (const { table } of entry.manifest.contributes.entities ?? []) {
+      const owner = tables.get(table);
+      if (owner === undefined) {
+        tables.set(table, entry.manifest.id);
+      } else {
+        errors.push(`declares table "${table}", which "${owner}" already declares`);
+      }
+    }
+    for (const { key } of entry.server?.repositories ?? []) {
+      const owner = repositoryKeys.get(key);
+      if (owner === undefined) {
+        repositoryKeys.set(key, entry.manifest.id);
+      } else {
+        errors.push(`defines repository "${key}", which "${owner}" already defines`);
+      }
+    }
     for (const entity of KIND_ENTITIES) {
       const owners = kinds.get(entity) ?? new Map<string, string>();
       for (const { id } of entry.manifest.contributes.kinds[entity] ?? []) {
@@ -239,5 +311,8 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
+    // Each with the table prefixes it may refer to, which the repositories enforce at runtime.
+    repositories: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
+      (server?.repositories ?? []).map((definition) => ({ ...definition, tablePrefixes: tablePrefixesOf(manifest) }))),
   };
 }

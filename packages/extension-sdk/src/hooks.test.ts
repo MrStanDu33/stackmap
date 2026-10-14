@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
 import { createHookBus, defineExtensionClient, defineExtensionServer } from './hooks';
 
+import type { ExtensionServer } from './hooks';
 import type { ExtensionManifest } from './manifest';
 
 interface TestHooks {
@@ -20,6 +21,28 @@ const vpn: ExtensionManifest = {
   code: { server: true, client: true },
   contributes: { kinds: {} },
 };
+
+describe('defineExtensionServer', () => {
+  it('keeps the migrations and the repository definitions of the extension\'s server code', () => {
+    const manifest = vpn;
+    const migrations = { '0001_peer': { up: () => Promise.resolve(), down: () => Promise.resolve() } };
+    const repositories = [{ entity: 'peer', key: 'vpnPeers', table: 'vpn_peer' }] as unknown as ExtensionServer['repositories'];
+
+    expect(defineExtensionServer(manifest, { migrations, repositories })).toMatchObject({ extension: 'vpn', migrations, repositories });
+    expect(defineExtensionServer(manifest, {})).not.toHaveProperty('migrations');
+  });
+
+  it('freezes copies of the migrations and repository definitions, so they cannot change after the check', () => {
+    const repositories = [{ entity: 'peer', key: 'vpnPeers', table: 'vpn_peer', columns: ['name'] }] as unknown as ExtensionServer['repositories'];
+    const server = defineExtensionServer(vpn, { migrations: { '0001_peer': { up: () => Promise.resolve() } }, repositories });
+
+    expect(Object.isFrozen(server.migrations)).toBe(true);
+    expect(Object.isFrozen(server.repositories)).toBe(true);
+    expect(Object.isFrozen(server.repositories?.[0])).toBe(true);
+    expect(Object.isFrozen(server.repositories?.[0]?.columns)).toBe(true);
+    expect(server.repositories).not.toBe(repositories);
+  });
+});
 
 describe('createHookBus', () => {
   it('calls the handlers in registry order, awaiting each, with the payload', async () => {

@@ -1,4 +1,5 @@
 import type { ExtensionManifest } from './manifest';
+import type { EntityRepositoryDefinition, Migration } from './server';
 
 /**
  * Hooks the app calls on the server. Extensions add theirs, named `<id>:<name>`, with
@@ -44,6 +45,10 @@ export interface ExtensionServer {
   extension: string;
   setup?: (context: ExtensionContext<ServerHooks>) => void | Promise<void>;
   hooks: HookHandlers<ServerHooks>;
+  /** Its own migration history, named `0001_…` in order, run before `setup` in registry order. */
+  migrations?: Readonly<Record<string, Migration>>;
+  /** One per entity its manifest declares. */
+  repositories?: readonly EntityRepositoryDefinition[];
 }
 
 export interface ExtensionClient {
@@ -79,10 +84,39 @@ export const CORE_CLIENT_HOOKS: readonly (keyof ClientHooks)[] = ['app:mounted',
 /** Ties an extension's server code to its manifest. */
 export function defineExtensionServer(
   manifest: ExtensionManifest,
-  { setup, hooks = {} }: Omit<ExtensionServer, 'extension' | 'hooks'> & { hooks?: HookHandlers<ServerHooks> },
+  { setup, hooks = {}, migrations, repositories }: Omit<ExtensionServer, 'extension' | 'hooks'> & {
+    hooks?: HookHandlers<ServerHooks>;
+  },
 ): ExtensionServer {
   // A frozen copy: an extension cannot add handlers after the app checked which hooks it may handle.
-  return { extension: manifest.id, ...(setup ? { setup } : {}), hooks: Object.freeze({ ...hooks }) };
+  return {
+    extension: manifest.id,
+    ...(setup ? { setup } : {}),
+    hooks: Object.freeze({ ...hooks }),
+    ...(migrations ? { migrations: Object.freeze({ ...migrations }) } : {}),
+    ...(repositories ? { repositories: Object.freeze(repositories.map(freezeDefinition)) } : {}),
+  };
+}
+
+/**
+ * A frozen copy of a repository definition and of its lists, so that setup cannot change what the registry checked.
+ * The schema is left as it is: Zod caches on its instances.
+ */
+function freezeDefinition(definition: EntityRepositoryDefinition): EntityRepositoryDefinition {
+  const list = <T>(values: readonly T[] | undefined) => (values
+    ? Object.freeze(values.map((item) => (
+        typeof item === 'object' && item !== null ? Object.freeze({ ...item }) : item)))
+    : undefined);
+  return Object.freeze({
+    ...definition,
+    columns: list(definition.columns) ?? [],
+    ...(definition.ownedFields ? { ownedFields: list(definition.ownedFields) } : {}),
+    ...(definition.booleans ? { booleans: list(definition.booleans) } : {}),
+    ...(definition.filters ? { filters: list(definition.filters) } : {}),
+    ...(definition.unique ? { unique: list(definition.unique) } : {}),
+    ...(definition.dependents ? { dependents: list(definition.dependents) } : {}),
+    ...(definition.kinds ? { kinds: Object.freeze({ ...definition.kinds }) } : {}),
+  });
 }
 
 /** Ties an extension's browser code to its manifest. */
