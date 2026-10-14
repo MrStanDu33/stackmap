@@ -1,6 +1,9 @@
 import { cidrContains, normalizeIp } from '@stackmap/extension-sdk/entities';
 
-/** Ranges no real host is reachable at: documentation, private, unique local, unspecified and loopback. */
+/**
+ * Ranges that identify no one's infrastructure: documentation ranges, and private, unique local, unspecified and
+ * loopback ones, which exist on many networks and say nothing about a particular one.
+ */
 const FICTIONAL_NETWORKS = [
   '192.0.2.0/24', '198.51.100.0/24', '203.0.113.0/24', // RFC 5737
   '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', // RFC 1918

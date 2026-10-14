@@ -17,6 +17,8 @@
 - Code: declare it in the manifest (`code: { server: true }`, `code: { client: true }`) and ship `server.ts`
   (`defineExtensionServer`) or `client.ts` (`defineExtensionClient`), exported as `./server` and `./client` and listed
   in `server/extensions/builtin.ts` or `app/extensions/builtin.ts`. Users are warned before installing code.
+- Label keys mirror ids: `extensions.<id>.entities.<entity id>` and `extensions.<id>.kinds.<entity>.<kind id>`, in
+  the id's own case (`dns-record`). Older camelCase kind keys (`externalApi`) stay as they are.
 - Entities: declare each in `contributes.entities` (`{ id, table, label }`; the table is
   `<snake_case id>_<camelCaseName>`), write its schema with `defineEntitySchema` (`@stackmap/extension-sdk/entities`),
   its migration with `withEntityColumns` and composite `(workspaceId, …)` foreign keys, and its repository with
