@@ -253,13 +253,22 @@ describe('extension registry: entities', () => {
   const serverOf = (extension: ExtensionManifest, repositories: ReturnType<typeof repository>[]) =>
     defineExtensionServer(extension, { repositories });
 
-  it('given two extensions declaring the same table, fails the later one naming the other, and keeps the app running', () => {
+  it('given a table outside the extension\'s prefix (another extension\'s, or a platform table), fails it: the registry re-validates manifests', () => {
     const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
     const beta = withEntities('beta', [entity('beta', 'thing', 'alpha_thing')]);
+    const gamma = withEntities('gamma', [entity('gamma', 'thing', 'workspace')]);
 
-    expect(summary([alpha, beta], {
-      servers: [serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]), serverOf(beta, [repository('thing', 'betaThings', 'alpha_thing')])],
-    })).toEqual(['alpha active', 'beta failed: declares table "alpha_thing", which "alpha" already declares']);
+    expect(summary([alpha, beta, gamma], {
+      servers: [
+        serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]),
+        serverOf(beta, [repository('thing', 'betaThings', 'alpha_thing')]),
+        serverOf(gamma, [repository('thing', 'gammaThings', 'workspace')]),
+      ],
+    })).toEqual([
+      'alpha active',
+      expect.stringMatching(/^beta failed: contributes\.entities\.0\.table: must be beta_/),
+      expect.stringMatching(/^gamma failed: contributes\.entities\.0\.table: must be gamma_/),
+    ]);
   });
 
   it('given two extensions defining the same repository key, fails the later one naming the other', () => {
@@ -285,6 +294,43 @@ describe('extension registry: entities', () => {
 
     expect(summary([alpha], { servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_other')])] })).toEqual([
       'alpha failed: stores entity "thing" in table "alpha_other", but its manifest declares "alpha_thing"',
+    ]);
+  });
+
+  it('given a repository key that is not camelCase, too long, or transaction, fails the extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    for (const key of ['transaction', 'Things', 'some-things', '__proto__', `t${'h'.repeat(40)}`]) {
+      expect(summary([alpha], { servers: [serverOf(alpha, [repository('thing', key, 'alpha_thing')])] }), key)
+        .toEqual([expect.stringMatching(new RegExp(`^alpha failed: defines repository "${key.replace(/[_]/g, '_')}"`))]);
+    }
+  });
+
+  it('given a definition that stores, filters or owns a field the repository sets, fails only that extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')]);
+    const bad = { ...repository('thing', 'betaThings', 'beta_thing'), columns: ['workspaceId'] };
+
+    expect(summary([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]), serverOf(beta, [bad])],
+    })).toEqual(['alpha active', 'beta failed: repository "betaThings" cannot store, filter or own workspaceId: the repository sets it']);
+  });
+
+  it('given dependents in a table that is neither the extension\'s nor a dependency\'s, fails the extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'thing')], { dependsOn: ['alpha'] });
+    const gamma = withEntities('gamma', [entity('gamma', 'thing')]);
+    const dependents = (table: string) => ({ ...repository('thing', 'betaThings', 'beta_thing'), dependents: [{ entity: 'x', table, column: 'thingId' }] });
+
+    expect(summary([alpha, beta, gamma], {
+      servers: [
+        serverOf(alpha, [repository('thing', 'alphaThings', 'alpha_thing')]),
+        serverOf(beta, [dependents('alpha_other')]),
+        serverOf(gamma, [{ ...repository('thing', 'gammaThings', 'gamma_thing'), dependents: [{ entity: 'x', table: 'alpha_thing', column: 'thingId' }] }]),
+      ],
+    })).toEqual([
+      'alpha active',
+      'beta active',
+      'gamma failed: repository "gammaThings" counts dependents in "alpha_thing", which is neither its table nor a dependency\'s',
     ]);
   });
 

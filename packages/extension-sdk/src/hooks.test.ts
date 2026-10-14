@@ -31,6 +31,17 @@ describe('defineExtensionServer', () => {
     expect(defineExtensionServer(manifest, { migrations, repositories })).toMatchObject({ extension: 'vpn', migrations, repositories });
     expect(defineExtensionServer(manifest, {})).not.toHaveProperty('migrations');
   });
+
+  it('freezes copies of the migrations and repository definitions, so they cannot change after the check', () => {
+    const repositories = [{ entity: 'peer', key: 'vpnPeers', table: 'vpn_peer', columns: ['name'] }] as unknown as ExtensionServer['repositories'];
+    const server = defineExtensionServer(vpn, { migrations: { '0001_peer': { up: () => Promise.resolve() } }, repositories });
+
+    expect(Object.isFrozen(server.migrations)).toBe(true);
+    expect(Object.isFrozen(server.repositories)).toBe(true);
+    expect(Object.isFrozen(server.repositories?.[0])).toBe(true);
+    expect(Object.isFrozen(server.repositories?.[0]?.columns)).toBe(true);
+    expect(server.repositories).not.toBe(repositories);
+  });
 });
 
 describe('createHookBus', () => {

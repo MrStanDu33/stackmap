@@ -3,6 +3,7 @@ import { defineEntityRepository } from '@stackmap/extension-sdk/server';
 import { describe, expect, it } from 'vitest';
 
 import { createWorkspaceRepositories } from './index';
+import { siteRepository } from '../../extensions/core/server/repositories/sites';
 import { buildHost, buildNetwork, buildSite } from '../../extensions/core/testing';
 import { DIALECTS } from '../../tests/support/databases';
 import { BUILTIN_KINDS, BUILTIN_REGISTRY, countRows, useTestWorkspaces } from '../../tests/support/workspaces';
@@ -46,6 +47,37 @@ describe.each(DIALECTS)('workspace repositories on %s', (dialect: Dialect) => {
     expect(Object.keys(repos).sort())
       .toEqual(['dnsRecords', 'domains', 'hosts', 'listeners', 'networks', 'services', 'sites', 'transaction']);
     expect(await repos.sites.create(buildSite())).toMatchObject({ workspaceId: scope.workspaceId, createdBy: null });
+  });
+
+  it('gives definition callbacks a frozen scope whose kinds only answer hasKind', async () => {
+    const { a, db } = workspaces;
+    const scopes: RepositoryScope[] = [];
+    const [sites = siteRepository] = BUILTIN_REGISTRY.repositories();
+    const spying = { ...sites, check: (context: { scope: RepositoryScope }) => {
+      scopes.push(context.scope);
+      return Promise.resolve([]);
+    } };
+
+    const repos = createWorkspaceRepositories([spying] as never)(db, {
+      workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_REGISTRY,
+    });
+    await repos.sites.create(buildSite());
+
+    expect(scopes).toHaveLength(1);
+    expect(Object.isFrozen(scopes[0])).toBe(true);
+    expect(Object.isFrozen(scopes[0]?.kinds)).toBe(true);
+    expect(Object.keys(scopes[0]?.kinds ?? {})).toEqual(['hasKind']);
+  });
+
+  it('refuses a reference to a table outside the extension\'s and its dependencies\'', async () => {
+    const { a, db } = workspaces;
+    const [sites = siteRepository] = BUILTIN_REGISTRY.repositories();
+    const stray = { ...sites, references: () => [{ field: 'name', table: 'workspace', id: a.workspace.id }] };
+
+    const repos = createWorkspaceRepositories([stray] as never)(db, {
+      workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_KINDS,
+    });
+    await expect(repos.sites.create(buildSite())).rejects.toThrow('refers to table "workspace"');
   });
 
   it('leaves out the repositories of a failed extension', () => {

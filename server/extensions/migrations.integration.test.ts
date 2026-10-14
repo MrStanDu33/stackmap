@@ -79,8 +79,37 @@ describe.each(DIALECTS)('extension migrations on %s', (dialect: Dialect) => {
     expect(await tablesOf(database, dialect)).toEqual(expect.arrayContaining(['zeta_thing', 'aaa_item']));
     const histories = await database.db.introspection.getTables({ withInternalKyselyTables: true });
     const names = histories.map(({ name }) => name);
-    expect(names).toEqual(expect.arrayContaining(['kysely_migration', 'kysely_migration_zeta', 'kysely_migration_aaa']));
+    expect(names).toEqual(expect.arrayContaining(['kysely_migration', 'kysely_migration__zeta', 'kysely_migration__aaa']));
     expect(registry.extensions.map(({ manifest: { id }, state }) => `${id} ${state}`)).toEqual(['zeta active', 'aaa active']);
+  });
+
+  it('keeps the histories of extensions whose ids extend each other apart (vpn and lock-vpn)', async () => {
+    const vpn = manifest('vpn');
+    const lockVpn = manifest('lock-vpn');
+    const registry = createExtensionRegistry([vpn, lockVpn], {
+      servers: [
+        defineExtensionServer(vpn, { migrations: { '0001_peer': createTable('vpn_peer') } }),
+        defineExtensionServer(lockVpn, { migrations: { '0001_key': createTable('lock_vpn_key') } }),
+      ],
+    });
+
+    await migrateExtensions(database.db, registry, logger());
+
+    expect(registry.extensions.map(({ manifest: { id }, state }) => `${id} ${state}`)).toEqual(['lock-vpn active', 'vpn active']);
+  });
+
+  it('keeps a migration error masked and short enough for diagnostics', async () => {
+    const leaking: Migration = {
+      up: () => Promise.reject(new Error(`cannot reach postgres://stackmap:hunter2@db:5432/stackmap ${'x'.repeat(2000)}`)),
+    };
+    const registry = registryOf([aaaServer, zetaServer({ '0001_thing': leaking })]);
+
+    await migrateExtensions(database.db, registry, logger());
+
+    const [error = ''] = registry.get('zeta')?.errors ?? [];
+    expect(error).toContain('postgres://stackmap:***@db');
+    expect(error).not.toContain('hunter2');
+    expect(error.length).toBeLessThanOrEqual(1000);
   });
 
   it('logs the applied migrations per extension', async () => {

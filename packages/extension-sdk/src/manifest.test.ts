@@ -219,6 +219,29 @@ describe('entity declarations', () => {
     expect(problemsOf(withEntities(entities))).toEqual([expect.stringMatching(/^contributes\.entities: /)]);
   });
 
+  it('reserves the ids kysely and kysely-*, whose prefix would reach the migration history tables', () => {
+    for (const id of ['kysely', 'kysely-migration']) {
+      expect(problemsOf(() => defineExtension({ ...minimal(), id, name: `extensions.${id}.name`, description: `extensions.${id}.description` })))
+        .toEqual([expect.stringMatching(/^id: .*reserved/)]);
+    }
+  });
+
+  it('bounds entity ids (40), labels (200) and tables (43, so constraint names fit in 63)', () => {
+    expect(problemsOf(withEntities([{ ...route, id: `r${'-x'.repeat(20)}` }]))).toEqual([expect.stringMatching(/^contributes\.entities\.0\.id: /)]);
+    expect(problemsOf(withEntities([{ ...route, table: `reverse_proxy_${'r'.repeat(30)}` }])))
+      .toEqual([expect.stringMatching(/^contributes\.entities\.0\.table: /)]);
+    expect(problemsOf(withEntities([{ ...route, label: `extensions.reverse-proxy.${'l'.repeat(180)}` }])))
+      .toEqual([expect.stringMatching(/^contributes\.entities\.0\.label: /)]);
+  });
+
+  it('returns a frozen manifest, so nothing can change it after the registry checked it', () => {
+    const manifest = withEntities([route])();
+
+    expect(Object.isFrozen(manifest)).toBe(true);
+    expect(Object.isFrozen(manifest.contributes.entities?.[0])).toBe(true);
+    expect(Object.isFrozen(manifest.contributes.kinds)).toBe(true);
+  });
+
   it('names the table prefix of an extension: its id in snake case', () => {
     expect(extensionTablePrefix('core')).toBe('core');
     expect(extensionTablePrefix('reverse-proxy')).toBe('reverse_proxy');
