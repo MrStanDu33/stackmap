@@ -66,7 +66,7 @@ export function createEntityRepository<Fields, Input, DB>(
   const inputFields = [...stored, ...(definition.ownedFields ?? [])];
   const booleans = new Set(definition.booleans);
 
-  const toRow = (fields: Row): Row => Object.fromEntries(stored.map((column) => {
+  const toRow = (fields: Row, columns: readonly string[] = stored): Row => Object.fromEntries(columns.map((column) => {
     const value = fields[column];
     if (JSON_COLUMNS.has(column)) {
       return [column, toJson(value)];
@@ -208,11 +208,14 @@ export function createEntityRepository<Fields, Input, DB>(
             return undefined;
           }
           const fields = parseEntity(definition.schema.input, { ...pick(current, inputFields), ...changes }) as Row;
-          // An unchanged kind stays valid when its extension is turned off: data is never lost to a toggle.
-          const changed = new Set(Object.keys(changes).filter((key) => !isDeepStrictEqual(fields[key], current[key])));
+          // Against what is stored, not the patch's keys: a refine may change a field the patch did not name. An
+          // unchanged kind stays valid when its extension is turned off: data is never lost to a toggle.
+          const changed = new Set(inputFields.filter((key) => !isDeepStrictEqual(fields[key], current[key])));
           checkKinds(fields, changed);
+          // Only the changed columns: a column another request wrote since `current` was read is kept.
+          const columns = stored.filter((column) => changed.has(column));
           return save(trx, id, fields, changed, () => loose(trx).updateTable(table)
-            .set({ ...toRow(fields), updatedBy: scope.actorId, updatedAt: toTimestamp(new Date()) })
+            .set({ ...toRow(fields, columns), updatedBy: scope.actorId, updatedAt: toTimestamp(new Date()) })
             .where('workspaceId', '=', scope.workspaceId)
             .where('id', '=', id)
             .execute());
