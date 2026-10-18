@@ -139,7 +139,7 @@ export function createEntityRepository<Fields, Input, DB>(
       const typed = fields as Fields;
       const references = (definition.references?.(typed) ?? []).filter(({ field }) => changed.has(field.split('.')[0] ?? ''));
       await checkReferences(trx, references);
-      const issues = await definition.check?.(contextOf(trx), typed, changed) ?? [];
+      const issues = await definition.check?.(contextOf(trx), typed, changed, id) ?? [];
       if (issues.length > 0) {
         throw new EntityValidationError(issues);
       }

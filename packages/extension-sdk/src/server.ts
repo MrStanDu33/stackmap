@@ -84,8 +84,10 @@ export interface EntityRepositoryDefinition<Fields = unknown, Input = unknown, D
   references?(fields: Fields): EntityReference[];
   /** Rows of other tables that refer to this entity and prevent removing it; `entity` names them in the error. */
   dependents?: readonly { entity: string; table: string; column: string }[];
-  /** Checks that need the database, on the changed fields. */
-  check?(context: RepositoryContext<DB>, fields: Fields, changed: ReadonlySet<string>): Promise<EntityIssue[]>;
+  /** Checks that need the database, on the changed fields; `id` is the entity's, new on create. */
+  check?(
+    context: RepositoryContext<DB>, fields: Fields, changed: ReadonlySet<string>, id: string,
+  ): Promise<EntityIssue[]>;
   /** Writes the rows the entity owns, when their fields changed. */
   writeOwned?(context: RepositoryContext<DB>, id: string, fields: Fields, changed: ReadonlySet<string>): Promise<void>;
   /** Adds owned and derived fields to entities read from the table. */
