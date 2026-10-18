@@ -1,4 +1,4 @@
-import { EXTENSION_API_VERSION, extensionTablePrefix, KIND_ENTITIES, manifestProblems } from '@stackmap/extension-sdk';
+import { EXTENSION_API_VERSION, isExtensionTable, KIND_ENTITIES, manifestProblems } from '@stackmap/extension-sdk';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
 import type { EntityRepositoryDefinition } from '@stackmap/extension-sdk/server';
@@ -14,8 +14,8 @@ export interface RegisteredLocale extends LocaleDeclaration {
 
 export type ExtensionState = 'active' | 'failed';
 
-/** A repository definition, with the table prefixes its extension may refer to: its own and its dependencies'. */
-export type RegisteredRepository = EntityRepositoryDefinition & { tablePrefixes: readonly string[] };
+/** A repository definition, with the extensions whose tables it may refer to: its own and its dependencies. */
+export type RegisteredRepository = EntityRepositoryDefinition & { tableOwners: readonly string[] };
 
 export interface RegisteredExtension {
   manifest: ExtensionManifest;
@@ -118,13 +118,12 @@ const REPOSITORY_KEY = /^[a-z][a-zA-Z0-9]{0,39}$/;
 const SET_BY_THE_REPOSITORY = ['id', 'workspaceId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'];
 
 /** An extension may use its own tables and those of the extensions it depends on. */
-const tablePrefixesOf = (manifest: ExtensionManifest) =>
-  [manifest.id, ...manifest.dependsOn].map((id) => `${extensionTablePrefix(id)}_`);
+const tableOwnersOf = (manifest: ExtensionManifest) => [manifest.id, ...manifest.dependsOn];
 
 /** The manifest declares the entities and their tables; the server code defines one repository for each. */
 function entityErrors({ manifest, server }: Entry): string[] {
   const errors: string[] = [];
-  const prefixes = tablePrefixesOf(manifest);
+  const owners = tableOwnersOf(manifest);
   for (const { key, columns, filters = [], ownedFields = [], dependents = [] } of server?.repositories ?? []) {
     if (!REPOSITORY_KEY.test(key) || key === 'transaction') {
       errors.push(`defines repository "${key}", whose key must be camelCase, at most 40 characters, and not transaction`);
@@ -134,7 +133,7 @@ function entityErrors({ manifest, server }: Entry): string[] {
     for (const field of fields.filter((name) => SET_BY_THE_REPOSITORY.includes(name))) {
       errors.push(`repository "${key}" cannot store, filter or own ${field}: the repository sets it`);
     }
-    const outside = dependents.filter((dependent) => !prefixes.some((prefix) => dependent.table.startsWith(prefix)));
+    const outside = dependents.filter((dependent) => !owners.some((owner) => isExtensionTable(owner, dependent.table)));
     for (const { table } of outside) {
       errors.push(`repository "${key}" counts dependents in "${table}", which is neither its table nor a dependency's`);
     }
@@ -331,8 +330,8 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
-    // Each with the table prefixes it may refer to, which the repositories enforce at runtime.
+    // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime.
     repositories: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
-      (server?.repositories ?? []).map((definition) => ({ ...definition, tablePrefixes: tablePrefixesOf(manifest) }))),
+      (server?.repositories ?? []).map((definition) => ({ ...definition, tableOwners: tableOwnersOf(manifest) }))),
   };
 }

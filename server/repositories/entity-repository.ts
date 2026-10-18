@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 
+import { isExtensionTable } from '@stackmap/extension-sdk';
 import { entityId } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
@@ -50,7 +51,7 @@ const pick = (source: Row, keys: readonly string[]): Row =>
  * named columns.
  */
 export function createEntityRepository<Fields, Input, DB>(
-  definition: EntityRepositoryDefinition<Fields, Input, DB> & { tablePrefixes?: readonly string[] },
+  definition: EntityRepositoryDefinition<Fields, Input, DB> & { tableOwners?: readonly string[] },
 ): (context: RepositoryContext) => ScopedRepository<unknown, unknown, unknown, object> {
   const { table } = definition;
   for (const column of [...definition.columns, ...(definition.filters ?? []), ...(definition.ownedFields ?? [])]) {
@@ -114,7 +115,7 @@ export function createEntityRepository<Fields, Input, DB>(
     const checkReferences = async (trx: Kysely<Database>, references: EntityReference[]) => {
       for (const { field, table: target, id } of references) {
         // An extension refers to its own tables and its dependencies', never to the platform's or another's.
-        if (definition.tablePrefixes && !definition.tablePrefixes.some((prefix) => target.startsWith(prefix))) {
+        if (definition.tableOwners && !definition.tableOwners.some((owner) => isExtensionTable(owner, target))) {
           throw new Error(`The ${definition.key} repository refers to table "${target}", which is neither its own `
             + 'nor a dependency\'s.');
         }

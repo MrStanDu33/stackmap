@@ -16,7 +16,7 @@ export type WorkspaceRepositories = EntityRepositories & {
  * frozen: changing the caller's object afterwards cannot move them to another workspace.
  */
 export function createWorkspaceRepositories(
-  definitions: readonly (EntityRepositoryDefinition & { tablePrefixes?: readonly string[] })[],
+  definitions: readonly (EntityRepositoryDefinition & { tableOwners?: readonly string[] })[],
 ): (db: Kysely<Database>, scope: RepositoryScope) => WorkspaceRepositories {
   const factories = definitions.map((definition) => [definition.key, createEntityRepository(definition)] as const);
   const build = (db: Kysely<Database>, scope: RepositoryScope): WorkspaceRepositories => {
