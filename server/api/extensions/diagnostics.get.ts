@@ -1,4 +1,4 @@
-import { ExtensionDiagnostics, getExtensionDiagnostics } from '../../../shared/contracts/extensions';
+import { ExtensionDiagnostics, getExtensionDiagnostics, MAX_HOOK } from '../../../shared/contracts/extensions';
 import { defineContractHandler } from '../../utils/contract-handler';
 import { useExtensionRegistry } from '../../utils/extensions';
 
@@ -17,7 +17,8 @@ export default defineContractHandler(getExtensionDiagnostics, () => {
         code: { server: manifest.code?.server ?? false, client: manifest.code?.client ?? false },
         hooks: {
           provides: (manifest.contributes.hooks ?? []).map(({ name }) => `${manifest.id}:${name}`),
-          handles: Object.keys(server?.hooks ?? {}),
+          // As its code names them, valid or not: a misnamed hook is why the extension failed.
+          handles: Object.keys(server?.hooks ?? {}).map((hook) => hook.slice(0, MAX_HOOK)),
         },
       })),
       languages,

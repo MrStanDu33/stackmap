@@ -1,6 +1,5 @@
 import { extensionTablePrefix } from '@stackmap/extension-sdk';
 
-import { maskSecrets } from './runtime';
 import { migrateTo, migrateToLatest } from '../database/migrator';
 
 import type { ExtensionRegistry } from './registry';
@@ -15,15 +14,6 @@ export interface MigrationLogger {
 }
 
 const historyOf = (extension: string) => ({ history: extensionTablePrefix(extension) });
-
-/** Diagnostics show at most this many characters of an error. */
-const MAX_ERROR = 1000;
-
-/** As kept for diagnostics: credentials masked, and short enough for the API (the logs keep the whole message). */
-const forDiagnostics = (message: string) => {
-  const masked = maskSecrets(message);
-  return masked.length > MAX_ERROR ? `${masked.slice(0, MAX_ERROR - 1)}…` : masked;
-};
 
 /**
  * Applies the active extensions' migrations after the app's, in registry order (dependencies first, so a table can
@@ -48,7 +38,7 @@ export async function migrateExtensions(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error?.(`[extension:${manifest.id}] failed: ${message}`);
-      registry.fail(manifest.id, forDiagnostics(message));
+      registry.fail(manifest.id, message);
     }
   }
 }

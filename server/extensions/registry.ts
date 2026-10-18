@@ -67,6 +67,26 @@ interface Entry {
 
 const byId = (a: ExtensionManifest, b: ExtensionManifest) => a.id.localeCompare(b.id);
 
+/** Diagnostics show at most this many errors per extension, of at most this many characters each. */
+const MAX_ERRORS = 50;
+const MAX_ERROR = 1000;
+
+/** Masks credentials in an error: passwords in URLs and secret query parameters. */
+export const maskSecrets = (message: string) => message
+  .replace(/(\b[a-z][\w+.-]*:\/\/[^:/\s@]+:)[^@\s]+@/gi, '$1***@')
+  .replace(/\b(password|passwd|pwd|secret|token|api[_-]?key)=[^&\s]+/gi, '$1=***');
+
+/** The errors as the registry lists them, for diagnostics: masked, then cut, and capped; the logs keep them whole. */
+const listed = (errors: readonly string[]) => {
+  const shown = errors.map((error) => {
+    const masked = maskSecrets(error);
+    return masked.length > MAX_ERROR ? `${masked.slice(0, MAX_ERROR - 1)}…` : masked;
+  });
+  return shown.length > MAX_ERRORS
+    ? [...shown.slice(0, MAX_ERRORS - 1), `… and ${String(shown.length - MAX_ERRORS + 1)} more errors (see the server logs)`]
+    : shown;
+};
+
 const isFailed = (entry: Entry) => entry.errors.length > 0;
 
 /** Errors of an extension on its own: its API version, its dependencies and the code it ships. */
@@ -280,7 +300,7 @@ export function createExtensionRegistry(
   const view = ({ manifest, errors, server }: Entry): RegisteredExtension => ({
     manifest,
     state: errors.length > 0 ? 'failed' : 'active',
-    errors: [...errors],
+    errors: listed(errors),
     ...(server ? { server } : {}),
   });
   const active = () => ordered.filter((entry) => !isFailed(entry)).map(({ manifest }) => manifest);
