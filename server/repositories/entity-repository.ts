@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from 'node:util';
 
 import { isExtensionTable } from '@stackmap/extension-sdk';
-import { entityId } from '@stackmap/extension-sdk/entities';
+import { ENTITY_META_FIELDS, entityId } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
 import {
@@ -30,7 +30,7 @@ type Row = Record<string, unknown>;
 const COMMON_COLUMNS = ['status', 'tags', 'notes', 'links', 'customFields', 'origin', 'externalRef'];
 const JSON_COLUMNS = new Set(['tags', 'links', 'customFields']);
 const TIMESTAMP_COLUMNS = new Set(['createdAt', 'updatedAt']);
-const META_COLUMNS = ['id', 'workspaceId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'];
+const META_COLUMNS: readonly string[] = ENTITY_META_FIELDS;
 
 /** Runs the work in a transaction, or in the caller's transaction when there is one. */
 export function inTransaction<T>(db: Kysely<Database>, work: (trx: Kysely<Database>) => Promise<T>): Promise<T> {

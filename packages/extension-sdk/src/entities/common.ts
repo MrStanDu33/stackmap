@@ -44,6 +44,11 @@ export interface EntityMeta {
   updatedAt: Date;
 }
 
+/** The fields of `EntityMeta`, which a repository definition may not store, filter or own. */
+export const ENTITY_META_FIELDS = [
+  'id', 'workspaceId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt',
+] as const satisfies readonly (keyof EntityMeta)[];
+
 /** Validates an entity's input (create: defaults applied) and patch (update: only the given fields). */
 export interface EntitySchema<Fields, Input> {
   input: z.ZodType<Fields, Input>;

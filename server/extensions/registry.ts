@@ -1,4 +1,5 @@
 import { EXTENSION_API_VERSION, isExtensionTable, KIND_ENTITIES, manifestProblems } from '@stackmap/extension-sdk';
+import { ENTITY_META_FIELDS } from '@stackmap/extension-sdk/entities';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
 import type { EntityRepositoryDefinition } from '@stackmap/extension-sdk/server';
@@ -114,8 +115,6 @@ function ownErrors(entry: Entry, installed: ReadonlyMap<string, Entry>): string[
 }
 
 const REPOSITORY_KEY = /^[a-z][a-zA-Z0-9]{0,39}$/;
-/** Set by the repository for every entity; a definition may not store, filter or own them. */
-const SET_BY_THE_REPOSITORY = ['id', 'workspaceId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'];
 
 /** An extension may use its own tables and those of the extensions it depends on. */
 const tableOwnersOf = (manifest: ExtensionManifest) => [manifest.id, ...manifest.dependsOn];
@@ -130,7 +129,7 @@ function entityErrors({ manifest, server }: Entry): string[] {
       continue;
     }
     const fields = [...columns, ...filters, ...ownedFields];
-    for (const field of fields.filter((name) => SET_BY_THE_REPOSITORY.includes(name))) {
+    for (const field of fields.filter((name) => (ENTITY_META_FIELDS as readonly string[]).includes(name))) {
       errors.push(`repository "${key}" cannot store, filter or own ${field}: the repository sets it`);
     }
     const outside = dependents.filter((dependent) => !owners.some((owner) => isExtensionTable(owner, dependent.table)));

@@ -1,15 +1,12 @@
+import type { EntityIssue } from '@stackmap/extension-sdk/entities';
 import type { z } from 'zod';
+
+export type { EntityIssue };
 
 /*
  * Expected failures of repositories, which routes turn into Problem Details (400, 409, 422). Anything else a
  * repository throws is unexpected.
  */
-
-export interface EntityIssue {
-  /** Dotted path of the field: `name`, `addresses.1.address`. */
-  path: string;
-  message: string;
-}
 
 /** The input does not match the entity's schema, or names a kind no active extension provides. */
 export class EntityValidationError extends Error {
