@@ -6,6 +6,7 @@ import handler from './diagnostics.get';
 import { createExtensionRegistry } from '../../extensions/registry';
 import { setExtensionRegistry } from '../../utils/extensions';
 
+import type { ExtensionRegistry } from '../../extensions/registry';
 import type { ExtensionManifest } from '@stackmap/extension-sdk';
 
 const manifest = (id: string, extra: Partial<ExtensionManifest> = {}): ExtensionManifest => ({
@@ -38,10 +39,11 @@ const extensionLocales = {
   }],
 };
 
-const get = async () => {
-  setExtensionRegistry(createExtensionRegistry([vpn, proxy], {
-    servers: [defineExtensionServer(vpn, { hooks: { 'app:ready': () => undefined } })],
-  }));
+const registryWith = (hooks: Record<string, () => undefined> = { 'app:ready': () => undefined }) =>
+  createExtensionRegistry([vpn, proxy], { servers: [defineExtensionServer(vpn, { hooks: hooks })] });
+
+const get = async (registry: ExtensionRegistry = registryWith()) => {
+  setExtensionRegistry(registry);
   vi.stubGlobal('useRuntimeConfig', () => ({ extensionLocales }));
   const response = await toWebHandler(createApp().use('/api/extensions/diagnostics', handler))(
     new Request('http://localhost/api/extensions/diagnostics'),
@@ -84,5 +86,36 @@ describe('GET /api/extensions/diagnostics', () => {
 
   it('requires the admin role', () => {
     expect(handler.contract.requiredRole).toBe('admin');
+  });
+
+  type Diagnosed = { id: string; errors: string[]; hooks: { handles: string[] } };
+  const vpnOf = (json: Record<string, unknown>) => (json.extensions as Diagnosed[]).find(({ id }) => id === 'vpn');
+
+  it('given an extension whose setup error is 1,500 characters, answers 200 with that error cut to 1000, ending with …', async () => {
+    const registry = registryWith();
+    registry.fail('vpn', `setup failed: ${'x'.repeat(1500)}`);
+
+    const { status, json } = await get(registry);
+
+    expect(status).toBe(200);
+    const [error = ''] = vpnOf(json)?.errors ?? [];
+    expect(error).toHaveLength(1000);
+    expect(error.endsWith('…')).toBe(true);
+  });
+
+  it('given an extension handling a hook with an invalid name (vpn:peer_added), answers 200 listing it in hooks.handles', async () => {
+    const { status, json } = await get(registryWith({ 'vpn:peer_added': () => undefined }));
+
+    expect(status).toBe(200);
+    expect(vpnOf(json)?.hooks.handles).toEqual(['vpn:peer_added']);
+  });
+
+  it('given a hook key longer than 81 characters, answers 200 with it cut to 81', async () => {
+    const long = `vpn:${'a'.repeat(100)}`;
+
+    const { status, json } = await get(registryWith({ [long]: () => undefined }));
+
+    expect(status).toBe(200);
+    expect(vpnOf(json)?.hooks.handles).toEqual([long.slice(0, 81)]);
   });
 });

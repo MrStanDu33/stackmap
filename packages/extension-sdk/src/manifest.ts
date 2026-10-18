@@ -251,3 +251,8 @@ export function defineExtension(manifest: ExtensionManifestInput): ExtensionMani
 export function extensionTablePrefix(id: string): string {
   return id.replaceAll('-', '_');
 }
+
+/** Whether a table belongs to the extension: `<snake_case id>_<camelCaseName>`, so `vpn` never owns `vpn_x_peer`. */
+export function isExtensionTable(id: string, table: string): boolean {
+  throw new Error(`isExtensionTable(${id}, ${table}) is not implemented yet`);
+}

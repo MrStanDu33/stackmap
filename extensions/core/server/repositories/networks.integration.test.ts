@@ -92,4 +92,50 @@ describe.each(DIALECTS)('networks on %s', (dialect: Dialect) => {
     });
     expect(await networks().get(network.id)).toEqual(network);
   });
+
+  it('given a CIDR change that leaves host addresses outside, fails with a validation error on cidr naming each address and its host, and saves nothing', async () => {
+    const { repos } = workspaces.a;
+    const lan = await createNetwork(repos, { cidr: '10.0.10.0/24' });
+    await createHost(repos, { name: 'Home server', addresses: [{ address: '10.0.10.20', networkId: lan.id }] });
+    await createHost(repos, { name: 'Edge router', addresses: [{ address: '10.0.10.1', networkId: lan.id }] });
+
+    await expect(networks().update(lan.id, { cidr: '192.168.1.0/24' })).rejects.toMatchObject({
+      constructor: EntityValidationError,
+      issues: [
+        { path: 'cidr', message: '10.0.10.20 (Home server) is not in 192.168.1.0/24' },
+        { path: 'cidr', message: '10.0.10.1 (Edge router) is not in 192.168.1.0/24' },
+      ],
+    });
+    expect(await networks().get(lan.id)).toEqual(lan);
+  });
+
+  it('given a CIDR widened around its host addresses, updates the network', async () => {
+    const { repos } = workspaces.a;
+    const lan = await createNetwork(repos, { cidr: '10.0.10.0/24' });
+    await createHost(repos, { addresses: [{ address: '10.0.10.20', networkId: lan.id }] });
+
+    expect(await networks().update(lan.id, { cidr: '10.0.0.0/16' })).toMatchObject({ cidr: '10.0.0.0/16' });
+  });
+
+  it('given a CIDR set to null, updates the network', async () => {
+    const { repos } = workspaces.a;
+    const lan = await createNetwork(repos, { cidr: '10.0.10.0/24' });
+    await createHost(repos, { addresses: [{ address: '10.0.10.20', networkId: lan.id }] });
+
+    expect(await networks().update(lan.id, { cidr: null })).toMatchObject({ cidr: null });
+  });
+
+  it('given a network without addresses, creates it and changes its CIDR without an address check', async () => {
+    const lan = await networks().create(buildNetwork({ cidr: '10.0.10.0/24' }));
+
+    expect(await networks().update(lan.id, { cidr: '192.168.1.0/24' })).toMatchObject({ cidr: '192.168.1.0/24' });
+  });
+
+  it('given addresses on the same network id in another workspace, neither checks nor names them', async () => {
+    const theirs = await createNetwork(workspaces.b.repos, { cidr: '10.0.10.0/24' });
+    await createHost(workspaces.b.repos, { addresses: [{ address: '10.0.10.20', networkId: theirs.id }] });
+    const ours = await createNetwork(workspaces.a.repos, { cidr: '10.0.10.0/24' });
+
+    expect(await networks().update(ours.id, { cidr: '192.168.1.0/24' })).toMatchObject({ cidr: '192.168.1.0/24' });
+  });
 });

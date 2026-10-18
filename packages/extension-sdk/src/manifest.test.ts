@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { defineExtension, ExtensionManifestError, extensionTablePrefix } from './manifest';
+import { defineExtension, ExtensionManifestError, extensionTablePrefix, isExtensionTable } from './manifest';
 
 import type { ExtensionManifestInput } from './manifest';
 
@@ -245,5 +245,15 @@ describe('entity declarations', () => {
   it('names the table prefix of an extension: its id in snake case', () => {
     expect(extensionTablePrefix('core')).toBe('core');
     expect(extensionTablePrefix('reverse-proxy')).toBe('reverse_proxy');
+  });
+
+  it('says whether a table belongs to an extension: its snake_case id, one underscore, then a camelCase name', () => {
+    expect(isExtensionTable('vpn', 'vpn_peer')).toBe(true);
+    expect(isExtensionTable('vpn', 'vpn_peerKey')).toBe(true);
+    expect(isExtensionTable('reverse-proxy', 'reverse_proxy_route')).toBe(true);
+    expect(isExtensionTable('vpn', 'vpn_x_peer')).toBe(false);
+    expect(isExtensionTable('vpn', 'vpnpeer')).toBe(false);
+    expect(isExtensionTable('vpn', 'vpn_')).toBe(false);
+    expect(isExtensionTable('vpn', 'workspace')).toBe(false);
   });
 });

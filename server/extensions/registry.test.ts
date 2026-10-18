@@ -239,6 +239,40 @@ describe('createExtensionRegistry: states', () => {
       registry.fail('core', 'setup failed: boom');
     }).toThrow(ExtensionRegistryError);
   });
+
+  it('masks credentials in the errors it lists, for diagnostics', () => {
+    const registry = createExtensionRegistry([manifest('vpn')]);
+
+    registry.fail('vpn', 'setup failed: cannot reach postgres://stackmap:secret@db/stackmap?password=hunter2');
+
+    const masked = ['setup failed: cannot reach postgres://stackmap:***@db/stackmap?password=***'];
+    expect(registry.get('vpn')?.errors).toEqual(masked);
+    expect(registry.extensions[0]?.errors).toEqual(masked);
+  });
+
+  it('cuts each listed error to 1000 characters, after masking it', () => {
+    const registry = createExtensionRegistry([manifest('vpn')]);
+
+    registry.fail('vpn', `token=${'s'.repeat(1500)} end`);
+    registry.fail('vpn', 'x'.repeat(1500));
+
+    const [masked, long = ''] = registry.get('vpn')?.errors ?? [];
+    expect(masked).toBe('token=*** end');
+    expect(long).toBe(`${'x'.repeat(999)}…`);
+  });
+
+  it('lists at most 50 errors: the first 49, then how many more the server logs have', () => {
+    const registry = createExtensionRegistry([manifest('vpn')]);
+
+    for (let index = 1; index <= 60; index += 1) {
+      registry.fail('vpn', `error ${String(index)}`);
+    }
+
+    const errors = registry.get('vpn')?.errors ?? [];
+    expect(errors).toHaveLength(50);
+    expect(errors[48]).toBe('error 49');
+    expect(errors[49]).toBe('… and 11 more errors (see the server logs)');
+  });
 });
 
 describe('extension registry: entities', () => {
@@ -342,5 +376,20 @@ describe('extension registry: entities', () => {
     });
 
     expect(registry.repositories().map(({ key }) => key)).toEqual(['alphaThings', 'betaThings']);
+  });
+
+  it('given dependents in a table of another extension whose id extends its own (vpn and vpn-x), fails the extension', () => {
+    const vpnX = withEntities('vpn-x', [entity('vpn-x', 'peer', 'vpn_x_peer')]);
+    const vpn = withEntities('vpn', [entity('vpn', 'peer')]);
+
+    expect(summary([vpnX, vpn], {
+      servers: [
+        serverOf(vpnX, [repository('peer', 'vpnXPeers', 'vpn_x_peer')]),
+        serverOf(vpn, [{ ...repository('peer', 'vpnPeers', 'vpn_peer'), dependents: [{ entity: 'x', table: 'vpn_x_peer', column: 'peerId' }] }]),
+      ],
+    })).toEqual([
+      'vpn failed: repository "vpnPeers" counts dependents in "vpn_x_peer", which is neither its table nor a dependency\'s',
+      'vpn-x active',
+    ]);
   });
 });

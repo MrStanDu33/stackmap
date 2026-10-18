@@ -132,4 +132,45 @@ describe.each(DIALECTS)('workspace repositories on %s', (dialect: Dialect) => {
     });
     expect(await a.repos.sites.list()).toHaveLength(1);
   });
+
+  it('refuses a reference to a table of another extension whose id extends its own (vpn_x_peer for vpn), before any query', async () => {
+    const { a, db } = workspaces;
+    const [sites = siteRepository] = BUILTIN_REGISTRY.repositories();
+    // core_x_thing starts with core_, as vpn_x_peer starts with vpn_; it would belong to an extension core-x.
+    const stray = { ...sites, references: () => [{ field: 'name', table: 'core_x_thing', id: a.workspace.id }] };
+
+    const repos = createWorkspaceRepositories([stray] as never)(db, {
+      workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_KINDS,
+    });
+    await expect(repos.sites.create(buildSite())).rejects.toThrow('refers to table "core_x_thing"');
+  });
+
+  /** The hosts repository, with another writer setting `os` after the update read the host and before it writes. */
+  const withConcurrentWriter = (hostId: () => string) => {
+    const { a, db } = workspaces;
+    const hosts = BUILTIN_REGISTRY.repositories().find(({ key }) => key === 'hosts');
+    const racing = { ...hosts, check: async (context: { db: typeof db }, ...rest: unknown[]) => {
+      await context.db.updateTable('core_host').set({ os: 'Debian 13' }).where('id', '=', hostId()).execute();
+      return (hosts?.check as (...args: unknown[]) => Promise<unknown[]>)(context, ...rest);
+    } };
+    return createWorkspaceRepositories([racing] as never)(db, {
+      workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_KINDS,
+    });
+  };
+
+  it('given another writer changing a field between the update\'s read and its write, keeps both changes', async () => {
+    const host = await workspaces.a.repos.hosts.create(buildHost({ name: 'Server', os: null }));
+
+    await withConcurrentWriter(() => host.id).hosts.update(host.id, { name: 'Home server' });
+
+    expect(await workspaces.a.repos.hosts.get(host.id)).toMatchObject({ name: 'Home server', os: 'Debian 13' });
+  });
+
+  it('given a patch that changes nothing, writes only updatedBy and updatedAt', async () => {
+    const host = await workspaces.a.repos.hosts.create(buildHost({ name: 'Server', os: null }));
+
+    await withConcurrentWriter(() => host.id).hosts.update(host.id, { name: 'Server' });
+
+    expect(await workspaces.a.repos.hosts.get(host.id)).toMatchObject({ name: 'Server', os: 'Debian 13', updatedBy: null });
+  });
 });
