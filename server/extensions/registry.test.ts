@@ -301,7 +301,7 @@ describe('extension registry: entities', () => {
     const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
     for (const key of ['transaction', 'Things', 'some-things', '__proto__', `t${'h'.repeat(40)}`]) {
       expect(summary([alpha], { servers: [serverOf(alpha, [repository('thing', key, 'alpha_thing')])] }), key)
-        .toEqual([expect.stringMatching(new RegExp(`^alpha failed: defines repository "${key.replace(/[_]/g, '_')}"`))]);
+        .toEqual([expect.stringMatching(new RegExp(`^alpha failed: defines repository "${key}"`))]);
     }
   });
 
