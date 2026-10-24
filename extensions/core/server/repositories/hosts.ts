@@ -1,5 +1,6 @@
 import { cidrContains } from '@stackmap/extension-sdk/entities';
 import { defineEntityRepository } from '@stackmap/extension-sdk/server';
+import { sql } from 'kysely';
 
 import { hostSchema } from '../../entities';
 
@@ -17,6 +18,14 @@ async function checkAddresses({ db, scope }: Context, { addresses }: HostFields)
   const networkIds = [...new Set(addresses.flatMap(({ networkId }) => (networkId ? [networkId] : [])))];
   if (networkIds.length === 0) {
     return [];
+  }
+  // Locks the networks before reading their CIDR, so a concurrent CIDR change cannot pass unseen; one by one in id
+  // order, so two host edits never wait on each other.
+  for (const id of networkIds.toSorted()) {
+    await db.updateTable('core_network').set({ updatedAt: sql.ref('updatedAt') })
+      .where('workspaceId', '=', scope.workspaceId)
+      .where('id', '=', id)
+      .execute();
   }
   const networks = new Map((await db.selectFrom('core_network')
     .select(['id', 'name', 'cidr'])

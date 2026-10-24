@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util';
 
 import { isExtensionTable } from '@stackmap/extension-sdk';
 import { ENTITY_META_FIELDS, entityId } from '@stackmap/extension-sdk/entities';
+import { sql } from 'kysely';
 import { z } from 'zod';
 
 import {
@@ -205,6 +206,11 @@ export function createEntityRepository<Fields, Input, DB>(
           return undefined;
         }
         return inTransaction(db, async (trx) => {
+          // Locks the row before reading it (a no-op write), so checks that read other tables see what committed first.
+          await loose(trx).updateTable(table).set({ updatedAt: sql.ref('updatedAt') })
+            .where('workspaceId', '=', scope.workspaceId)
+            .where('id', '=', id)
+            .execute();
           const [current] = await find(trx, { id });
           if (!current) {
             return undefined;
