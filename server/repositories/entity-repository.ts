@@ -5,7 +5,8 @@ import { ENTITY_META_FIELDS, entityId } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
 import {
-  EntityConflictError, EntityInUseError, EntityValidationError, parseEntity, WorkspaceReferenceError,
+  EntityChangedError, EntityConflictError, EntityInUseError, EntityValidationError, parseEntity,
+  WorkspaceReferenceError,
 } from './errors';
 import { isForeignKeyViolation, isUniqueViolation } from '../database/errors';
 import { newId } from '../database/ids';
@@ -213,13 +214,22 @@ export function createEntityRepository<Fields, Input, DB>(
           // unchanged kind stays valid when its extension is turned off: data is never lost to a toggle.
           const changed = new Set(inputFields.filter((key) => !isDeepStrictEqual(fields[key], current[key])));
           checkKinds(fields, changed);
-          // Only the changed columns: a column another request wrote since `current` was read is kept.
+          // Only the changed columns, and only if the row is still the one read: rules checked against `current` hold.
           const columns = stored.filter((column) => changed.has(column));
-          return save(trx, id, fields, changed, () => loose(trx).updateTable(table)
-            .set({ ...toRow(fields, columns), updatedBy: scope.actorId, updatedAt: toTimestamp(new Date()) })
-            .where('workspaceId', '=', scope.workspaceId)
-            .where('id', '=', id)
-            .execute());
+          const read = current.updatedAt as Date;
+          // Always later than the last write, even within its millisecond, so every write moves it.
+          const updatedAt = new Date(Math.max(Date.now(), read.getTime() + 1));
+          return save(trx, id, fields, changed, async () => {
+            const { numUpdatedRows } = await loose(trx).updateTable(table)
+              .set({ ...toRow(fields, columns), updatedBy: scope.actorId, updatedAt: toTimestamp(updatedAt) })
+              .where('workspaceId', '=', scope.workspaceId)
+              .where('id', '=', id)
+              .where('updatedAt', '=', toTimestamp(read))
+              .executeTakeFirstOrThrow();
+            if (numUpdatedRows === 0n) {
+              throw new EntityChangedError();
+            }
+          });
         });
       },
 
