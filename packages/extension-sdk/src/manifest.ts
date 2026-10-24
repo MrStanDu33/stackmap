@@ -1,6 +1,8 @@
 import { icons as lucide } from '@iconify-json/lucide';
 import { z } from 'zod';
 
+import { KEBAB_CASE, LANGUAGE_TAG, LOCALE_CODE, SEMVER } from './formats';
+
 /** Version of the extension API; a manifest declares the one it targets. */
 export const EXTENSION_API_VERSION = 1;
 
@@ -20,6 +22,16 @@ export interface Kind {
 }
 
 export type KindContributions = Partial<Record<KindEntity, readonly Kind[]>>;
+
+/** An entity type an extension adds, stored in a table of its own. */
+export interface EntityDeclaration {
+  /** Kebab-case, unique in the extension. */
+  id: string;
+  /** `<snake_case extension id>_<camelCase name>`: `core_host`, `reverse_proxy_route`. */
+  table: string;
+  /** i18n key, under extensions.<id>. */
+  label: string;
+}
 
 /** A hook an extension declares; others call it `<extension id>:<name>`. */
 export interface HookDeclaration {
@@ -54,6 +66,7 @@ export interface ExtensionManifest {
   code?: { server?: boolean; client?: boolean };
   contributes: {
     kinds: KindContributions;
+    entities?: readonly EntityDeclaration[];
     hooks?: readonly HookDeclaration[];
     locales?: readonly LocaleDeclaration[];
   };
@@ -83,25 +96,38 @@ export const lucideIconExists = (icon: string): boolean => {
 /** Prefixes of the app's own hooks (`app:ready`, `route:changed`…): no extension may take them as its id. */
 export const RESERVED_EXTENSION_IDS: readonly string[] = ['app', 'route', 'locale', 'extension'];
 
-const KEBAB_CASE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
-/** `de`, `pt-BR`, `zh-Hant`. */
-const LOCALE_CODE = /^[a-z]{2,3}(?:-[A-Z]{2}|-[A-Z][a-z]{3})?$/;
-/** A BCP 47 tag: `de-DE`, `pt-BR`. */
-const LANGUAGE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
-const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const LUCIDE_ICON = /^i-lucide-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** An image path inside the extension's own directory: no `..`, no other extension, local formats only. */
 const IMAGE_PATH = /^[\w-]+(?:\/[\w-]+)*\.(?:svg|png|webp)$/;
 
 const kebabCase = z.string().regex(KEBAB_CASE, 'must be kebab-case (lowercase letters, digits and single dashes)');
 
-const kinds = z.array(z.strictObject({ id: kebabCase, label: z.string(), icon: z.string().optional() })).optional();
+/** Ids are stored and named in tables and constraints: bounded so that every derived name fits Postgres' 63. */
+const MAX_ID = 40;
+const MAX_LABEL = 200;
+const MAX_TABLE = 43;
+
+const kinds = z.array(z.strictObject({
+  id: kebabCase.max(MAX_ID),
+  label: z.string().max(MAX_LABEL),
+  icon: z.string().max(MAX_LABEL).optional(),
+})).optional();
 
 const hooks = z.array(z.strictObject({
   name: kebabCase,
   side: z.enum(['server', 'client']),
   description: z.string().trim().min(1, 'must not be empty'),
 })).optional();
+
+/** At most this many entity types per extension. */
+const MAX_ENTITIES = 50;
+
+const entities = z.array(z.strictObject({
+  id: kebabCase.max(MAX_ID),
+  // `<table>_workspace_id_unique` and the other derived constraint names must fit in 63 characters.
+  table: z.string().max(MAX_TABLE),
+  label: z.string().max(MAX_LABEL),
+})).max(MAX_ENTITIES);
 
 const locales = z.array(z.strictObject({
   code: z.string().regex(LOCALE_CODE, 'must be a locale code, such as de or pt-BR'),
@@ -112,7 +138,9 @@ const locales = z.array(z.strictObject({
 const manifestSchema = z.strictObject({
   id: kebabCase
     .max(40, 'must be at most 40 characters')
-    .refine((id) => !RESERVED_EXTENSION_IDS.includes(id), 'is reserved for the app\'s own hooks'),
+    .refine((id) => !RESERVED_EXTENSION_IDS.includes(id), 'is reserved for the app\'s own hooks')
+    // Its table prefix would name the migration history tables (`kysely_migration…`).
+    .refine((id) => id !== 'kysely' && !id.startsWith('kysely-'), 'is reserved for the migration history tables'),
   version: z.string().regex(SEMVER, 'must be a semantic version, such as 1.2.0'),
   apiVersion: z.number().int().positive(),
   name: z.string(),
@@ -124,6 +152,7 @@ const manifestSchema = z.strictObject({
   code: z.strictObject({ server: z.boolean().optional(), client: z.boolean().optional() }).optional(),
   contributes: z.strictObject({
     kinds: z.strictObject({ host: kinds, network: kinds, service: kinds, protocol: kinds }).default({}),
+    entities: entities.optional(),
     hooks,
     locales,
   }).default({ kinds: {} }),
@@ -164,15 +193,61 @@ const manifestSchema = z.strictObject({
       checkIcon(kind.icon, [...path, 'icon']);
     }
   }
+  const tablePrefix = extensionTablePrefix(manifest.id);
+  const table = new RegExp(`^${tablePrefix}_[a-z][a-zA-Z0-9]*$`);
+  const seenEntities = new Set<string>();
+  for (const [index, entity] of (manifest.contributes.entities ?? []).entries()) {
+    const path = ['contributes', 'entities', index];
+    if (seenEntities.has(entity.id)) {
+      context.addIssue({ code: 'custom', path: [...path, 'id'], message: `declares entity "${entity.id}" more than once` });
+    }
+    seenEntities.add(entity.id);
+    // The extension's prefix keeps two extensions' tables apart; the name is camelCase, like every table and column.
+    if (!table.test(entity.table)) {
+      context.addIssue({
+        code: 'custom',
+        path: [...path, 'table'],
+        message: `must be ${tablePrefix}_ followed by a camelCase name, such as ${tablePrefix}_peer`,
+      });
+    }
+    checkKey(entity.label, [...path, 'label']);
+  }
 });
 
 /** Validates an extension manifest when it is defined and returns it with its defaults. */
+/** What is wrong with a manifest, one problem per line (`contributes.entities.0.table: …`); empty when it is valid. */
+export function manifestProblems(manifest: unknown): string[] {
+  const result = manifestSchema.safeParse(manifest);
+  return result.success
+    ? []
+    : result.error.issues.map(({ path, message }) => `${path.length > 0 ? path.join('.') : 'manifest'}: ${message}`);
+}
+
+/** Freezes plain data, deeply. */
+export function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+
+/**
+ * Validates an extension manifest when it is defined and returns it with its defaults, frozen: nothing can change it
+ * after the registry checked it.
+ */
 export function defineExtension(manifest: ExtensionManifestInput): ExtensionManifest {
   const result = manifestSchema.safeParse(manifest);
   if (!result.success) {
-    throw new ExtensionManifestError(manifest.id, result.error.issues.map(({ path, message }) =>
-      `${path.length > 0 ? path.join('.') : 'manifest'}: ${message}`));
+    throw new ExtensionManifestError(manifest.id, manifestProblems(manifest));
   }
   // The refinement checked the icons, which the schema can only type as strings.
-  return result.data as ExtensionManifest;
+  return deepFreeze(result.data as ExtensionManifest);
+}
+
+/** The prefix of an extension's tables and migration history: its id in snake case, `reverse_proxy`. */
+export function extensionTablePrefix(id: string): string {
+  return id.replaceAll('-', '_');
 }

@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EntityConflictError, EntityValidationError } from './errors';
 import { createWorkspace, deleteWorkspace, getWorkspace } from './workspaces';
+import { populateWorkspace } from '../../extensions/core/testing';
 import { DIALECTS, openTestDatabase } from '../../tests/support/databases';
+import { countRows, SCOPED_TABLES, useTestWorkspaces } from '../../tests/support/workspaces';
 import { newId } from '../database/ids';
 import { migrateToLatest } from '../database/migrator';
 
@@ -72,5 +74,24 @@ describe.each(DIALECTS)('workspaces on %s', (dialect: Dialect) => {
     expect(await getWorkspace(database.db, workspace.id)).toBeUndefined();
     expect(await getWorkspace(database.db, other.id)).toEqual(other);
     expect(await deleteWorkspace(database.db, workspace.id)).toBe(false);
+  });
+});
+
+describe.each(DIALECTS)('workspace deletion on %s', (dialect: Dialect) => {
+  const workspaces = useTestWorkspaces(dialect);
+
+  it('given a workspace with data, deleting it deletes all of its entities and leaves another workspace untouched', async () => {
+    const { a, b, db } = workspaces;
+    await populateWorkspace(a.repos);
+    await populateWorkspace(b.repos);
+    const countAll = (workspaceId: string) =>
+      Promise.all(SCOPED_TABLES.map((table) => countRows(db, table, workspaceId)));
+    const before = await countAll(b.workspace.id);
+
+    expect(await deleteWorkspace(db, a.workspace.id)).toBe(true);
+
+    expect(await countAll(a.workspace.id)).toEqual(SCOPED_TABLES.map(() => 0));
+    expect(await countAll(b.workspace.id)).toEqual(before);
+    expect(before.every((count) => count > 0)).toBe(true);
   });
 });

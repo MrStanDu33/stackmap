@@ -57,7 +57,7 @@ describe('built-in extensions', () => {
   });
 
   it('form a valid registry in which core is always on', () => {
-    const registry = createExtensionRegistry(BUILTIN_EXTENSIONS);
+    const registry = createExtensionRegistry(BUILTIN_EXTENSIONS, { servers: BUILTIN_EXTENSION_SERVERS });
 
     expect(registry.get('core')).toMatchObject({ state: 'active', manifest: { alwaysOn: true } });
   });

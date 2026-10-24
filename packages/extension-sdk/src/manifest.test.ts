@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { defineExtension, ExtensionManifestError } from './manifest';
+import { defineExtension, ExtensionManifestError, extensionTablePrefix } from './manifest';
 
 import type { ExtensionManifestInput } from './manifest';
 
@@ -182,5 +182,68 @@ describe('defineExtension: platform fields', () => {
         description: `extensions.${id}.description`,
       }))).toEqual([expect.stringMatching(/^id: .*reserved/)]);
     }
+  });
+});
+
+describe('entity declarations', () => {
+  const route = { id: 'route', table: 'reverse_proxy_route', label: 'extensions.reverse-proxy.entities.route' };
+  const withEntities = (entities: unknown[]) =>
+    () => defineExtension({ ...minimal(), contributes: { entities } } as ExtensionManifestInput);
+
+  it('accepts entities with a unique kebab-case id, a table named <snake_case extension id>_<camelCase name> and a label under the extension namespace', () => {
+    const accessList = { id: 'access-list', table: 'reverse_proxy_accessList', label: 'extensions.reverse-proxy.entities.accessList' };
+
+    expect(withEntities([route, accessList])().contributes.entities).toEqual([route, accessList]);
+    expect(defineExtension(minimal()).contributes.entities).toBeUndefined();
+  });
+
+  it('given a duplicate id, a table without the extension prefix or not in camelCase, or a label outside the namespace, fails naming the entry', () => {
+    expect(problemsOf(withEntities([route, route]))).toEqual([expect.stringMatching(/entities.*"route".*more than once/)]);
+    for (const table of ['route', 'reverse-proxy_route', 'vpn_route', 'reverse_proxy_Route', 'reverse_proxy_proxy_route_']) {
+      expect(problemsOf(withEntities([{ ...route, table }])), table)
+        .toEqual([expect.stringMatching(/^contributes\.entities\.0\.table: /)]);
+    }
+    expect(problemsOf(withEntities([{ ...route, id: 'Route' }]))).toEqual([expect.stringMatching(/^contributes\.entities\.0\.id: /)]);
+    expect(problemsOf(withEntities([{ ...route, label: 'extensions.vpn.entities.route' }])))
+      .toEqual([expect.stringMatching(/^contributes\.entities\.0\.label: /)]);
+  });
+
+  it('accepts no more than 50 entities', () => {
+    const entities = Array.from({ length: 51 }, (_, index) => ({
+      id: `entity-${String(index)}`,
+      table: `reverse_proxy_entity${String(index)}`,
+      label: `extensions.reverse-proxy.entities.entity${String(index)}`,
+    }));
+
+    expect(withEntities(entities.slice(0, 50))).not.toThrow();
+    expect(problemsOf(withEntities(entities))).toEqual([expect.stringMatching(/^contributes\.entities: /)]);
+  });
+
+  it('reserves the ids kysely and kysely-*, whose prefix would reach the migration history tables', () => {
+    for (const id of ['kysely', 'kysely-migration']) {
+      expect(problemsOf(() => defineExtension({ ...minimal(), id, name: `extensions.${id}.name`, description: `extensions.${id}.description` })))
+        .toEqual([expect.stringMatching(/^id: .*reserved/)]);
+    }
+  });
+
+  it('bounds entity ids (40), labels (200) and tables (43, so constraint names fit in 63)', () => {
+    expect(problemsOf(withEntities([{ ...route, id: `r${'-x'.repeat(20)}` }]))).toEqual([expect.stringMatching(/^contributes\.entities\.0\.id: /)]);
+    expect(problemsOf(withEntities([{ ...route, table: `reverse_proxy_${'r'.repeat(30)}` }])))
+      .toEqual([expect.stringMatching(/^contributes\.entities\.0\.table: /)]);
+    expect(problemsOf(withEntities([{ ...route, label: `extensions.reverse-proxy.${'l'.repeat(180)}` }])))
+      .toEqual([expect.stringMatching(/^contributes\.entities\.0\.label: /)]);
+  });
+
+  it('returns a frozen manifest, so nothing can change it after the registry checked it', () => {
+    const manifest = withEntities([route])();
+
+    expect(Object.isFrozen(manifest)).toBe(true);
+    expect(Object.isFrozen(manifest.contributes.entities?.[0])).toBe(true);
+    expect(Object.isFrozen(manifest.contributes.kinds)).toBe(true);
+  });
+
+  it('names the table prefix of an extension: its id in snake case', () => {
+    expect(extensionTablePrefix('core')).toBe('core');
+    expect(extensionTablePrefix('reverse-proxy')).toBe('reverse_proxy');
   });
 });

@@ -44,6 +44,7 @@ const toExtension = ({ manifest, state }: RegisteredExtension) => {
     // Per-workspace toggles arrive with phase 5; until then every installed extension is on.
     enabled: true,
     kinds: { host: kinds('host'), network: kinds('network'), service: kinds('service'), protocol: kinds('protocol') },
+    entities: contributes ? (manifest.contributes.entities ?? []).map(({ id, label }) => ({ id, label })) : [],
     locales: contributes ? [...(manifest.contributes.locales ?? [])] : [],
   };
 };

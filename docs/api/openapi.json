@@ -214,6 +214,12 @@
                             "service": [],
                             "protocol": []
                           },
+                          "entities": [
+                            {
+                              "id": "host",
+                              "label": "extensions.core.entities.host"
+                            }
+                          ],
                           "locales": []
                         }
                       ]
@@ -2983,6 +2989,14 @@
             "additionalProperties": false,
             "description": "Kinds it adds, by core entity; empty when it failed"
           },
+          "entities": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtensionEntity"
+            },
+            "description": "Entity types it adds; empty when it failed"
+          },
           "locales": {
             "maxItems": 50,
             "type": "array",
@@ -3002,6 +3016,7 @@
           "state",
           "enabled",
           "kinds",
+          "entities",
           "locales"
         ],
         "additionalProperties": false,
@@ -3029,6 +3044,12 @@
               "service": [],
               "protocol": []
             },
+            "entities": [
+              {
+                "id": "host",
+                "label": "extensions.core.entities.host"
+              }
+            ],
             "locales": []
           }
         ]
@@ -3075,6 +3096,41 @@
             "id": "lan",
             "label": "extensions.core.kinds.network.lan",
             "icon": "i-lucide-network"
+          }
+        ]
+      },
+      "ExtensionEntity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "Unique in the extension",
+            "examples": [
+              "host"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$",
+            "description": "i18n key of its name",
+            "examples": [
+              "extensions.core.entities.host"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "additionalProperties": false,
+        "description": "An entity type an extension adds",
+        "examples": [
+          {
+            "id": "host",
+            "label": "extensions.core.entities.host"
           }
         ]
       },

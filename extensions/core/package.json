@@ -5,9 +5,19 @@
   "description": "The core of Stackmap, packaged as an always-on extension: sites, hosts, networks, services, flows, DNS.",
   "type": "module",
   "exports": {
-    ".": "./manifest.ts"
+    ".": "./manifest.ts",
+    "./entities": "./entities/index.ts",
+    "./server": "./server.ts",
+    "./testing": "./testing/index.ts"
   },
   "dependencies": {
-    "@stackmap/extension-sdk": "workspace:*"
+    "@stackmap/extension-sdk": "workspace:*",
+    "zod": "^4.6.6"
+  },
+  "peerDependencies": {
+    "kysely": "^0.29.6"
+  },
+  "devDependencies": {
+    "kysely": "^0.29.6"
   }
 }

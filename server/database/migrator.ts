@@ -29,10 +29,29 @@ async function migrationTableSchema<DB>(db: Kysely<DB>): Promise<string | undefi
   return rows[0]?.schema;
 }
 
-async function createMigrator<DB>(db: Kysely<DB>, migrations: Migrations): Promise<Migrator> {
+/** Where a set of migrations records what ran: the app's history by default, or an extension's own. */
+export interface MigrationHistory {
+  /**
+   * Suffix of the history tables: `core` gives `kysely_migration__core` and `kysely_migration_lock__core`. The double
+   * underscore cannot come from a prefix, so `lock-vpn` and `vpn` never share one.
+   */
+  history?: string;
+}
+
+async function createMigrator<DB>(
+  db: Kysely<DB>,
+  migrations: Migrations,
+  { history }: MigrationHistory = {},
+): Promise<Migrator> {
   return new Migrator({
     db,
     provider: { getMigrations: () => Promise.resolve(migrations) },
+    ...(history === undefined
+      ? {}
+      : {
+          migrationTableName: `kysely_migration__${history}`,
+          migrationLockTableName: `kysely_migration_lock__${history}`,
+        }),
     migrationTableSchema: await migrationTableSchema(db),
   });
 }
@@ -60,8 +79,12 @@ function namesOrThrow({ error, results = [] }: MigrationResultSet): string[] {
 }
 
 /** Applies every pending migration; resolves with the names applied, in order. */
-export async function migrateToLatest<DB>(db: Kysely<DB>, migrations: Migrations = MIGRATIONS): Promise<string[]> {
-  return namesOrThrow(await (await createMigrator(db, migrations)).migrateToLatest());
+export async function migrateToLatest<DB>(
+  db: Kysely<DB>,
+  migrations: Migrations = MIGRATIONS,
+  history: MigrationHistory = {},
+): Promise<string[]> {
+  return namesOrThrow(await (await createMigrator(db, migrations, history)).migrateToLatest());
 }
 
 /** Moves the database up or down to exactly `target`; resolves with the names applied or reverted, in order. */
@@ -69,9 +92,10 @@ export async function migrateTo<DB>(
   db: Kysely<DB>,
   target: string | typeof NO_MIGRATIONS,
   migrations: Migrations = MIGRATIONS,
+  history: MigrationHistory = {},
 ): Promise<string[]> {
   if (typeof target === 'string' && !(target in migrations)) {
     throw new MigrationError(`Unknown migration "${target}". Known migrations: ${Object.keys(migrations).join(', ')}.`);
   }
-  return namesOrThrow(await (await createMigrator(db, migrations)).migrateTo(target));
+  return namesOrThrow(await (await createMigrator(db, migrations, history)).migrateTo(target));
 }
