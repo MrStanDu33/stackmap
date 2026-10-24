@@ -133,4 +133,18 @@ describe('GET /api/extensions/diagnostics', () => {
     expect(status).toBe(200);
     expect(vpnOf(json)?.hooks.handles).toEqual([long.slice(0, 81)]);
   });
+
+  it('given hook keys that are empty, hold refused characters or number more than 100, answers 200 within the contract', async () => {
+    const hooks: Record<string, () => undefined> = { '': () => undefined, 'vpn:\u202Epeer': () => undefined, 'vpn:peer\nx': () => undefined };
+    for (let index = 0; index < 110; index += 1) {
+      hooks[`vpn:hook-${String(index)}`] = () => undefined;
+    }
+
+    const { status, json } = await get(registryWith(hooks));
+
+    expect(status).toBe(200);
+    const handles = vpnOf(json)?.hooks.handles ?? [];
+    expect(handles).toHaveLength(100);
+    expect(handles.slice(0, 3)).toEqual(['vpn:?peer', 'vpn:peer?x', 'vpn:hook-0']);
+  });
 });

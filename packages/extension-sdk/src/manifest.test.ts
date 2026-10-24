@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { defineExtension, ExtensionManifestError, extensionTablePrefix, isExtensionTable } from './manifest';
+import {
+  defineExtension, ExtensionManifestError, extensionTablePrefix, isExtensionTable, manifestProblems,
+} from './manifest';
 
 import type { ExtensionManifestInput } from './manifest';
 
@@ -255,5 +257,20 @@ describe('entity declarations', () => {
     expect(isExtensionTable('vpn', 'vpnpeer')).toBe(false);
     expect(isExtensionTable('vpn', 'vpn_')).toBe(false);
     expect(isExtensionTable('vpn', 'workspace')).toBe(false);
+  });
+
+  it('builds no pattern from the id: a malformed one neither matches as a wildcard nor throws', () => {
+    expect(isExtensionTable('a.*', 'abc_peer')).toBe(false);
+    expect(() => isExtensionTable('bad(', 'bad(_peer')).not.toThrow();
+  });
+
+  it('reports a malformed id with an entity among the problems, instead of throwing', () => {
+    const manifest = {
+      ...minimal(),
+      id: 'bad(',
+      contributes: { kinds: {}, entities: [{ id: 'peer', table: 'bad_peer', label: 'extensions.bad.entities.peer' }] },
+    };
+
+    expect(manifestProblems(manifest)).toEqual(expect.arrayContaining([expect.stringMatching(/^id: /)]));
   });
 });

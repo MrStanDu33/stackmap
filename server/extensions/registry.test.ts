@@ -250,6 +250,14 @@ describe('createExtensionRegistry: states', () => {
     expect(registry.extensions[0]?.errors).toEqual(masked);
   });
 
+  it('masks the whole password when it contains @', () => {
+    const registry = createExtensionRegistry([manifest('vpn')]);
+
+    registry.fail('vpn', 'cannot reach postgres://user:p@ss@db/x');
+
+    expect(registry.get('vpn')?.errors).toEqual(['cannot reach postgres://user:***@db/x']);
+  });
+
   it('cuts each listed error to 1000 characters, after masking it', () => {
     const registry = createExtensionRegistry([manifest('vpn')]);
 
@@ -390,5 +398,16 @@ describe('extension registry: entities', () => {
       'vpn failed: repository "vpnPeers" counts dependents in "vpn_x_peer", which is neither its table nor a dependency\'s',
       'vpn-x active',
     ]);
+  });
+
+  it('given a manifest whose id is malformed, marks it failed instead of throwing, and keeps the others', () => {
+    const bad = withEntities('bad(', [entity('bad(', 'peer', 'bad_peer')]);
+    const vpn = manifest('vpn');
+
+    const extensions = summary([bad, vpn]);
+
+    expect(extensions).toHaveLength(2);
+    expect(extensions[0]).toMatch(/^bad\( failed: .*id: /);
+    expect(extensions[1]).toBe('vpn active');
   });
 });
