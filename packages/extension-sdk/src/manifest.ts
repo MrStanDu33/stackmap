@@ -253,6 +253,7 @@ export function extensionTablePrefix(id: string): string {
 
 /** Whether a table belongs to the extension: `<snake_case id>_<camelCaseName>`, so `vpn` never owns `vpn_x_peer`. */
 export function isExtensionTable(id: string, table: string): boolean {
-  // Ids are kebab-case, so the prefix holds no regex syntax.
-  return new RegExp(`^${extensionTablePrefix(id)}_[a-z][a-zA-Z0-9]*$`).test(table);
+  // No pattern built from the id: it may not be validated yet.
+  const prefix = `${extensionTablePrefix(id)}_`;
+  return table.startsWith(prefix) && /^[a-z][a-zA-Z0-9]*$/.test(table.slice(prefix.length));
 }
