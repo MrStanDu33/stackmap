@@ -68,8 +68,7 @@ interface Entry {
 
 const byId = (a: ExtensionManifest, b: ExtensionManifest) => a.id.localeCompare(b.id);
 
-/** Diagnostics show at most this many errors per extension, of at most this many characters each. */
-const MAX_ERRORS = 50;
+/** Diagnostics and logs show at most this many characters of an error. */
 const MAX_ERROR = 1000;
 
 /** Masks credentials in an error: passwords in URLs and secret query parameters. */
@@ -77,16 +76,11 @@ export const maskSecrets = (message: string) => message
   .replace(/(\b[a-z][\w+.-]*:\/\/[^:/\s@]+:)[^@\s]+@/gi, '$1***@')
   .replace(/\b(password|passwd|pwd|secret|token|api[_-]?key)=[^&\s]+/gi, '$1=***');
 
-/** The errors as the registry lists them, for diagnostics: masked, then cut, and capped; the logs keep them whole. */
-const listed = (errors: readonly string[]) => {
-  const shown = errors.map((error) => {
-    const masked = maskSecrets(error);
-    return masked.length > MAX_ERROR ? `${masked.slice(0, MAX_ERROR - 1)}…` : masked;
-  });
-  return shown.length > MAX_ERRORS
-    ? [...shown.slice(0, MAX_ERRORS - 1), `… and ${String(shown.length - MAX_ERRORS + 1)} more errors (see the server logs)`]
-    : shown;
-};
+/** The errors as the registry lists them: masked, then cut. Setup and migration failures log the whole message. */
+const listed = (errors: readonly string[]) => errors.map((error) => {
+  const masked = maskSecrets(error);
+  return masked.length > MAX_ERROR ? `${masked.slice(0, MAX_ERROR - 1)}…` : masked;
+});
 
 const isFailed = (entry: Entry) => entry.errors.length > 0;
 
