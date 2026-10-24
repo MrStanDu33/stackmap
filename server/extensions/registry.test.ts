@@ -261,7 +261,7 @@ describe('createExtensionRegistry: states', () => {
     expect(long).toBe(`${'x'.repeat(999)}…`);
   });
 
-  it('lists at most 50 errors: the first 49, then how many more the server logs have', () => {
+  it('lists every error, so the startup log has them all; diagnostics cap them', () => {
     const registry = createExtensionRegistry([manifest('vpn')]);
 
     for (let index = 1; index <= 60; index += 1) {
@@ -269,9 +269,8 @@ describe('createExtensionRegistry: states', () => {
     }
 
     const errors = registry.get('vpn')?.errors ?? [];
-    expect(errors).toHaveLength(50);
-    expect(errors[48]).toBe('error 49');
-    expect(errors[49]).toBe('… and 11 more errors (see the server logs)');
+    expect(errors).toHaveLength(60);
+    expect(errors[59]).toBe('error 60');
   });
 });
 

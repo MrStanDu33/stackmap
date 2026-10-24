@@ -103,6 +103,21 @@ describe('GET /api/extensions/diagnostics', () => {
     expect(error.endsWith('…')).toBe(true);
   });
 
+  it('given an extension with 60 errors, shows 50: the first 49, then how many more the server logs have', async () => {
+    const registry = registryWith();
+    for (let index = 1; index <= 60; index += 1) {
+      registry.fail('vpn', `error ${String(index)}`);
+    }
+
+    const { status, json } = await get(registry);
+
+    expect(status).toBe(200);
+    const errors = vpnOf(json)?.errors ?? [];
+    expect(errors).toHaveLength(50);
+    expect(errors[48]).toBe('error 49');
+    expect(errors[49]).toBe('… and 11 more errors (see the server logs)');
+  });
+
   it('given an extension handling a hook with an invalid name (vpn:peer_added), answers 200 listing it in hooks.handles', async () => {
     const { status, json } = await get(registryWith({ 'vpn:peer_added': () => undefined }));
 

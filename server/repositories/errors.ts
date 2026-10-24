@@ -26,6 +26,15 @@ export class WorkspaceReferenceError extends Error {
   }
 }
 
+/** The entity changed since the update read it: the caller reloads it and tries again. */
+export class EntityChangedError extends Error {
+  override name = 'EntityChangedError';
+
+  constructor() {
+    super('The entity changed since it was read; reload it and try again.');
+  }
+}
+
 /** Another entity already has these unique values. */
 export class EntityConflictError extends Error {
   override name = 'EntityConflictError';
