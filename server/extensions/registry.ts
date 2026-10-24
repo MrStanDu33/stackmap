@@ -73,7 +73,8 @@ const MAX_ERROR = 1000;
 
 /** Masks credentials in an error: passwords in URLs and secret query parameters. */
 export const maskSecrets = (message: string) => message
-  .replace(/(\b[a-z][\w+.-]*:\/\/[^:/\s@]+:)[^@\s]+@/gi, '$1***@')
+  // Up to the URL's last @: a password may contain one.
+  .replace(/(\b[a-z][\w+.-]*:\/\/[^:/\s@]+:)\S+@/gi, '$1***@')
   .replace(/\b(password|passwd|pwd|secret|token|api[_-]?key)=[^&\s]+/gi, '$1=***');
 
 /** The errors as the registry lists them: masked, then cut. Setup and migration failures log the whole message. */
