@@ -13,14 +13,6 @@ const messageOf = (error: unknown) => (error instanceof Error ? error.message : 
 export const SETUP_TIMEOUT_MS = 30_000;
 export const HOOK_TIMEOUT_MS = 10_000;
 
-/**
- * Masks credentials in an error kept for diagnostics (the logs keep the full message): passwords in URLs and secret
- * query parameters.
- */
-export const maskSecrets = (message: string) => message
-  .replace(/(\b[a-z][\w+.-]*:\/\/[^:/\s@]+:)[^@\s]+@/gi, '$1***@')
-  .replace(/\b(password|passwd|pwd|secret|token|api[_-]?key)=[^&\s]+/gi, '$1=***');
-
 /** `<extension id>:<name>`, exactly. */
 const splitHook = (hook: string) => {
   const parts = hook.split(':');
@@ -140,8 +132,8 @@ export async function startExtensions(
       await withTimeout(Promise.resolve(server.setup(contextFor(manifest))), setupTimeoutMs);
     } catch (error) {
       loggerFor(manifest.id).error(`setup failed: ${messageOf(error)}`, error);
-      // Throws for an always-on extension: the app cannot run without it.
-      registry.fail(manifest.id, `setup failed: ${maskSecrets(messageOf(error))}`);
+      // Throws for an always-on extension: the app cannot run without it. The registry masks what it lists.
+      registry.fail(manifest.id, `setup failed: ${messageOf(error)}`);
     }
   }
 

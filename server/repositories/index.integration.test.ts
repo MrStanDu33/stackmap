@@ -1,7 +1,8 @@
 import { defineExtensionServer } from '@stackmap/extension-sdk';
 import { defineEntityRepository } from '@stackmap/extension-sdk/server';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { EntityChangedError } from './errors';
 import { createWorkspaceRepositories } from './index';
 import { siteRepository } from '../../extensions/core/server/repositories/sites';
 import { buildHost, buildNetwork, buildSite } from '../../extensions/core/testing';
@@ -131,5 +132,86 @@ describe.each(DIALECTS)('workspace repositories on %s', (dialect: Dialect) => {
       addresses: [{ address: '10.0.10.21' }],
     });
     expect(await a.repos.sites.list()).toHaveLength(1);
+  });
+
+  it('refuses a reference to a table of another extension whose id extends its own (vpn_x_peer for vpn), before any query', async () => {
+    const { a, db } = workspaces;
+    const [sites = siteRepository] = BUILTIN_REGISTRY.repositories();
+    // core_x_thing starts with core_, as vpn_x_peer starts with vpn_; it would belong to an extension core-x.
+    const stray = { ...sites, references: () => [{ field: 'name', table: 'core_x_thing', id: a.workspace.id }] };
+
+    const repos = createWorkspaceRepositories([stray] as never)(db, {
+      workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_KINDS,
+    });
+    await expect(repos.sites.create(buildSite())).rejects.toThrow('refers to table "core_x_thing"');
+  });
+
+  /** The hosts repository, with another writer setting `os` after the update read the host and before it writes. */
+  const withConcurrentWriter = (hostId: () => string) => {
+    const { a, db } = workspaces;
+    const hosts = BUILTIN_REGISTRY.repositories().find(({ key }) => key === 'hosts');
+    const racing = { ...hosts, check: async (context: { db: typeof db }, ...rest: unknown[]) => {
+      await context.db.updateTable('core_host').set({ os: 'Debian 13' }).where('id', '=', hostId()).execute();
+      return (hosts?.check as (...args: unknown[]) => Promise<unknown[]>)(context, ...rest);
+    } };
+    return createWorkspaceRepositories([racing] as never)(db, {
+      workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_KINDS,
+    });
+  };
+
+  it('given another writer changing a field between the update\'s read and its write, keeps both changes', async () => {
+    const host = await workspaces.a.repos.hosts.create(buildHost({ name: 'Server', os: null }));
+
+    await withConcurrentWriter(() => host.id).hosts.update(host.id, { name: 'Home server' });
+
+    expect(await workspaces.a.repos.hosts.get(host.id)).toMatchObject({ name: 'Home server', os: 'Debian 13' });
+  });
+
+  it('given a patch that changes nothing, writes only updatedBy and updatedAt', async () => {
+    const host = await workspaces.a.repos.hosts.create(buildHost({ name: 'Server', os: null }));
+
+    await withConcurrentWriter(() => host.id).hosts.update(host.id, { name: 'Server' });
+
+    expect(await workspaces.a.repos.hosts.get(host.id)).toMatchObject({ name: 'Server', os: 'Debian 13', updatedBy: null });
+  });
+
+  it('given another update committed between this update\'s read and its write, refuses it and keeps nothing of it', async () => {
+    const { a, db } = workspaces;
+    const lan = await a.repos.networks.create(buildNetwork({ cidr: '10.0.10.0/24' }));
+    const host = await a.repos.hosts.create(buildHost({ name: 'Server', addresses: [{ address: '10.0.10.20', networkId: lan.id }] }));
+    const hosts = BUILTIN_REGISTRY.repositories().find(({ key }) => key === 'hosts');
+    // Another update commits first: it moves updatedAt, as every update through a repository does.
+    const racing = { ...hosts, check: async (context: { db: typeof db }) => {
+      await context.db.updateTable('core_host').set({ updatedAt: '2099-01-01T00:00:00.000Z' })
+        .where('id', '=', host.id).execute();
+      return [];
+    } };
+    const repos = createWorkspaceRepositories([racing] as never)(db, {
+      workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_KINDS,
+    });
+
+    await expect(repos.hosts.update(host.id, { name: 'Home server', addresses: [{ address: '10.0.10.21', networkId: lan.id }] }))
+      .rejects.toBeInstanceOf(EntityChangedError);
+    expect(await a.repos.hosts.get(host.id)).toMatchObject({ name: 'Server', addresses: [{ address: '10.0.10.20' }] });
+  });
+
+  describe('within one millisecond', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('gives every update an updatedAt later than the last one', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-24T10:00:00.000Z'));
+      const { repos } = workspaces.a;
+      const site = await repos.sites.create(buildSite({ name: 'One' }));
+
+      const first = await repos.sites.update(site.id, { name: 'Two' });
+      const second = await repos.sites.update(site.id, { name: 'Three' });
+
+      expect([site, first, second].map((saved) => saved?.updatedAt.toISOString())).toEqual([
+        '2026-10-24T10:00:00.000Z', '2026-10-24T10:00:00.001Z', '2026-10-24T10:00:00.002Z',
+      ]);
+    });
   });
 });

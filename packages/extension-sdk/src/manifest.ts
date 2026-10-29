@@ -194,7 +194,6 @@ const manifestSchema = z.strictObject({
     }
   }
   const tablePrefix = extensionTablePrefix(manifest.id);
-  const table = new RegExp(`^${tablePrefix}_[a-z][a-zA-Z0-9]*$`);
   const seenEntities = new Set<string>();
   for (const [index, entity] of (manifest.contributes.entities ?? []).entries()) {
     const path = ['contributes', 'entities', index];
@@ -203,7 +202,7 @@ const manifestSchema = z.strictObject({
     }
     seenEntities.add(entity.id);
     // The extension's prefix keeps two extensions' tables apart; the name is camelCase, like every table and column.
-    if (!table.test(entity.table)) {
+    if (!isExtensionTable(manifest.id, entity.table)) {
       context.addIssue({
         code: 'custom',
         path: [...path, 'table'],
@@ -250,4 +249,11 @@ export function defineExtension(manifest: ExtensionManifestInput): ExtensionMani
 /** The prefix of an extension's tables and migration history: its id in snake case, `reverse_proxy`. */
 export function extensionTablePrefix(id: string): string {
   return id.replaceAll('-', '_');
+}
+
+/** Whether a table belongs to the extension: `<snake_case id>_<camelCaseName>`, so `vpn` never owns `vpn_x_peer`. */
+export function isExtensionTable(id: string, table: string): boolean {
+  // No pattern built from the id: it may not be validated yet.
+  const prefix = `${extensionTablePrefix(id)}_`;
+  return table.startsWith(prefix) && /^[a-z][a-zA-Z0-9]*$/.test(table.slice(prefix.length));
 }

@@ -3273,10 +3273,11 @@
                       "type": "array",
                       "items": {
                         "type": "string",
+                        "minLength": 1,
                         "maxLength": 81,
-                        "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$"
+                        "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
                       },
-                      "description": "Server hooks it handles"
+                      "description": "Server hooks it handles, as its code names them"
                     }
                   },
                   "required": [

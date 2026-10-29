@@ -3,7 +3,10 @@ import { z } from 'zod';
 import { defineContract } from './contract';
 import { HOOK, i18nKey, icon, kebabId, LANGUAGE_TAG, LOCALE_CODE, semver, text } from './formats';
 
-const hook = () => z.string().max(81).regex(HOOK);
+/** Longest hook name: `<id>:<name>`, each at most 40 characters. */
+export const MAX_HOOK = 81;
+
+const hook = () => z.string().max(MAX_HOOK).regex(HOOK);
 
 const iconDescription = 'A Lucide icon name (`i-lucide-…`) or the path of an image the extension ships; absent when '
   + 'there is none or the app cannot show it (the interface then shows a generic icon)';
@@ -121,7 +124,7 @@ export const ExtensionDiagnostics = z.object({
     }).meta({ description: 'The code it declares, of which users are warned before installing it' }),
     hooks: z.object({
       provides: z.array(hook()).max(100).meta({ description: 'Hooks it declares, as `<id>:<name>`' }),
-      handles: z.array(hook()).max(100).meta({ description: 'Server hooks it handles' }),
+      handles: z.array(text(MAX_HOOK).min(1)).max(100).meta({ description: 'Server hooks it handles, as its code names them' }),
     }).meta({ description: 'Its hooks' }),
   })).max(100).meta({ description: 'Every installed extension, in registry order' }),
   languages: z.array(ExtensionLocale.extend({

@@ -1,11 +1,13 @@
+import { cidrContains } from '@stackmap/extension-sdk/entities';
 import { describe, expect, it } from 'vitest';
 
 import { isForeignKeyViolation } from '../../../../server/database/errors';
 import { newId } from '../../../../server/database/ids';
+import { createWorkspaceRepositories } from '../../../../server/repositories';
 import { EntityInUseError, EntityValidationError, WorkspaceReferenceError } from '../../../../server/repositories/errors';
 import { DIALECTS } from '../../../../tests/support/databases';
 import { describeScopedRepository } from '../../../../tests/support/scoped-repository-suite';
-import { BUILTIN_KINDS, countRows, useTestWorkspaces } from '../../../../tests/support/workspaces';
+import { BUILTIN_KINDS, BUILTIN_REGISTRY, countRows, useTestWorkspaces } from '../../../../tests/support/workspaces';
 import { buildNetwork, createHost, createNetwork, createSite } from '../../testing';
 
 import type { NetworkRepository } from './networks';
@@ -91,5 +93,89 @@ describe.each(DIALECTS)('networks on %s', (dialect: Dialect) => {
       dependents: [{ entity: 'hostAddress', count: 1 }],
     });
     expect(await networks().get(network.id)).toEqual(network);
+  });
+
+  it('given a CIDR change that leaves host addresses outside, fails with a validation error on cidr naming each address and its host, and saves nothing', async () => {
+    const { repos } = workspaces.a;
+    const lan = await createNetwork(repos, { cidr: '10.0.10.0/24' });
+    await createHost(repos, { name: 'Home server', addresses: [{ address: '10.0.10.20', networkId: lan.id }] });
+    await createHost(repos, { name: 'Edge router', addresses: [{ address: '10.0.10.1', networkId: lan.id }] });
+
+    await expect(networks().update(lan.id, { cidr: '192.168.1.0/24' })).rejects.toMatchObject({
+      constructor: EntityValidationError,
+      issues: [
+        { path: 'cidr', message: '10.0.10.20 (Home server) is not in 192.168.1.0/24' },
+        { path: 'cidr', message: '10.0.10.1 (Edge router) is not in 192.168.1.0/24' },
+      ],
+    });
+    expect(await networks().get(lan.id)).toEqual(lan);
+  });
+
+  it('given a CIDR widened around its host addresses, updates the network', async () => {
+    const { repos } = workspaces.a;
+    const lan = await createNetwork(repos, { cidr: '10.0.10.0/24' });
+    await createHost(repos, { addresses: [{ address: '10.0.10.20', networkId: lan.id }] });
+
+    expect(await networks().update(lan.id, { cidr: '10.0.0.0/16' })).toMatchObject({ cidr: '10.0.0.0/16' });
+  });
+
+  it('given a CIDR set to null, updates the network', async () => {
+    const { repos } = workspaces.a;
+    const lan = await createNetwork(repos, { cidr: '10.0.10.0/24' });
+    await createHost(repos, { addresses: [{ address: '10.0.10.20', networkId: lan.id }] });
+
+    expect(await networks().update(lan.id, { cidr: null })).toMatchObject({ cidr: null });
+  });
+
+  it('given a network without addresses, creates it and changes its CIDR without an address check', async () => {
+    const lan = await networks().create(buildNetwork({ cidr: '10.0.10.0/24' }));
+
+    expect(await networks().update(lan.id, { cidr: '192.168.1.0/24' })).toMatchObject({ cidr: '192.168.1.0/24' });
+  });
+
+  it('given addresses on the same network id in another workspace, neither checks nor names them', async () => {
+    const theirs = await createNetwork(workspaces.b.repos, { cidr: '10.0.10.0/24' });
+    await createHost(workspaces.b.repos, { addresses: [{ address: '10.0.10.20', networkId: theirs.id }] });
+    const ours = await createNetwork(workspaces.a.repos, { cidr: '10.0.10.0/24' });
+
+    expect(await networks().update(ours.id, { cidr: '192.168.1.0/24' })).toMatchObject({ cidr: '192.168.1.0/24' });
+  });
+
+  it('given a CIDR change and a host edit adding an address outside it, run at the same time, lets only one through', async () => {
+    const { a, db } = workspaces;
+    const lan = await createNetwork(a.repos, { cidr: '10.0.0.0/24' });
+    const host = await createHost(a.repos, { addresses: [] });
+    const definitions = BUILTIN_REGISTRY.repositories();
+    const definition = (key: string) => definitions.find((candidate) => candidate.key === key);
+    const networkDefinition = definition('networks');
+    const hostDefinition = definition('hosts');
+    type Check = (...args: unknown[]) => Promise<unknown[]>;
+    const networkRead = Promise.withResolvers<undefined>();
+    const hostRead = Promise.withResolvers<undefined>();
+    // The CIDR change waits after reading the addresses until the host edit has read the CIDR, or until it gives up
+    // (the host edit is then waiting for it).
+    const racing = createWorkspaceRepositories([
+      { ...networkDefinition, check: async (...args: unknown[]) => {
+        const issues = await (networkDefinition?.check as Check)(...args);
+        networkRead.resolve(undefined);
+        await Promise.race([hostRead.promise, new Promise((resolve) => setTimeout(resolve, 500))]);
+        return issues;
+      } },
+      { ...hostDefinition, check: async (...args: unknown[]) => {
+        const issues = await (hostDefinition?.check as Check)(...args);
+        hostRead.resolve(undefined);
+        return issues;
+      } },
+    ] as never)(db, { workspaceId: a.workspace.id, actorId: null, kinds: BUILTIN_KINDS });
+
+    const results = await Promise.allSettled([
+      racing.networks.update(lan.id, { cidr: '10.0.1.0/24' }),
+      networkRead.promise.then(() => racing.hosts.update(host.id, { addresses: [{ address: '10.0.0.5', networkId: lan.id }] })),
+    ]);
+
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
+    const { cidr } = await networks().get(lan.id) ?? {};
+    const { addresses = [] } = await a.repos.hosts.get(host.id) ?? {};
+    expect(addresses.every(({ address }) => cidrContains(cidr ?? '', address))).toBe(true);
   });
 });

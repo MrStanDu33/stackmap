@@ -1,10 +1,13 @@
 import { isDeepStrictEqual } from 'node:util';
 
-import { entityId } from '@stackmap/extension-sdk/entities';
+import { isExtensionTable } from '@stackmap/extension-sdk';
+import { ENTITY_META_FIELDS, entityId } from '@stackmap/extension-sdk/entities';
+import { sql } from 'kysely';
 import { z } from 'zod';
 
 import {
-  EntityConflictError, EntityInUseError, EntityValidationError, parseEntity, WorkspaceReferenceError,
+  EntityChangedError, EntityConflictError, EntityInUseError, EntityValidationError, parseEntity,
+  WorkspaceReferenceError,
 } from './errors';
 import { isForeignKeyViolation, isUniqueViolation } from '../database/errors';
 import { newId } from '../database/ids';
@@ -29,7 +32,7 @@ type Row = Record<string, unknown>;
 const COMMON_COLUMNS = ['status', 'tags', 'notes', 'links', 'customFields', 'origin', 'externalRef'];
 const JSON_COLUMNS = new Set(['tags', 'links', 'customFields']);
 const TIMESTAMP_COLUMNS = new Set(['createdAt', 'updatedAt']);
-const META_COLUMNS = ['id', 'workspaceId', 'createdBy', 'updatedBy', 'createdAt', 'updatedAt'];
+const META_COLUMNS: readonly string[] = ENTITY_META_FIELDS;
 
 /** Runs the work in a transaction, or in the caller's transaction when there is one. */
 export function inTransaction<T>(db: Kysely<Database>, work: (trx: Kysely<Database>) => Promise<T>): Promise<T> {
@@ -50,7 +53,7 @@ const pick = (source: Row, keys: readonly string[]): Row =>
  * named columns.
  */
 export function createEntityRepository<Fields, Input, DB>(
-  definition: EntityRepositoryDefinition<Fields, Input, DB> & { tablePrefixes?: readonly string[] },
+  definition: EntityRepositoryDefinition<Fields, Input, DB> & { tableOwners?: readonly string[] },
 ): (context: RepositoryContext) => ScopedRepository<unknown, unknown, unknown, object> {
   const { table } = definition;
   for (const column of [...definition.columns, ...(definition.filters ?? []), ...(definition.ownedFields ?? [])]) {
@@ -66,7 +69,7 @@ export function createEntityRepository<Fields, Input, DB>(
   const inputFields = [...stored, ...(definition.ownedFields ?? [])];
   const booleans = new Set(definition.booleans);
 
-  const toRow = (fields: Row): Row => Object.fromEntries(stored.map((column) => {
+  const toRow = (fields: Row, columns: readonly string[] = stored): Row => Object.fromEntries(columns.map((column) => {
     const value = fields[column];
     if (JSON_COLUMNS.has(column)) {
       return [column, toJson(value)];
@@ -114,7 +117,7 @@ export function createEntityRepository<Fields, Input, DB>(
     const checkReferences = async (trx: Kysely<Database>, references: EntityReference[]) => {
       for (const { field, table: target, id } of references) {
         // An extension refers to its own tables and its dependencies', never to the platform's or another's.
-        if (definition.tablePrefixes && !definition.tablePrefixes.some((prefix) => target.startsWith(prefix))) {
+        if (definition.tableOwners && !definition.tableOwners.some((owner) => isExtensionTable(owner, target))) {
           throw new Error(`The ${definition.key} repository refers to table "${target}", which is neither its own `
             + 'nor a dependency\'s.');
         }
@@ -139,7 +142,7 @@ export function createEntityRepository<Fields, Input, DB>(
       const typed = fields as Fields;
       const references = (definition.references?.(typed) ?? []).filter(({ field }) => changed.has(field.split('.')[0] ?? ''));
       await checkReferences(trx, references);
-      const issues = await definition.check?.(contextOf(trx), typed, changed) ?? [];
+      const issues = await definition.check?.(contextOf(trx), typed, changed, id) ?? [];
       if (issues.length > 0) {
         throw new EntityValidationError(issues);
       }
@@ -203,19 +206,36 @@ export function createEntityRepository<Fields, Input, DB>(
           return undefined;
         }
         return inTransaction(db, async (trx) => {
+          // Locks the row before reading it (a no-op write), so checks that read other tables see what committed first.
+          await loose(trx).updateTable(table).set({ updatedAt: sql.ref('updatedAt') })
+            .where('workspaceId', '=', scope.workspaceId)
+            .where('id', '=', id)
+            .execute();
           const [current] = await find(trx, { id });
           if (!current) {
             return undefined;
           }
           const fields = parseEntity(definition.schema.input, { ...pick(current, inputFields), ...changes }) as Row;
-          // An unchanged kind stays valid when its extension is turned off: data is never lost to a toggle.
-          const changed = new Set(Object.keys(changes).filter((key) => !isDeepStrictEqual(fields[key], current[key])));
+          // Against what is stored, not the patch's keys: a refine may change a field the patch did not name. An
+          // unchanged kind stays valid when its extension is turned off: data is never lost to a toggle.
+          const changed = new Set(inputFields.filter((key) => !isDeepStrictEqual(fields[key], current[key])));
           checkKinds(fields, changed);
-          return save(trx, id, fields, changed, () => loose(trx).updateTable(table)
-            .set({ ...toRow(fields), updatedBy: scope.actorId, updatedAt: toTimestamp(new Date()) })
-            .where('workspaceId', '=', scope.workspaceId)
-            .where('id', '=', id)
-            .execute());
+          // Only the changed columns, and only if the row is still the one read: rules checked against `current` hold.
+          const columns = stored.filter((column) => changed.has(column));
+          const read = current.updatedAt as Date;
+          // Always later than the last write, even within its millisecond, so every write moves it.
+          const updatedAt = new Date(Math.max(Date.now(), read.getTime() + 1));
+          return save(trx, id, fields, changed, async () => {
+            const { numUpdatedRows } = await loose(trx).updateTable(table)
+              .set({ ...toRow(fields, columns), updatedBy: scope.actorId, updatedAt: toTimestamp(updatedAt) })
+              .where('workspaceId', '=', scope.workspaceId)
+              .where('id', '=', id)
+              .where('updatedAt', '=', toTimestamp(read))
+              .executeTakeFirstOrThrow();
+            if (numUpdatedRows === 0n) {
+              throw new EntityChangedError();
+            }
+          });
         });
       },
 

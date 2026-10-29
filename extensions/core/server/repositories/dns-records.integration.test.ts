@@ -77,4 +77,12 @@ describe.each(DIALECTS)('DNS records on %s', (dialect: Dialect) => {
     await expect(db.updateTable('core_dnsRecord').set({ domainId: theirDomain.id }).where('id', '=', record.id).execute())
       .rejects.toSatisfy(isForeignKeyViolation);
   });
+
+  it('given a type change that normalizes the unchanged value (TXT WWW.Example.org to CNAME), stores the normalized value', async () => {
+    const record = await createDnsRecord(workspaces.a.repos, { type: 'TXT', value: 'WWW.Example.org' });
+
+    await records().update(record.id, { type: 'CNAME' });
+
+    expect(await records().get(record.id)).toMatchObject({ type: 'CNAME', value: 'www.example.org' });
+  });
 });
