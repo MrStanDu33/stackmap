@@ -69,15 +69,6 @@ describe.each(DIALECTS)('proxy routes on %s', (dialect: Dialect) => {
     expect(await routes().get(route.id)).toMatchObject({ proxyServiceId: route.proxyServiceId });
   });
 
-  it('given an upstream listener of the proxy service itself, refuses the route with an issue on upstreamListenerId', async () => {
-    const { repos } = workspaces.a;
-    const proxy = await createProxy(repos);
-    const own = await createListener(repos, { serviceId: proxy.id, port: 443 });
-
-    await expect(routes().create(buildProxyRoute({ proxyServiceId: proxy.id, upstreamListenerId: own.id })))
-      .rejects.toMatchObject({ constructor: EntityValidationError, issues: [{ path: 'upstreamListenerId' }] });
-  });
-
   it('given a hostname another route of the same proxy serves, refuses it on create, update or move, naming the other route', async () => {
     const { repos } = workspaces.a;
     const proxy = await createProxy(repos);

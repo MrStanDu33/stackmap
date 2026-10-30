@@ -46,7 +46,7 @@ describe.each(DIALECTS)('workspace repositories on %s', (dialect: Dialect) => {
     const repos = createWorkspaceRepositories(BUILTIN_REGISTRY.repositories())(workspaces.db, scope);
 
     expect(Object.keys(repos).sort())
-      .toEqual(['dnsRecords', 'domains', 'hosts', 'listeners', 'networks', 'services', 'sites', 'transaction']);
+      .toEqual(['dnsRecords', 'domains', 'hosts', 'listeners', 'networks', 'proxyRoutes', 'services', 'sites', 'transaction']);
     expect(await repos.sites.create(buildSite())).toMatchObject({ workspaceId: scope.workspaceId, createdBy: null });
   });
 

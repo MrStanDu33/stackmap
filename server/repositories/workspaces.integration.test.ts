@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityConflictError, EntityValidationError } from './errors';
 import { createWorkspace, deleteWorkspace, getWorkspace } from './workspaces';
 import { populateWorkspace } from '../../extensions/core/testing';
+import { createProxyRoute } from '../../extensions/reverse-proxy/testing';
 import { DIALECTS, openTestDatabase } from '../../tests/support/databases';
 import { countRows, SCOPED_TABLES, useTestWorkspaces } from '../../tests/support/workspaces';
 import { newId } from '../database/ids';
@@ -82,8 +83,10 @@ describe.each(DIALECTS)('workspace deletion on %s', (dialect: Dialect) => {
 
   it('given a workspace with data, deleting it deletes all of its entities and leaves another workspace untouched', async () => {
     const { a, b, db } = workspaces;
-    await populateWorkspace(a.repos);
-    await populateWorkspace(b.repos);
+    for (const { repos } of [a, b]) {
+      await populateWorkspace(repos);
+      await createProxyRoute(repos);
+    }
     const countAll = (workspaceId: string) =>
       Promise.all(SCOPED_TABLES.map((table) => countRows(db, table, workspaceId)));
     const before = await countAll(b.workspace.id);

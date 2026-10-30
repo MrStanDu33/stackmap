@@ -1,6 +1,7 @@
 import core from '@stackmap/extension-core';
 import coreServer from '@stackmap/extension-core/server';
 import reverseProxy from '@stackmap/extension-reverse-proxy';
+import reverseProxyServer from '@stackmap/extension-reverse-proxy/server';
 
 import type { ExtensionManifest, ExtensionServer } from '@stackmap/extension-sdk';
 
@@ -8,4 +9,4 @@ import type { ExtensionManifest, ExtensionServer } from '@stackmap/extension-sdk
 export const BUILTIN_EXTENSIONS: readonly ExtensionManifest[] = [core, reverseProxy];
 
 /** The server code of the built-in extensions that ship some (`extensions/<id>/server.ts`). */
-export const BUILTIN_EXTENSION_SERVERS: readonly ExtensionServer[] = [coreServer];
+export const BUILTIN_EXTENSION_SERVERS: readonly ExtensionServer[] = [coreServer, reverseProxyServer];

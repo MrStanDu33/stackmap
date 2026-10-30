@@ -10,5 +10,15 @@ export default defineExtension({
   icon: 'i-lucide-split',
   alwaysOn: false,
   dependsOn: ['core'],
-  contributes: { kinds: {}, entities: [] },
+  code: { server: true },
+  contributes: {
+    entities: [
+      { id: 'route', table: 'reverse_proxy_route', label: 'extensions.reverse-proxy.entities.route' },
+    ],
+    kinds: {
+      service: [
+        { id: 'reverse-proxy', label: 'extensions.reverse-proxy.kinds.service.reverse-proxy', icon: 'i-lucide-split' },
+      ],
+    },
+  },
 });
