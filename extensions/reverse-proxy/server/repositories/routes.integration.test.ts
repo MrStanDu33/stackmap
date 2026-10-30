@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { isForeignKeyViolation } from '../../../../server/database/errors';
+import { newId } from '../../../../server/database/ids';
 import { createWorkspaceRepositories } from '../../../../server/repositories';
-import { EntityConflictError, EntityInUseError, EntityValidationError } from '../../../../server/repositories/errors';
+import {
+  EntityConflictError, EntityInUseError, EntityValidationError, WorkspaceReferenceError,
+} from '../../../../server/repositories/errors';
 import { DIALECTS } from '../../../../tests/support/databases';
 import { describeScopedRepository } from '../../../../tests/support/scoped-repository-suite';
 import { BUILTIN_KINDS, BUILTIN_REGISTRY, countRows, useTestWorkspaces } from '../../../../tests/support/workspaces';
@@ -161,5 +165,73 @@ describe.each(DIALECTS)('proxy routes on %s', (dialect: Dialect) => {
 
     await routes().update(route.id, { upstreamListenerId: other.id });
     expect(await repos.listeners.remove(route.upstreamListenerId)).toBe(true);
+  });
+  it('given a proxy or upstream of another workspace, fails with a reference error on that field and writes nothing', async () => {
+    const { a, b, db } = workspaces;
+    const route = await createProxyRoute(a.repos);
+    const theirs = await createProxyRoute(b.repos);
+    const cases = [
+      { field: 'proxyServiceId', id: theirs.proxyServiceId },
+      { field: 'upstreamListenerId', id: theirs.upstreamListenerId },
+    ];
+
+    for (const { field, id } of cases) {
+      const refused = { constructor: WorkspaceReferenceError, field, id };
+      const { proxyServiceId, upstreamListenerId } = route;
+      await expect(routes().create(buildProxyRoute({ proxyServiceId, upstreamListenerId, [field]: id })))
+        .rejects.toMatchObject(refused);
+      await expect(routes().update(route.id, { [field]: id })).rejects.toMatchObject(refused);
+    }
+    expect(await countRows(db, 'reverse_proxy_route', a.workspace.id)).toBe(1);
+    expect(await routes().get(route.id)).toEqual(route);
+  });
+
+  it('given direct writes that pair the workspace with another workspace\'s service, listener or route, the database refuses them', async () => {
+    const { a, b, db } = workspaces;
+    const route = await createProxyRoute(a.repos);
+    const theirs = await createProxyRoute(b.repos);
+
+    await expect(db.updateTable('reverse_proxy_route').set({ proxyServiceId: theirs.proxyServiceId })
+      .where('id', '=', route.id).execute()).rejects.toSatisfy(isForeignKeyViolation);
+    await expect(db.updateTable('reverse_proxy_route').set({ upstreamListenerId: theirs.upstreamListenerId })
+      .where('id', '=', route.id).execute()).rejects.toSatisfy(isForeignKeyViolation);
+    await expect(db.insertInto('reverse_proxy_routeHostname').values({
+      id: newId(),
+      workspaceId: a.workspace.id,
+      routeId: theirs.id,
+      proxyServiceId: theirs.proxyServiceId,
+      hostname: 'stray.homelab.example',
+    }).execute()).rejects.toSatisfy(isForeignKeyViolation);
+  });
+
+  it('given a direct write of a hostname row on another proxy than its route\'s, the database refuses it', async () => {
+    const { a, db } = workspaces;
+    const route = await createProxyRoute(a.repos);
+    const other = await createProxy(a.repos, 'Traefik');
+
+    await expect(db.updateTable('reverse_proxy_routeHostname').set({ proxyServiceId: other.id })
+      .where('routeId', '=', route.id).execute()).rejects.toSatisfy(isForeignKeyViolation);
+  });
+
+  it('given a service whose listener is a route\'s upstream, refuses removing it, naming the proxy route', async () => {
+    const { repos } = workspaces.a;
+    const route = await createProxyRoute(repos);
+    const upstream = await repos.listeners.get(route.upstreamListenerId);
+
+    await expect(repos.services.remove(upstream!.serviceId))
+      .rejects.toMatchObject({ constructor: EntityInUseError, dependents: [{ entity: 'route', count: 1 }] });
+    expect(await repos.services.get(upstream!.serviceId)).toBeDefined();
+  });
+
+  it('given a proxy whose route forwards to the proxy\'s own listener, removes the proxy with the route and listener', async () => {
+    const { repos } = workspaces.a;
+    const proxy = await createProxy(repos);
+    const admin = await createListener(repos, { serviceId: proxy.id, port: 81 });
+    const route = await createProxyRoute(repos, { proxyServiceId: proxy.id, upstreamListenerId: admin.id });
+
+    expect(await repos.services.remove(proxy.id)).toBe(true);
+
+    expect(await routes().get(route.id)).toBeUndefined();
+    expect(await repos.listeners.get(admin.id)).toBeUndefined();
   });
 });

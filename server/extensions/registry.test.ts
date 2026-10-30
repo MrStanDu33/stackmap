@@ -315,7 +315,11 @@ describe('extension registry: entities', () => {
   it('given dependentsOf on an entity of a dependency, adds the declaring table to that entity\'s dependents', () => {
     const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
     const beta = withEntities('beta', [entity('beta', 'part')], { dependsOn: ['alpha'] });
-    const part = { ...repository('part', 'parts', 'beta_part'), dependentsOf: [{ entity: 'thing', column: 'thingId' }] };
+    const part = {
+      ...repository('part', 'parts', 'beta_part'),
+      columns: ['thingId'],
+      dependentsOf: [{ entity: 'thing', column: 'thingId' }],
+    };
 
     const registry = createExtensionRegistry([alpha, beta], {
       servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [part])],
@@ -329,7 +333,7 @@ describe('extension registry: entities', () => {
     const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
     const beta = withEntities('beta', [entity('beta', 'part')]);
     const part = (target: string) =>
-      ({ ...repository('part', 'parts', 'beta_part'), dependentsOf: [{ entity: target, column: 'thingId' }] });
+      ({ ...repository('part', 'parts', 'beta_part'), columns: ['thingId'], dependentsOf: [{ entity: target, column: 'thingId' }] });
 
     for (const target of ['thing', 'unknown']) {
       expect(summary([alpha, beta], {
@@ -339,6 +343,59 @@ describe('extension registry: entities', () => {
         `beta failed: repository "parts" counts as a dependent of entity "${target}", which none of its dependencies declares`,
       ]);
     }
+  });
+
+  it('given dependentsOf through a column its table does not store, fails the extension naming the column', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'part')], { dependsOn: ['alpha'] });
+    const part = {
+      ...repository('part', 'parts', 'beta_part'),
+      columns: ['thingId'],
+      dependentsOf: [{ entity: 'thing', column: 'thingRef' }],
+    };
+
+    expect(summary([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [part])],
+    })).toEqual([
+      'alpha active',
+      'beta failed: repository "parts" counts as a dependent through column "thingRef", which it does not store',
+    ]);
+  });
+
+  describe('dependentsOf through a dependency\'s table', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'owner'), entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'part')], { dependsOn: ['alpha'] });
+    const alphaServer = serverOf(alpha, [
+      repository('owner', 'owners', 'alpha_owner'),
+      { ...repository('thing', 'things', 'alpha_thing'), columns: ['ownerId'] },
+    ]);
+    const part = (through: { table: string; column: string }) => ({
+      ...repository('part', 'parts', 'beta_part'),
+      columns: ['thingId'],
+      dependentsOf: [{ entity: 'owner', column: 'thingId', through }],
+    });
+
+    it('adds it to that entity\'s dependents, with the table it goes through', () => {
+      const registry = createExtensionRegistry([alpha, beta], {
+        servers: [alphaServer, serverOf(beta, [part({ table: 'alpha_thing', column: 'ownerId' })])],
+      });
+
+      expect(registry.repositories().find(({ key }) => key === 'owners')?.dependents).toEqual([
+        { entity: 'part', table: 'beta_part', column: 'thingId', through: { table: 'alpha_thing', column: 'ownerId' } },
+      ]);
+    });
+
+    it('given a table no dependency\'s repository stores, or a column it does not store, fails the extension', () => {
+      for (const through of [{ table: 'gamma_thing', column: 'ownerId' }, { table: 'alpha_thing', column: 'nope' }]) {
+        const servers = [alphaServer, serverOf(beta, [part(through)])];
+
+        expect(summary([alpha, beta], { servers }), through.table).toEqual([
+          'alpha active',
+          `beta failed: repository "parts" counts as a dependent through "${through.table}.${through.column}", `
+          + 'which no repository of its dependencies stores',
+        ]);
+      }
+    });
   });
 
   it('given two extensions defining the same repository key, fails the later one naming the other', () => {

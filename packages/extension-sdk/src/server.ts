@@ -60,6 +60,24 @@ export interface EntityReference {
 
 type Row = Record<string, unknown>;
 
+/**
+ * Rows whose `column` refers to a row of `through.table` whose `through.column` is the entity, such as routes whose
+ * upstream listener belongs to a service. Removing the entity removes those rows (cascade) but not the dependents, so
+ * they only explain why a removal was blocked.
+ */
+export interface DependentPath {
+  table: string;
+  column: string;
+}
+
+/** Rows of another table that prevent removing an entity, directly or through `through`. */
+export interface EntityDependent {
+  entity: string;
+  table: string;
+  column: string;
+  through?: DependentPath;
+}
+
 /** How an entity is stored, checked and completed; the server builds its repository from it. */
 export interface EntityRepositoryDefinition<Fields = unknown, Input = unknown, DB = unknown> {
   /** The entity's id in the extension's manifest. */
@@ -83,9 +101,9 @@ export interface EntityRepositoryDefinition<Fields = unknown, Input = unknown, D
   unique?: readonly string[];
   references?(fields: Fields): EntityReference[];
   /** Rows of other tables that refer to this entity and prevent removing it; `entity` names them in the error. */
-  dependents?: readonly { entity: string; table: string; column: string }[];
+  dependents?: readonly EntityDependent[];
   /** Entities of its dependencies whose removal this entity's rows prevent, through `column` of its own table. */
-  dependentsOf?: readonly { entity: string; column: string }[];
+  dependentsOf?: readonly { entity: string; column: string; through?: DependentPath }[];
   /** Checks that need the database, on the changed fields; `id` is the entity's, new on create. */
   check?(
     context: RepositoryContext<DB>, fields: Fields, changed: ReadonlySet<string>, id: string,
