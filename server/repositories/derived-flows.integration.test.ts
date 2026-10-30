@@ -306,7 +306,7 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
     expect(await flowsOf(workspaces.b.workspace.id)).toEqual(inB);
   });
 
-  it('runs no deriver of an inactive extension, such as reverse-proxy when it is not active', () => {
+  it('runs no deriver of an inactive extension, such as reverse-proxy or nat when it is not active', () => {
     const coreOnly = createExtensionRegistry(
       BUILTIN_EXTENSIONS.filter(({ id }) => id === 'core'),
       { servers: BUILTIN_EXTENSION_SERVERS.filter(({ extension }) => extension === 'core') },
@@ -314,7 +314,7 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
     const derivers = (registry: typeof coreOnly) =>
       registry.flowDerivers().map(({ extension, deriver }) => `${extension}:${deriver.id}`);
 
-    expect(derivers(BUILTIN_REGISTRY)).toEqual(['core:dns', 'reverse-proxy:routes']);
+    expect(derivers(BUILTIN_REGISTRY)).toEqual(['core:dns', 'nat:port-forwards', 'reverse-proxy:routes']);
     expect(derivers(coreOnly)).toEqual(['core:dns']);
   });
 });

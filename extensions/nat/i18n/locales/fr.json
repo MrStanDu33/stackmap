@@ -1,0 +1,11 @@
+{
+  "extensions": {
+    "nat": {
+      "name": "Routeur et NAT",
+      "description": "Documentez les ports que vos routeurs redirigent et vers où.",
+      "entities": {
+        "port-forward": "Redirection de port"
+      }
+    }
+  }
+}

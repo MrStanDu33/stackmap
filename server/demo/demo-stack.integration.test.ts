@@ -54,7 +54,7 @@ describe.each(DIALECTS)('demo stack seed on %s', (dialect: Dialect) => {
     });
   });
 
-  it('derives the flows of the demo stack: internal client to NPM 80, 443 and 81, NPM to the website and to its admin port, and the manual website flows, with none from the public records', async () => {
+  it('derives the flows of the demo stack: internal client to NPM 80, 443 and 81, public client to NPM 80 and 443 through the router, NPM to the website and to its admin port, and the manual website flows', async () => {
     const { a, db } = workspaces;
     const { services, listeners } = await seedDemoStack(a.repos);
     const serviceRef = (id: string | null) => Object.keys(services).find((ref) => services[ref]?.id === id);
@@ -71,8 +71,25 @@ describe.each(DIALECTS)('demo stack seed on %s', (dialect: Dialect) => {
       'internal -> npmHttps npm.homelab.example',
       'npm -> npmAdmin npm.homelab.example',
       'npm -> website homelab.example www.homelab.example app.homelab.example',
+      'public -> npmHttp app.homelab.example homelab.example www.homelab.example',
+      'public -> npmHttps app.homelab.example homelab.example www.homelab.example',
     ]);
     expect(manual.sort()).toEqual(['website -> database', 'website -> weatherApi']);
+  });
+
+  it('forwards the router\'s ports 80 and 443 to NPM, so the public records reach NPM 80 and 443', async () => {
+    const { a, db } = workspaces;
+    const { listeners } = await seedDemoStack(a.repos);
+    const listenerRef = (id: string) => Object.keys(listeners).find((ref) => listeners[ref]?.id === id);
+
+    const fromPublic = (await listDerivedFlows(db as never, a.workspace.id))
+      .filter(({ sourceClient }) => sourceClient === 'public')
+      .map((flow) => `${flow.extension} -> ${listenerRef(flow.targetListenerId) ?? '?'} ${flow.hostnames.join(' ')}`);
+
+    expect(fromPublic.sort()).toEqual([
+      'nat -> npmHttp app.homelab.example homelab.example www.homelab.example',
+      'nat -> npmHttps app.homelab.example homelab.example www.homelab.example',
+    ]);
   });
 
   it('given a failure halfway, keeps nothing (one transaction)', async () => {

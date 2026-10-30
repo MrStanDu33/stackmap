@@ -1,0 +1,23 @@
+{
+  "name": "@stackmap/extension-nat",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Port forwards (destination NAT): which port of a host's address is forwarded to which internal address and port.",
+  "type": "module",
+  "exports": {
+    ".": "./manifest.ts",
+    "./entities": "./entities/index.ts",
+    "./server": "./server.ts"
+  },
+  "dependencies": {
+    "@stackmap/extension-core": "workspace:*",
+    "@stackmap/extension-sdk": "workspace:*",
+    "zod": "^4.6.6"
+  },
+  "peerDependencies": {
+    "kysely": "^0.29.6"
+  },
+  "devDependencies": {
+    "kysely": "^0.29.6"
+  }
+}
