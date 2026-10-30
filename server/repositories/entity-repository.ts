@@ -148,24 +148,30 @@ export function createEntityRepository<Fields, Input, DB>(
       }
       try {
         await write();
+        // Owned rows may have unique indexes of their own, such as a route's hostnames on its proxy.
+        await definition.writeOwned?.(contextOf(trx), id, typed, changed);
       } catch (error) {
         if (definition.unique && isUniqueViolation(error)) {
           throw new EntityConflictError([...definition.unique]);
         }
         throw error;
       }
-      await definition.writeOwned?.(contextOf(trx), id, typed, changed);
       const [saved] = await find(trx, { id });
       return saved;
     };
 
-    const countDependents = async (trx: Kysely<Database>, id: string): Promise<Dependent[]> => {
-      const dependents = definition.dependents ?? [];
-      const counts = await Promise.all(dependents.map(async ({ entity, table: dependent, column }) => {
+    /** Direct dependents prevent the removal; with `blocked`, those through other tables explain why it failed. */
+    const countDependents = async (trx: Kysely<Database>, id: string, blocked = false): Promise<Dependent[]> => {
+      const dependents = (definition.dependents ?? []).filter(({ through }) => blocked || !through);
+      const counts = await Promise.all(dependents.map(async ({ entity, table: dependent, column, through }) => {
         const row = await loose(trx).selectFrom(dependent)
           .select((expression) => expression.fn.countAll().as('count'))
           .where('workspaceId', '=', scope.workspaceId)
-          .where(column, '=', id)
+          .where(column, through ? 'in' : '=', through
+            ? loose(trx).selectFrom(through.table).select('id')
+                .where('workspaceId', '=', scope.workspaceId)
+                .where(through.column, '=', id)
+            : id)
           .executeTakeFirst();
         return { entity, count: Number(row?.count ?? 0) };
       }));
@@ -256,7 +262,7 @@ export function createEntityRepository<Fields, Input, DB>(
         } catch (error) {
           // A dependent added since the count. Inside a transaction, Postgres refuses any query after the failure.
           if (isForeignKeyViolation(error)) {
-            throw new EntityInUseError(db.isTransaction ? [] : await countDependents(db, id));
+            throw new EntityInUseError(db.isTransaction ? [] : await countDependents(db, id, true));
           }
           throw error;
         }

@@ -2,6 +2,7 @@ import type {
   DnsRecord, DnsRecordInput, Domain, DomainInput, Host, HostInput, Listener, ListenerInput, Network, NetworkInput,
   Service, ServiceInput, Site, SiteInput,
 } from '../../extensions/core/entities';
+import type { ProxyRoute, ProxyRouteInput } from '../../extensions/reverse-proxy/entities';
 import type { WorkspaceRepositories } from '../repositories';
 
 /**
@@ -19,6 +20,10 @@ export interface DemoStack {
   listeners: Record<string, Omit<ListenerInput, 'serviceId'> & { service: string }>;
   domains: Record<string, DomainInput>;
   dnsRecords: Record<string, Omit<DnsRecordInput, 'domainId'> & { domain: string }>;
+  proxyRoutes: Record<string, Omit<ProxyRouteInput, 'proxyServiceId' | 'upstreamListenerId'> & {
+    proxy: string;
+    upstream: string;
+  }>;
 }
 
 /** The created entities, by the demo stack's references. */
@@ -30,6 +35,7 @@ export interface SeededDemoStack {
   listeners: Record<string, Listener>;
   domains: Record<string, Domain>;
   dnsRecords: Record<string, DnsRecord>;
+  proxyRoutes: Record<string, ProxyRoute>;
 }
 
 /** A home server behind an edge router: a website and its database behind Nginx Proxy Manager, on homelab.example. */
@@ -57,8 +63,7 @@ export const DEMO_STACK: DemoStack = {
     },
   },
   services: {
-    // An app until the Reverse proxy extension adds the reverse-proxy kind.
-    npm: { name: 'Nginx Proxy Manager', kind: 'app', host: 'server', image: 'jc21/nginx-proxy-manager:2', containerName: 'npm' },
+    npm: { name: 'Nginx Proxy Manager', kind: 'reverse-proxy', host: 'server', image: 'jc21/nginx-proxy-manager:2', containerName: 'npm' },
     website: { name: 'Website', kind: 'app', host: 'server', image: 'homelab/website:1.4', containerName: 'website' },
     database: { name: 'Website database', kind: 'database', host: 'server', image: 'postgres:17', containerName: 'website-db' },
     weatherApi: { name: 'Weather API', kind: 'external-api', host: null, notes: 'Called by the website for forecasts.' },
@@ -81,6 +86,15 @@ export const DEMO_STACK: DemoStack = {
     www: { domain: 'homelab', name: 'www', type: 'CNAME', value: 'homelab.example' },
     npm: { domain: 'homelab', name: 'npm', type: 'A', value: '10.0.10.20', view: 'internal' },
     spf: { domain: 'homelab', name: '@', type: 'TXT', value: 'v=spf1 -all' },
+  },
+  proxyRoutes: {
+    website: {
+      proxy: 'npm',
+      hostnames: ['homelab.example', 'www.homelab.example', 'app.homelab.example'],
+      upstream: 'website',
+      forceSsl: true,
+    },
+    npmAdmin: { proxy: 'npm', hostnames: ['npm.homelab.example'], upstream: 'npmAdmin' },
   },
 };
 
@@ -127,6 +141,12 @@ export function seedDemoStack(repos: WorkspaceRepositories): Promise<SeededDemoS
     const domains = await createEach(DEMO_STACK.domains, (domain) => tx.domains.create(domain));
     const dnsRecords = await createEach(DEMO_STACK.dnsRecords, ({ domain, ...record }) =>
       tx.dnsRecords.create({ ...record, domainId: idOf(domains, domain) }));
-    return { sites, networks, hosts, services, listeners, domains, dnsRecords };
+    const proxyRoutes = await createEach(DEMO_STACK.proxyRoutes, ({ proxy, upstream, ...route }) =>
+      tx.proxyRoutes.create({
+        ...route,
+        proxyServiceId: idOf(services, proxy),
+        upstreamListenerId: idOf(listeners, upstream),
+      }));
+    return { sites, networks, hosts, services, listeners, domains, dnsRecords, proxyRoutes };
   });
 }

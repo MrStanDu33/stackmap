@@ -61,6 +61,14 @@ describe('built-in extensions', () => {
 
     expect(registry.get('core')).toMatchObject({ state: 'active', manifest: { alwaysOn: true } });
   });
+
+  it('lists reverse-proxy, depending on core', () => {
+    expect(BUILTIN_EXTENSIONS.find(({ id }) => id === 'reverse-proxy')).toMatchObject({
+      dependsOn: ['core'], alwaysOn: false, code: { server: true },
+    });
+    expect(createExtensionRegistry(BUILTIN_EXTENSIONS, { servers: BUILTIN_EXTENSION_SERVERS }).get('reverse-proxy'))
+      .toMatchObject({ state: 'active' });
+  });
 });
 
 describe('built-in extension code', () => {

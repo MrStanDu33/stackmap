@@ -12,7 +12,7 @@ describe.each(DIALECTS)('demo stack seed on %s', (dialect: Dialect) => {
   it('seeds the demo stack into a fresh workspace and returns the created entities by reference', async () => {
     const seeded = await seedDemoStack(workspaces.a.repos);
 
-    for (const group of ['sites', 'networks', 'hosts', 'services', 'listeners', 'domains', 'dnsRecords'] as const) {
+    for (const group of ['sites', 'networks', 'hosts', 'services', 'listeners', 'domains', 'dnsRecords', 'proxyRoutes'] as const) {
       expect(Object.keys(seeded[group]), group).toEqual(Object.keys(DEMO_STACK[group]));
       expect(await workspaces.a.repos[group].list(), group).toHaveLength(Object.keys(DEMO_STACK[group]).length);
     }
@@ -34,6 +34,23 @@ describe.each(DIALECTS)('demo stack seed on %s', (dialect: Dialect) => {
     expect(services.weatherApi?.hostId).toBeNull();
     expect(Object.values(listeners).filter(({ serviceId }) => serviceId === services.npm?.id)).toHaveLength(3);
     expect(Object.values(dnsRecords).every(({ domainId }) => domainId === domains.homelab?.id)).toBe(true);
+  });
+
+  it('seeds the proxy routes of Nginx Proxy Manager on the website and its admin port', async () => {
+    const { services, listeners, proxyRoutes } = await seedDemoStack(workspaces.a.repos);
+
+    expect(services.npm).toMatchObject({ kind: 'reverse-proxy' });
+    expect(proxyRoutes.website).toMatchObject({
+      proxyServiceId: services.npm?.id,
+      hostnames: ['homelab.example', 'www.homelab.example', 'app.homelab.example'],
+      upstreamListenerId: listeners.website?.id,
+      forceSsl: true,
+    });
+    expect(proxyRoutes.npmAdmin).toMatchObject({
+      proxyServiceId: services.npm?.id,
+      hostnames: ['npm.homelab.example'],
+      upstreamListenerId: listeners.npmAdmin?.id,
+    });
   });
 
   it('given a failure halfway, keeps nothing (one transaction)', async () => {
