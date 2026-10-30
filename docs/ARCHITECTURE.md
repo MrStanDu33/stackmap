@@ -201,9 +201,9 @@ in `server/api/` implements exactly one contract with `defineContractHandler`, w
 - passes the parsed input, typed, to the handler, which returns `{ status, body }` for one of the declared statuses;
 - sends the response parsed with its schema, so a field the contract does not declare never leaves the server (a
   loose schema, such as `z.unknown()` or a passthrough object, lets everything under it through, so response
-  schemas avoid them); outside production, such a field or a response that does not match answers
-  `500 invalid_response`, so contract drift fails in tests; in production, a response that does not match answers
-  `500 internal_error` and is logged, never sent unvalidated;
+  schemas avoid them and `shared/contracts/responses.lint.test.ts` fails on one); outside production, such a field
+  or a response that does not match answers `500 invalid_response`, so contract drift fails in tests; in production,
+  a response that does not match answers `500 internal_error` and is logged, never sent unvalidated;
 - answers unexpected errors with `500 internal_error`, logging the details without returning them.
 
 Every error is RFC 9457 Problem Details, as `application/problem+json`: `type` (`urn:stackmap:problem:<code>`),
