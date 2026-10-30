@@ -8,6 +8,7 @@
     ".": "./manifest.ts",
     "./entities": "./entities/index.ts",
     "./server": "./server.ts",
+    "./server/types": "./server/types/schema.ts",
     "./testing": "./testing/index.ts"
   },
   "dependencies": {

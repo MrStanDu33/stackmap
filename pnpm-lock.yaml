@@ -181,6 +181,9 @@ importers:
       '@stackmap/extension-core':
         specifier: workspace:*
         version: link:extensions/core
+      '@stackmap/extension-reverse-proxy':
+        specifier: workspace:*
+        version: link:extensions/reverse-proxy
       '@stackmap/extension-sdk':
         specifier: workspace:*
         version: link:packages/extension-sdk
@@ -344,6 +347,22 @@ importers:
 
   extensions/core:
     dependencies:
+      '@stackmap/extension-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extension-sdk
+      zod:
+        specifier: ^4.6.6
+        version: 4.6.7
+    devDependencies:
+      kysely:
+        specifier: ^0.29.6
+        version: 0.29.6
+
+  extensions/reverse-proxy:
+    dependencies:
+      '@stackmap/extension-core':
+        specifier: workspace:*
+        version: link:../core
       '@stackmap/extension-sdk':
         specifier: workspace:*
         version: link:../../packages/extension-sdk

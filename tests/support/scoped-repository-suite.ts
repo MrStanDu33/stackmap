@@ -26,7 +26,7 @@ interface LooseRepository {
 export interface RepositoryCase {
   workspaces: TestWorkspaces;
   repository: RepositoryName;
-  table: Exclude<ScopedTable, 'core_hostAddress'>;
+  table: Exclude<ScopedTable, 'core_hostAddress' | 'reverse_proxy_routeHostname'>;
   /** Valid input for the workspace of these repositories, creating the parents it needs there. */
   input: (repos: WorkspaceRepositories) => Promise<object>;
   /** A valid patch that changes some fields. */

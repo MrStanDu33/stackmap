@@ -26,7 +26,7 @@ describe('demo stack', () => {
   });
 
   it('runs Nginx Proxy Manager on 80, 443 and the admin port 81 bound to the LAN address', () => {
-    expect(DEMO_STACK.services.npm).toMatchObject({ name: 'Nginx Proxy Manager', kind: 'app', host: 'server' });
+    expect(DEMO_STACK.services.npm).toMatchObject({ name: 'Nginx Proxy Manager', kind: 'reverse-proxy', host: 'server' });
     expect(listenersOf('npm')).toEqual([
       { port: 80, protocol: 'http', bindAddress: '0.0.0.0', publishedPort: 80 },
       { port: 443, protocol: 'https', bindAddress: '0.0.0.0', publishedPort: 443 },
@@ -57,8 +57,20 @@ describe('demo stack', () => {
       ]);
   });
 
+  it('routes homelab.example, www and app to the website on 3000 with force SSL, and npm.homelab.example to the admin port 81', () => {
+    expect(DEMO_STACK.proxyRoutes).toEqual({
+      website: {
+        proxy: 'npm',
+        hostnames: ['homelab.example', 'www.homelab.example', 'app.homelab.example'],
+        upstream: 'website',
+        forceSsl: true,
+      },
+      npmAdmin: { proxy: 'npm', hostnames: ['npm.homelab.example'], upstream: 'npmAdmin' },
+    });
+  });
+
   it('refers only to entities it declares', () => {
-    const { sites, networks, hosts, services, listeners, domains, dnsRecords } = DEMO_STACK;
+    const { sites, networks, hosts, services, listeners, domains, dnsRecords, proxyRoutes } = DEMO_STACK;
     const references = [
       ...Object.values(networks).map(({ site }) => [sites, site] as const),
       ...Object.values(hosts).flatMap(({ site, addresses }) => [
@@ -68,6 +80,10 @@ describe('demo stack', () => {
       ...Object.values(services).map(({ host }) => [hosts, host] as const),
       ...Object.values(listeners).map(({ service }) => [services, service] as const),
       ...Object.values(dnsRecords).map(({ domain }) => [domains, domain] as const),
+      ...Object.values(proxyRoutes).flatMap(({ proxy, upstream }) => [
+        [services, proxy] as const,
+        [listeners, upstream] as const,
+      ]),
     ];
 
     expect(references.length).toBeGreaterThan(10);
@@ -75,7 +91,7 @@ describe('demo stack', () => {
   });
 
   it('uses only fictional IPs and DNS names', () => {
-    const { networks, hosts, listeners, domains, dnsRecords } = DEMO_STACK;
+    const { networks, hosts, listeners, domains, dnsRecords, proxyRoutes } = DEMO_STACK;
     const ips = [
       ...Object.values(networks).flatMap(({ cidr }) => (cidr ? [cidr] : [])),
       ...Object.values(hosts).flatMap(({ addresses }) => addresses.map(({ address }) => address)),
@@ -85,6 +101,7 @@ describe('demo stack', () => {
     const names = [
       ...Object.values(domains).map(({ name }) => name),
       ...Object.values(dnsRecords).filter(({ type }) => type === 'CNAME' || type === 'NS').map(({ value }) => value),
+      ...Object.values(proxyRoutes).flatMap(({ hostnames }) => hostnames),
     ];
 
     expect(ips.length).toBeGreaterThan(5);

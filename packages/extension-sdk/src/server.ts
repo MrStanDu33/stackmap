@@ -84,6 +84,8 @@ export interface EntityRepositoryDefinition<Fields = unknown, Input = unknown, D
   references?(fields: Fields): EntityReference[];
   /** Rows of other tables that refer to this entity and prevent removing it; `entity` names them in the error. */
   dependents?: readonly { entity: string; table: string; column: string }[];
+  /** Entities of its dependencies whose removal this entity's rows prevent, through `column` of its own table. */
+  dependentsOf?: readonly { entity: string; column: string }[];
   /** Checks that need the database, on the changed fields; `id` is the entity's, new on create. */
   check?(
     context: RepositoryContext<DB>, fields: Fields, changed: ReadonlySet<string>, id: string,

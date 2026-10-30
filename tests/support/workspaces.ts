@@ -10,7 +10,7 @@ import { createWorkspaceRepositories } from '../../server/repositories';
 import { createWorkspace as insertWorkspace } from '../../server/repositories/workspaces';
 
 import type { Dialect, TestDatabase } from './databases';
-import type { CoreDatabase } from '../../extensions/core/server/types/schema';
+import type { ReverseProxyDatabase } from '../../extensions/reverse-proxy/server/types/schema';
 import type { Database } from '../../server/database/types/schema';
 import type { WorkspaceRepositories } from '../../server/repositories';
 import type { Workspace, WorkspaceInput } from '../../shared/workspace';
@@ -18,7 +18,7 @@ import type { KindCatalog, RepositoryScope } from '@stackmap/extension-sdk/serve
 import type { Kysely } from 'kysely';
 
 /** The platform's tables and the built-in extensions'. */
-export type TestSchema = Database & CoreDatabase;
+export type TestSchema = Database & ReverseProxyDatabase;
 
 /** The built-in extensions, as the app starts them. */
 export const BUILTIN_REGISTRY = createExtensionRegistry(BUILTIN_EXTENSIONS, { servers: BUILTIN_EXTENSION_SERVERS });
@@ -107,7 +107,7 @@ export function useTestWorkspaces(dialect: Dialect): TestWorkspaces {
 /** Tables whose rows belong to a workspace. */
 export const SCOPED_TABLES = [
   'core_site', 'core_network', 'core_host', 'core_hostAddress', 'core_service', 'core_listener', 'core_domain',
-  'core_dnsRecord',
+  'core_dnsRecord', 'reverse_proxy_route', 'reverse_proxy_routeHostname',
 ] as const satisfies readonly (keyof TestSchema)[];
 
 export type ScopedTable = (typeof SCOPED_TABLES)[number];

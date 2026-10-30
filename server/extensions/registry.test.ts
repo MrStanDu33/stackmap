@@ -312,6 +312,35 @@ describe('extension registry: entities', () => {
     ]);
   });
 
+  it('given dependentsOf on an entity of a dependency, adds the declaring table to that entity\'s dependents', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'part')], { dependsOn: ['alpha'] });
+    const part = { ...repository('part', 'parts', 'beta_part'), dependentsOf: [{ entity: 'thing', column: 'thingId' }] };
+
+    const registry = createExtensionRegistry([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [part])],
+    });
+
+    expect(registry.repositories().find(({ key }) => key === 'things')?.dependents)
+      .toEqual([{ entity: 'part', table: 'beta_part', column: 'thingId' }]);
+  });
+
+  it('given dependentsOf on an entity of an extension it does not depend on, or an unknown entity, fails the extension with a diagnostic', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'part')]);
+    const part = (target: string) =>
+      ({ ...repository('part', 'parts', 'beta_part'), dependentsOf: [{ entity: target, column: 'thingId' }] });
+
+    for (const target of ['thing', 'unknown']) {
+      expect(summary([alpha, beta], {
+        servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [part(target)])],
+      }), target).toEqual([
+        'alpha active',
+        `beta failed: repository "parts" counts as a dependent of entity "${target}", which none of its dependencies declares`,
+      ]);
+    }
+  });
+
   it('given two extensions defining the same repository key, fails the later one naming the other', () => {
     const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
     const beta = withEntities('beta', [entity('beta', 'thing')]);

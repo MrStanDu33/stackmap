@@ -2,6 +2,7 @@ import type {
   DnsRecord, DnsRecordInput, Domain, DomainInput, Host, HostInput, Listener, ListenerInput, Network, NetworkInput,
   Service, ServiceInput, Site, SiteInput,
 } from '../../extensions/core/entities';
+import type { ProxyRoute, ProxyRouteInput } from '../../extensions/reverse-proxy/entities';
 import type { WorkspaceRepositories } from '../repositories';
 
 /**
@@ -19,6 +20,10 @@ export interface DemoStack {
   listeners: Record<string, Omit<ListenerInput, 'serviceId'> & { service: string }>;
   domains: Record<string, DomainInput>;
   dnsRecords: Record<string, Omit<DnsRecordInput, 'domainId'> & { domain: string }>;
+  proxyRoutes: Record<string, Omit<ProxyRouteInput, 'proxyServiceId' | 'upstreamListenerId'> & {
+    proxy: string;
+    upstream: string;
+  }>;
 }
 
 /** The created entities, by the demo stack's references. */
@@ -30,6 +35,7 @@ export interface SeededDemoStack {
   listeners: Record<string, Listener>;
   domains: Record<string, Domain>;
   dnsRecords: Record<string, DnsRecord>;
+  proxyRoutes: Record<string, ProxyRoute>;
 }
 
 /** A home server behind an edge router: a website and its database behind Nginx Proxy Manager, on homelab.example. */
@@ -82,6 +88,7 @@ export const DEMO_STACK: DemoStack = {
     npm: { domain: 'homelab', name: 'npm', type: 'A', value: '10.0.10.20', view: 'internal' },
     spf: { domain: 'homelab', name: '@', type: 'TXT', value: 'v=spf1 -all' },
   },
+  proxyRoutes: {},
 };
 
 /** Creates each entry in order, keeping the created entities by reference. */
@@ -127,6 +134,6 @@ export function seedDemoStack(repos: WorkspaceRepositories): Promise<SeededDemoS
     const domains = await createEach(DEMO_STACK.domains, (domain) => tx.domains.create(domain));
     const dnsRecords = await createEach(DEMO_STACK.dnsRecords, ({ domain, ...record }) =>
       tx.dnsRecords.create({ ...record, domainId: idOf(domains, domain) }));
-    return { sites, networks, hosts, services, listeners, domains, dnsRecords };
+    return { sites, networks, hosts, services, listeners, domains, dnsRecords, proxyRoutes: {} };
   });
 }

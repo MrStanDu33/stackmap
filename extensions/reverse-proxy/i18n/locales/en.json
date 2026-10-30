@@ -1,0 +1,8 @@
+{
+  "extensions": {
+    "reverse-proxy": {
+      "name": "Reverse proxy",
+      "description": "Document which hostnames your proxies serve and where they forward them."
+    }
+  }
+}
