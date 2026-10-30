@@ -148,13 +148,14 @@ export function createEntityRepository<Fields, Input, DB>(
       }
       try {
         await write();
+        // Owned rows may have unique indexes of their own, such as a route's hostnames on its proxy.
+        await definition.writeOwned?.(contextOf(trx), id, typed, changed);
       } catch (error) {
         if (definition.unique && isUniqueViolation(error)) {
           throw new EntityConflictError([...definition.unique]);
         }
         throw error;
       }
-      await definition.writeOwned?.(contextOf(trx), id, typed, changed);
       const [saved] = await find(trx, { id });
       return saved;
     };

@@ -99,6 +99,13 @@ function ownErrors(entry: Entry, installed: ReadonlyMap<string, Entry>): string[
       errors.push(`is always on but depends on "${dependencyId}", which can be turned off`);
     }
   }
+  const dependencyEntities = new Set(manifest.dependsOn.flatMap((id) =>
+    (installed.get(id)?.manifest.contributes.entities ?? []).map((entity) => entity.id)));
+  for (const { key, dependentsOf = [] } of server?.repositories ?? []) {
+    for (const { entity } of dependentsOf.filter((target) => !dependencyEntities.has(target.entity))) {
+      errors.push(`repository "${key}" counts as a dependent of entity "${entity}", which none of its dependencies declares`);
+    }
+  }
   if (manifest.code?.server && !server) {
     errors.push('declares code.server but ships no server code');
   }
@@ -324,8 +331,26 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
-    // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime.
-    repositories: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
-      (server?.repositories ?? []).map((definition) => ({ ...definition, tableOwners: tableOwnersOf(manifest) }))),
+    // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime, and the
+    // dependents its dependents' extensions declare on it.
+    repositories: () => {
+      const entries = ordered.filter((entry) => !isFailed(entry));
+      const declared = entries.flatMap(({ manifest, server }) => (server?.repositories ?? []).flatMap((definition) =>
+        (definition.dependentsOf ?? []).map(({ entity, column }) => ({
+          entity,
+          owners: manifest.dependsOn,
+          dependent: { entity: definition.entity, table: definition.table, column },
+        }))));
+      return entries.flatMap(({ manifest, server }) => (server?.repositories ?? []).map((definition) => {
+        const added = declared
+          .filter(({ entity, owners }) => entity === definition.entity && owners.includes(manifest.id))
+          .map(({ dependent }) => dependent);
+        return {
+          ...definition,
+          ...(added.length > 0 ? { dependents: [...(definition.dependents ?? []), ...added] } : {}),
+          tableOwners: tableOwnersOf(manifest),
+        };
+      }));
+    },
   };
 }

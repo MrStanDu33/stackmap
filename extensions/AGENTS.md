@@ -25,7 +25,8 @@
   `defineEntityRepository` (`@stackmap/extension-sdk/server`); ship them in `server.ts` (`migrations`,
   `repositories`) and augment `EntityRepositories` with its typed repository. Callbacks that query get a context
   whose `scope.workspaceId` they must filter by. Test it with `describeScopedRepository` and a factory; reference
-  another extension's tables only if you depend on it.
+  another extension's tables only if you depend on it. When your rows refer to a dependency's entity that must not
+  be removed under them, declare `dependentsOf: [{ entity, column }]`: its repository then refuses the removal.
 - Hooks: handle the app's hooks, your own (`<id>:<name>`, declared in `contributes.hooks`) and those of extensions you
   depend on or enhance (`enhances`). Payloads are plain JSON: ids and summaries, not whole entities. A handler that
   throws is logged and skipped; it never breaks the app.
