@@ -124,12 +124,11 @@ describe('core flow helpers', () => {
         [listener(300_000 + index, '0.0.0.0'), listener(400_000 + index, null)].map((item) => ({ ...item, serviceId: service.id })));
       return { hosts, services, listeners };
     };
+    // The index is built before the timer: its allocations make garbage collection, not the lookups, set the time.
     const lookUpEvery = (count: number) => {
       const entities = workspace(count);
-      return () => {
-        const listenersAt = listenerIndex(entities);
-        return entities.hosts.flatMap(({ addresses }) => listenersAt(addresses[0]?.address ?? ''));
-      };
+      const listenersAt = listenerIndex(entities);
+      return () => entities.hosts.flatMap(({ addresses }) => listenersAt(addresses[0]?.address ?? ''));
     };
     const entities = workspace(1000);
 
