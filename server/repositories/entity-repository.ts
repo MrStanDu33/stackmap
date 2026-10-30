@@ -48,6 +48,21 @@ const isId = (id: unknown): id is string => entityId().safeParse(id).success;
 const pick = (source: Row, keys: readonly string[]): Row =>
   Object.fromEntries(keys.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]));
 
+const queues = new WeakMap<Kysely<Database>, Promise<unknown>>();
+
+/**
+ * Runs the writes of one transaction one after another. A blocked removal rolls back to its savepoint, which would
+ * also undo a write that ran after the savepoint, such as one started alongside it with `Promise.all`.
+ */
+function serialized<T>(db: Kysely<Database>, write: () => Promise<T>): Promise<T> {
+  if (!db.isTransaction) {
+    return write();
+  }
+  const next = (queues.get(db) ?? Promise.resolve()).then(write, write);
+  queues.set(db, next.catch(() => undefined));
+  return next;
+}
+
 /**
  * Builds the repository of an entity from its definition: every query is limited to the scope's workspace and selects
  * named columns.
@@ -179,7 +194,7 @@ export function createEntityRepository<Fields, Input, DB>(
     };
 
     return {
-      create: async (input) => {
+      create: (input) => serialized(db, async () => {
         const fields = parseEntity(definition.schema.input, input) as Row;
         const changed = new Set(inputFields);
         checkKinds(fields, changed);
@@ -197,7 +212,7 @@ export function createEntityRepository<Fields, Input, DB>(
             updatedAt: now,
           }).execute());
         });
-      },
+      }),
 
       get: async (id) => (isId(id) ? (await find(db, { id }))[0] : undefined),
 
@@ -206,7 +221,7 @@ export function createEntityRepository<Fields, Input, DB>(
         return find(db, pick(where, definition.filters ?? []));
       },
 
-      update: async (id, patch) => {
+      update: (id, patch) => serialized(db, async () => {
         const changes = parseEntity(definition.schema.patch, patch) as Row;
         if (!isId(id)) {
           return undefined;
@@ -243,9 +258,9 @@ export function createEntityRepository<Fields, Input, DB>(
             }
           });
         });
-      },
+      }),
 
-      remove: async (id) => {
+      remove: (id) => serialized(db, async () => {
         if (!isId(id)) {
           return false;
         }
@@ -269,15 +284,15 @@ export function createEntityRepository<Fields, Input, DB>(
           return numDeletedRows > 0n;
         } catch (error) {
           // A dependent through another table, or one added since the count.
+          if (savepoint) {
+            await sql`rollback to savepoint remove_entity`.execute(db);
+          }
           if (isForeignKeyViolation(error)) {
-            if (savepoint) {
-              await sql`rollback to savepoint remove_entity`.execute(db);
-            }
             throw new EntityInUseError(await countDependents(db, id, true));
           }
           throw error;
         }
-      },
+      }),
     };
   };
 }

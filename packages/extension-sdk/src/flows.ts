@@ -16,8 +16,8 @@ export const FLOW_CLIENTS = ['public', 'internal'] as const;
 export type FlowClient = (typeof FLOW_CLIENTS)[number];
 
 export const MAX_FLOW_DRAFTS = 5000;
-export const MAX_FLOW_HOSTNAMES = 50;
-export const MAX_FLOW_BASIS = 50;
+export const MAX_FLOW_HOSTNAMES = 1000;
+export const MAX_FLOW_BASIS = 1000;
 
 /** An entity a flow was derived from. */
 export interface FlowBasis {

@@ -67,10 +67,14 @@ lowercase DNS names), so equal values are stored the same way.
   protocol, purpose, encryption); removing their service or listener is refused while they exist. **Derived** flows
   are stored in the app's `derived_flow` table and rewritten by the active extensions' **flow derivers** after every
   write, inside the write's transaction and once per transaction, so a write and its flows are committed together.
-  The refresh compares by deriver and key: a flow that stays keeps its id. A deriver that fails, times out (5 s) or
-  returns an invalid result is logged and keeps its stored flows; a flow whose source or target is not in the
-  workspace is dropped. The core derives client entry flows from DNS records (A/AAAA, through the workspace's CNAMEs,
-  to the listeners bound to that address or to every address), the reverse proxy one flow per route. Access
+  The refresh compares by deriver and key: a flow that stays keeps its id. Each deriver runs in a savepoint: one that
+  fails, times out (5 s; its later reads are refused) or returns something other than a list of at most 5,000 drafts
+  is logged and keeps its stored flows. An invalid draft, a repeated key, or a flow whose source or target is not in
+  the workspace is dropped and logged by position (keys may carry names). A write that changed nothing refreshes
+  nothing, and the writes of one transaction run one after another, so a blocked removal's savepoint never undoes
+  another write. The core derives client entry flows from DNS records (A/AAAA, through the CNAMEs of the same view,
+  each name resolved once, to the listeners bound to that address or to every address), the reverse proxy one flow
+  per route. Access
   policies, VPNs and NAT come with their extensions _(planned)_.
 
 _(Planned.)_
@@ -182,7 +186,8 @@ admin approves it again _(install flows: phase 5; community extensions: after v1
   and `ExtensionIcon` shows a generic fallback icon.
 
 An extension's server code can contribute **flow derivers** (`flowDerivers`, ids unique in the extension): each reads
-the workspace through `get` and `list` only and returns flow drafts, which the SDK's `flowDraftsSchema` bounds.
+the workspace through a frozen reader (`get` and `list` only) and returns flow drafts, each checked with the SDK's
+`flowDraftSchema` (at most 1,000 hostnames and 1,000 basis entries per flow).
 
 _(Planned.)_ Extensions will also contribute fields on other extensions' entities, flow types, **trace hop resolvers** (resolve the next hop through its entities), templates, wizard
 questions and themes, and domain events will join the hooks as the features that emit them arrive.

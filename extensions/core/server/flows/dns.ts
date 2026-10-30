@@ -11,6 +11,7 @@ export interface DnsFlowEntities {
 }
 
 type DnsRecordView = DnsFlowEntities['dnsRecords'][number];
+type DnsView = DnsRecordView['view'];
 
 /** How many CNAMEs a name may go through before it reaches an address, as resolvers cap it. */
 const MAX_CNAME_STEPS = 8;
@@ -42,41 +43,59 @@ export function deriveDnsFlows({ domains, dnsRecords, hosts, services, listeners
     return domain === undefined || name === '@' ? domain : `${name}.${domain}`;
   };
   const resolvable = dnsRecords.filter(({ type }) => type === 'A' || type === 'AAAA' || type === 'CNAME');
-  const byHostname = groupBy(resolvable, hostnameOf);
+  // A CNAME resolves through records of its own view only, as a split-horizon resolver does.
+  const byName = groupBy(resolvable, (record) => `${record.view} ${hostnameOf(record) ?? ''}`);
+  const hostAddresses = hosts.flatMap(({ id, addresses }) => addresses.map(({ address }) => ({ id, address })));
+  const hostsByAddress = groupBy(hostAddresses, ({ address }) => address);
   const servicesByHost = groupBy(services, ({ hostId }) => hostId);
   const listenersByService = groupBy(listeners, ({ serviceId }) => serviceId);
 
-  /** The address records a record leads to, each with the records on the way. */
-  const addressesOf = (record: DnsRecordView, path: DnsRecordView[] = []): DnsRecordView[][] => {
-    if (record.type !== 'CNAME') {
-      return [[...path, record]];
+  /**
+   * The address records a name leads to, and the CNAMEs followed on the way: each name visited once, at its shortest
+   * distance, so a dense CNAME graph costs its size, not its number of paths.
+   */
+  const resolve = (view: DnsView, hostname: string) => {
+    const distance = new Map([[hostname, 0]]);
+    const queue = [hostname];
+    const addresses: DnsRecordView[] = [];
+    const followed: DnsRecordView[] = [];
+    for (const name of queue) {
+      const steps = distance.get(name) ?? 0;
+      for (const record of byName.get(`${view} ${name}`) ?? []) {
+        if (record.type !== 'CNAME') {
+          addresses.push(record);
+        } else if (steps < MAX_CNAME_STEPS) {
+          followed.push(record);
+          if (!distance.has(record.value)) {
+            distance.set(record.value, steps + 1);
+            queue.push(record.value);
+          }
+        }
+      }
     }
-    if (path.length >= MAX_CNAME_STEPS || path.includes(record)) {
-      return [];
-    }
-    return (byHostname.get(record.value) ?? []).flatMap((next) => addressesOf(next, [...path, record]));
+    return { addresses, followed };
   };
 
   /** The listeners reachable at an address record's address. */
-  const reachable = ({ type, value }: DnsRecordView) => hosts
-    .filter(({ addresses }) => addresses.some(({ address }) => address === value))
+  const reachable = ({ type, value }: DnsRecordView) => (hostsByAddress.get(value) ?? [])
     .flatMap(({ id }) => servicesByHost.get(id) ?? [])
     .flatMap(({ id }) => listenersByService.get(id) ?? [])
     .filter(({ bindAddress }) => bindAddress === value || bindAddress === ANY_ADDRESS[type]);
 
   const flows = new Map<string, EntryFlow>();
-  for (const record of resolvable) {
+  const names = new Map(resolvable.flatMap((record) => {
     const hostname = hostnameOf(record);
-    if (hostname === undefined) {
-      continue;
-    }
-    for (const path of addressesOf(record)) {
-      for (const listener of path.slice(-1).flatMap(reachable)) {
-        const key = `${record.view}:${listener.id}`;
+    return hostname === undefined ? [] : [[`${record.view} ${hostname}`, { view: record.view, hostname }] as const];
+  }));
+  for (const { view, hostname } of names.values()) {
+    const { addresses, followed } = resolve(view, hostname);
+    for (const address of addresses) {
+      for (const listener of reachable(address)) {
+        const key = `${view}:${listener.id}`;
         const flow = flows.get(key)
-          ?? { client: record.view, listenerId: listener.id, hostnames: new Set<string>(), basis: new Set<string>() };
+          ?? { client: view, listenerId: listener.id, hostnames: new Set<string>(), basis: new Set<string>() };
         flow.hostnames.add(hostname);
-        for (const { id } of path) {
+        for (const { id } of [...followed, address]) {
           flow.basis.add(id);
         }
         flows.set(key, flow);

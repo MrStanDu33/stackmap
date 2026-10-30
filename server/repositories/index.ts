@@ -87,7 +87,8 @@ export function createWorkspaceRepositories(
     const write = (key: string, method: Write, repository: Repository) => (session
       ? async (...args: unknown[]) => {
         const result = await repository[method](...args);
-        session.wrote = true;
+        // An update or removal of an id the workspace does not have changed nothing.
+        session.wrote ||= result !== undefined && result !== false;
         return result;
       }
       : (...args: unknown[]) => transaction((repos) => repositoryOf(repos, key)[method](...args)));
