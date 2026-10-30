@@ -2,7 +2,7 @@
   "extensions": {
     "reverse-proxy": {
       "name": "Proxy inverse",
-      "description": "Documentez les noms d'hôte servis par vos proxys et leur destination.",
+      "description": "Documentez les noms d’hôte servis par vos proxys et vers où ils les redirigent.",
       "entities": {
         "route": "Route de proxy"
       },
