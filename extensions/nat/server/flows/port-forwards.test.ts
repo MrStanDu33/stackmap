@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { derivePortForwardFlows } from './port-forwards';
+import { growthRatio } from '../../../../tests/support/timing';
 
 import type { PortForwardFlowEntities } from './port-forwards';
 
@@ -170,25 +171,29 @@ describe('port forward flow deriver', () => {
       .toMatchObject([{ source: { client: 'public' } }]);
   });
 
-  it('derives the flows of thousands of forwards in well under 200 ms', () => {
-    const count = 4000;
-    const hosts = Array.from({ length: count }, (_, index) => ({
-      id: id(100_000 + index),
-      addresses: [{ address: `10.${String(Math.floor(index / 250))}.${String(index % 250)}.1`, networkId: null }],
-    }));
-    const services = hosts.map((host, index) => ({ id: id(200_000 + index), hostId: host.id }));
-    const many = services.flatMap((service, index) => [
-      listener({ id: id(300_000 + index), serviceId: service.id }),
-      listener({ id: id(400_000 + index), serviceId: service.id, port: 80 }),
-    ]);
-    const forwards = hosts.map((host, index) => forward({
-      id: id(500_000 + index), internalAddress: host.addresses[0]?.address ?? '',
-    }));
-    const started = performance.now();
+  it('derives the flows of many forwards in time that grows about linearly with their number', () => {
+    const forwardsTo = (count: number) => {
+      const hosts = Array.from({ length: count }, (_, index) => ({
+        id: id(100_000 + index),
+        addresses: [{ address: `10.${String(Math.floor(index / 250))}.${String(index % 250)}.1`, networkId: null }],
+      }));
+      const services = hosts.map((host, index) => ({ id: id(200_000 + index), hostId: host.id }));
+      const listeners = services.flatMap((service, index) => [
+        listener({ id: id(300_000 + index), serviceId: service.id }),
+        listener({ id: id(400_000 + index), serviceId: service.id, port: 80 }),
+      ]);
+      const portForwards = hosts.map((host, index) => forward({
+        id: id(500_000 + index), internalAddress: host.addresses[0]?.address ?? '',
+      }));
+      return { hosts: [ROUTER, ...hosts], services, listeners, portForwards };
+    };
+    const deriveAll = (count: number) => {
+      const entities = forwardsTo(count);
+      return () => derive(entities);
+    };
 
-    const drafts = derive({ hosts: [ROUTER, ...hosts], services, listeners: many, portForwards: forwards });
-
-    expect(performance.now() - started).toBeLessThan(200);
-    expect(drafts).toHaveLength(count);
+    // Linear is about 4; scanning every host per forward, as before, was about 16.
+    expect(growthRatio(deriveAll, 1000)).toBeLessThan(8);
+    expect(deriveAll(1000)()).toHaveLength(1000);
   });
 });

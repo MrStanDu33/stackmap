@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import * as exported from '@stackmap/extension-core/flows';
 
 import { dnsNamesByAddress, listenerIndex, reachableListeners } from './index';
+import { growthRatio } from '../../../../tests/support/timing';
 
 const id = (n: number) => `0199d6a0-0000-7000-8000-${String(n).padStart(12, '0')}`;
 
@@ -54,38 +55,48 @@ describe('core flow helpers', () => {
     expect(typeof exported.deriveDnsFlows).toBe('function');
   });
 
-  it('dnsNamesByAddress resolves a CNAME fan-out in well under 100 ms', () => {
-    const n = 400;
-    const records = [
+  it('dnsNamesByAddress resolves a CNAME fan-out in time that grows about linearly with its size', () => {
+    const fanOut = (n: number) => [
       ...Array.from({ length: n }, (_, k) => record(10_000 + k, `n${String(k)}`, 'CNAME', 'hub.homelab.example')),
       ...Array.from({ length: n }, (_, k) => record(20_000 + k, 'hub', 'CNAME', `f${String(k)}.homelab.example`)),
       ...Array.from({ length: n }, (_, k) => record(30_000 + k, `f${String(k)}`, 'CNAME', 'x.homelab.example')),
       ...Array.from({ length: n }, (_, k) => record(40_000 + k, 'x', 'A', `198.51.100.${String((k % 250) + 1)}`)),
     ];
-    const started = performance.now();
+    const resolve = (n: number) => {
+      const dnsRecords = fanOut(n);
+      return () => dnsNamesByAddress({ domains: [DOMAIN], dnsRecords }, 'public');
+    };
 
-    const names = dnsNamesByAddress({ domains: [DOMAIN], dnsRecords: records }, 'public');
-
-    expect(performance.now() - started).toBeLessThan(100);
-    expect(names.get('198.51.100.1')?.hostnames).toContain('n0.homelab.example');
+    // Linear is about 4; the cubic walk the review found was about 64.
+    expect(growthRatio(resolve, 400)).toBeLessThan(8);
+    expect(resolve(400)().get('198.51.100.1')?.hostnames).toContain('n0.homelab.example');
   });
 
-  it('reachableListeners answers thousands of addresses in well under 100 ms', () => {
-    const count = 4000;
-    const hosts = Array.from({ length: count }, (_, index) => ({
-      id: id(100_000 + index),
-      addresses: [0, 1, 2, 3].map((n) => ({ address: `10.${String(n)}.${String(Math.floor(index / 250))}.${String(index % 250)}`, networkId: null })),
-    }));
-    const services = hosts.map((host, index) => ({ id: id(200_000 + index), hostId: host.id }));
-    const listeners = services.flatMap((service, index) =>
-      [listener(300_000 + index, '0.0.0.0'), listener(400_000 + index, null)].map((item) => ({ ...item, serviceId: service.id })));
-    const listenersAt = listenerIndex({ hosts, services, listeners });
-    const started = performance.now();
+  it('listenerIndex answers many addresses in time that grows about linearly with the workspace', () => {
+    const workspace = (count: number) => {
+      const hosts = Array.from({ length: count }, (_, index) => ({
+        id: id(100_000 + index),
+        addresses: [0, 1, 2, 3].map((n) => ({
+          address: `10.${String(n)}.${String(Math.floor(index / 250))}.${String(index % 250)}`, networkId: null,
+        })),
+      }));
+      const services = hosts.map((host, index) => ({ id: id(200_000 + index), hostId: host.id }));
+      const listeners = services.flatMap((service, index) =>
+        [listener(300_000 + index, '0.0.0.0'), listener(400_000 + index, null)].map((item) => ({ ...item, serviceId: service.id })));
+      return { hosts, services, listeners };
+    };
+    const lookUpEvery = (count: number) => {
+      const entities = workspace(count);
+      return () => {
+        const listenersAt = listenerIndex(entities);
+        return entities.hosts.flatMap(({ addresses }) => listenersAt(addresses[0]?.address ?? ''));
+      };
+    };
+    const entities = workspace(1000);
 
-    const reached = hosts.flatMap(({ addresses }) => listenersAt(addresses[0]?.address ?? ''));
-
-    expect(performance.now() - started).toBeLessThan(100);
-    expect(reached).toHaveLength(count);
-    expect(reachableListeners({ hosts, services, listeners }, '10.0.0.0')).toEqual(listenersAt('10.0.0.0'));
+    // Linear is about 4; scanning every host per lookup, as before, was about 16.
+    expect(growthRatio(lookUpEvery, 1000)).toBeLessThan(8);
+    expect(lookUpEvery(1000)()).toHaveLength(1000);
+    expect(reachableListeners(entities, '10.0.0.0')).toEqual(listenerIndex(entities)('10.0.0.0'));
   });
 });
