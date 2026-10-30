@@ -49,11 +49,11 @@ async function checkRoute(
   return issues;
 }
 
-/** Replaces the route's hostnames, in their order, with its proxy. */
+/** Replaces the route's hostnames, in their order; the database copies a new proxy onto them (on update cascade). */
 async function writeHostnames(
   { db, scope, newId }: Context, routeId: string, route: ProxyRouteFields, changed: ReadonlySet<string>,
 ): Promise<void> {
-  if (!changed.has('hostnames') && !changed.has('proxyServiceId')) {
+  if (!changed.has('hostnames')) {
     return;
   }
   await db.deleteFrom('reverse_proxy_routeHostname')
@@ -101,7 +101,11 @@ export const proxyRouteRepository = defineEntityRepository<ProxyRouteFields, Pro
     { field: 'proxyServiceId', table: 'core_service', id: proxyServiceId },
     { field: 'upstreamListenerId', table: 'core_listener', id: upstreamListenerId },
   ],
-  dependentsOf: [{ entity: 'listener', column: 'upstreamListenerId' }],
+  dependentsOf: [
+    { entity: 'listener', column: 'upstreamListenerId' },
+    // Removing a service removes its listeners: explains which routes blocked it.
+    { entity: 'service', column: 'upstreamListenerId', through: { table: 'core_listener', column: 'serviceId' } },
+  ],
   check: checkRoute,
   writeOwned: writeHostnames,
   expand: withHostnames,

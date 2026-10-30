@@ -99,13 +99,7 @@ function ownErrors(entry: Entry, installed: ReadonlyMap<string, Entry>): string[
       errors.push(`is always on but depends on "${dependencyId}", which can be turned off`);
     }
   }
-  const dependencyEntities = new Set(manifest.dependsOn.flatMap((id) =>
-    (installed.get(id)?.manifest.contributes.entities ?? []).map((entity) => entity.id)));
-  for (const { key, dependentsOf = [] } of server?.repositories ?? []) {
-    for (const { entity } of dependentsOf.filter((target) => !dependencyEntities.has(target.entity))) {
-      errors.push(`repository "${key}" counts as a dependent of entity "${entity}", which none of its dependencies declares`);
-    }
-  }
+  errors.push(...dependentsOfErrors(entry, installed));
   if (manifest.code?.server && !server) {
     errors.push('declares code.server but ships no server code');
   }
@@ -114,6 +108,35 @@ function ownErrors(entry: Entry, installed: ReadonlyMap<string, Entry>): string[
   }
   // Manifests that did not go through defineExtension (custom ones, later) get the same checks.
   return [...manifestProblems(manifest), ...errors, ...entityErrors(entry)];
+}
+
+/**
+ * An extension declares itself a dependent of its dependencies' entities, through columns it stores: a wrong name
+ * would make every removal of the entity fail at runtime.
+ */
+function dependentsOfErrors({ manifest, server }: Entry, installed: ReadonlyMap<string, Entry>): string[] {
+  const dependencies = manifest.dependsOn.flatMap((id) => installed.get(id) ?? []);
+  const entities = new Set(dependencies.flatMap(({ manifest: { contributes } }) =>
+    (contributes.entities ?? []).map(({ id }) => id)));
+  const stores = (table: string, column: string) => dependencies.some(({ server: dependency }) =>
+    (dependency?.repositories ?? []).some((definition) =>
+      definition.table === table && definition.columns.includes(column)));
+  const errors: string[] = [];
+  for (const { key, columns, dependentsOf = [] } of server?.repositories ?? []) {
+    for (const { entity, column, through } of dependentsOf) {
+      if (!entities.has(entity)) {
+        errors.push(`repository "${key}" counts as a dependent of entity "${entity}", which none of its dependencies declares`);
+      }
+      if (!columns.includes(column)) {
+        errors.push(`repository "${key}" counts as a dependent through column "${column}", which it does not store`);
+      }
+      if (through && !stores(through.table, through.column)) {
+        errors.push(`repository "${key}" counts as a dependent through "${through.table}.${through.column}", `
+          + 'which no repository of its dependencies stores');
+      }
+    }
+  }
+  return errors;
 }
 
 const REPOSITORY_KEY = /^[a-z][a-zA-Z0-9]{0,39}$/;
@@ -336,10 +359,10 @@ export function createExtensionRegistry(
     repositories: () => {
       const entries = ordered.filter((entry) => !isFailed(entry));
       const declared = entries.flatMap(({ manifest, server }) => (server?.repositories ?? []).flatMap((definition) =>
-        (definition.dependentsOf ?? []).map(({ entity, column }) => ({
+        (definition.dependentsOf ?? []).map(({ entity, column, through }) => ({
           entity,
           owners: manifest.dependsOn,
-          dependent: { entity: definition.entity, table: definition.table, column },
+          dependent: { entity: definition.entity, table: definition.table, column, ...(through ? { through } : {}) },
         }))));
       return entries.flatMap(({ manifest, server }) => (server?.repositories ?? []).map((definition) => {
         const added = declared

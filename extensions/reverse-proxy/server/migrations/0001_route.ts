@@ -21,6 +21,8 @@ export const migration: Migration = {
         ['workspaceId', 'id'],
         (constraint) => constraint.onDelete('cascade'),
       )
+      // The hostnames' foreign key refers to it, so they always carry their route's proxy.
+      .addUniqueConstraint('reverse_proxy_route_proxy_unique', ['workspaceId', 'id', 'proxyServiceId'])
       .addForeignKeyConstraint(
         'reverse_proxy_route_upstream_fk',
         ['workspaceId', 'upstreamListenerId'],
@@ -44,10 +46,10 @@ export const migration: Migration = {
       .addUniqueConstraint('reverse_proxy_routeHostname_proxy_hostname_unique', ['workspaceId', 'proxyServiceId', 'hostname'])
       .addForeignKeyConstraint(
         'reverse_proxy_routeHostname_route_fk',
-        ['workspaceId', 'routeId'],
+        ['workspaceId', 'routeId', 'proxyServiceId'],
         'reverse_proxy_route',
-        ['workspaceId', 'id'],
-        (constraint) => constraint.onDelete('cascade'),
+        ['workspaceId', 'id', 'proxyServiceId'],
+        (constraint) => constraint.onDelete('cascade').onUpdate('cascade'),
       )
       .execute();
     await db.schema.createIndex('reverse_proxy_routeHostname_route_idx').on('reverse_proxy_routeHostname')
