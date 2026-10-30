@@ -80,8 +80,7 @@ lowercase DNS names), so equal values are stored the same way.
   its internal address on one of the forwarding host's networks, the forwarding host itself, or any holder when no
   network is documented; a forward whose host no longer holds its external address gives nothing. The core exports
   the shared rules (`listenerIndex`, `reachableListeners`, `dnsNamesByAddress`, which resolves each name once per
-  CNAME budget) from `@stackmap/extension-core/flows`. Access
-  policies, VPNs and NAT come with their extensions _(planned)_.
+  CNAME budget) from `@stackmap/extension-core/flows`. Access policies and VPNs come with their extensions _(planned)_.
 
 _(Planned.)_
 

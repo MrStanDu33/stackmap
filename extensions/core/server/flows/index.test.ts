@@ -72,6 +72,45 @@ describe('core flow helpers', () => {
     expect(resolve(400)().get('198.51.100.1')?.hostnames).toContain('n0.homelab.example');
   });
 
+  it('dnsNamesByAddress gives the records behind every address in time that grows about linearly with the aliases', () => {
+    // Every alias reaches the same few addresses, so each address's records grow with the aliases, not faster.
+    const fanOut = (n: number) => [
+      ...Array.from({ length: n }, (_, k) => record(10_000 + k, `n${String(k)}`, 'CNAME', 'hub.homelab.example')),
+      ...Array.from({ length: n }, (_, k) => record(20_000 + k, 'hub', 'CNAME', `f${String(k)}.homelab.example`)),
+      ...Array.from({ length: n }, (_, k) => record(30_000 + k, `f${String(k)}`, 'CNAME', 'x.homelab.example')),
+      ...Array.from({ length: 10 }, (_, k) => record(40_000 + k, 'x', 'A', `198.51.100.${String(k + 1)}`)),
+    ];
+    const basisOfEvery = (n: number) => {
+      const dnsRecords = fanOut(n);
+      return () => [...dnsNamesByAddress({ domains: [DOMAIN], dnsRecords }, 'public').values()]
+        .map(({ recordIds }) => recordIds.length);
+    };
+
+    // Linear is about 4; copying every alias's CNAMEs for every name, as before, was about 16.
+    expect(growthRatio(basisOfEvery, 100)).toBeLessThan(8);
+    expect(basisOfEvery(100)()).toEqual(Array.from({ length: 10 }, () => 301));
+  });
+
+  it('dnsNamesByAddress gives the records behind every address in time that grows about linearly when names have several CNAMEs', () => {
+    // Each g name has two CNAMEs, so it shares no addresses with another name: one group per name over a shared hub.
+    const multiAliases = (n: number) => [
+      ...Array.from({ length: n }, (_, k) => record(10_000 + k, 'hub', 'CNAME', `f${String(k)}.homelab.example`)),
+      ...Array.from({ length: n }, (_, k) => record(20_000 + k, `f${String(k)}`, 'CNAME', 'x.homelab.example')),
+      ...Array.from({ length: 10 }, (_, k) => record(30_000 + k, 'x', 'A', `198.51.100.${String(k + 1)}`)),
+      ...Array.from({ length: n }, (_, k) => record(40_000 + k, `g${String(k)}`, 'CNAME', 'hub.homelab.example')),
+      ...Array.from({ length: n }, (_, k) => record(50_000 + k, `g${String(k)}`, 'CNAME', 'f0.homelab.example')),
+    ];
+    const basisOfEvery = (n: number) => {
+      const dnsRecords = multiAliases(n);
+      return () => [...dnsNamesByAddress({ domains: [DOMAIN], dnsRecords }, 'public').values()]
+        .map(({ recordIds }) => recordIds.length);
+    };
+
+    // Linear is about 4; walking the shared hub once per name, as before, was about 16.
+    expect(growthRatio(basisOfEvery, 100)).toBeLessThan(8);
+    expect(basisOfEvery(100)()).toEqual(Array.from({ length: 10 }, () => 401));
+  });
+
   it('listenerIndex answers many addresses in time that grows about linearly with the workspace', () => {
     const workspace = (count: number) => {
       const hosts = Array.from({ length: count }, (_, index) => ({
@@ -85,12 +124,11 @@ describe('core flow helpers', () => {
         [listener(300_000 + index, '0.0.0.0'), listener(400_000 + index, null)].map((item) => ({ ...item, serviceId: service.id })));
       return { hosts, services, listeners };
     };
+    // The index is built before the timer: its allocations make garbage collection, not the lookups, set the time.
     const lookUpEvery = (count: number) => {
       const entities = workspace(count);
-      return () => {
-        const listenersAt = listenerIndex(entities);
-        return entities.hosts.flatMap(({ addresses }) => listenersAt(addresses[0]?.address ?? ''));
-      };
+      const listenersAt = listenerIndex(entities);
+      return () => entities.hosts.flatMap(({ addresses }) => listenersAt(addresses[0]?.address ?? ''));
     };
     const entities = workspace(1000);
 

@@ -68,8 +68,8 @@ export function reachableListeners<L extends DnsFlowEntities['listeners'][number
 
 /**
  * For each address, the hostnames of a view resolving to it: A/AAAA records, and CNAMEs of the same view leading to
- * them (as a split-horizon resolver does). Each name is visited once, at its shortest distance, so a dense CNAME graph
- * costs its size, not its number of paths.
+ * them (as a split-horizon resolver does). Each name is resolved once per CNAME budget, so a dense CNAME graph costs
+ * about its size, not its number of paths.
  */
 export function dnsNamesByAddress(
   { domains, dnsRecords }: Pick<DnsFlowEntities, 'domains' | 'dnsRecords'>,
@@ -91,7 +91,6 @@ export function dnsNamesByAddress(
     addresses: Map<string, Set<string>>;
     cnames: string[];
     via: Resolution[];
-    followed?: string[];
   }
   const memo = new Map<string, Resolution>();
   const resolveName = (name: string, budget: number): Resolution => {
@@ -127,39 +126,61 @@ export function dnsNamesByAddress(
     memo.set(key, resolution);
     return resolution;
   };
-  /** Every CNAME followed from a resolution, computed once. */
-  const followedFrom = (resolution: Resolution): string[] => {
-    resolution.followed ??= [...new Set([...resolution.cnames, ...resolution.via.flatMap(followedFrom)])];
-    return resolution.followed;
+  /** Every CNAME followed from some resolutions, each resolution walked once however many names lead to it. */
+  const followedFrom = (resolutions: Iterable<Resolution>): Set<string> => {
+    const seen = new Set<Resolution>();
+    const followed = new Set<string>();
+    const stack = [...resolutions];
+    for (let next = stack.pop(); next; next = stack.pop()) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        next.cnames.forEach((id) => followed.add(id));
+        stack.push(...next.via);
+      }
+    }
+    return followed;
   };
 
   // Names grouped by the addresses they share, so each shared set is walked once, not once per alias.
-  const byAddresses = new Map<Map<string, Set<string>>, Map<string, Resolution>>();
+  interface Group {
+    index: number;
+    addresses: Map<string, Set<string>>;
+    names: Map<string, Resolution>;
+  }
+  const byAddresses = new Map<Map<string, Set<string>>, Group>();
   for (const hostname of byName.keys()) {
     if (hostname === undefined) {
       continue;
     }
     const resolution = resolveName(hostname, MAX_CNAME_STEPS);
-    const group = byAddresses.get(resolution.addresses) ?? new Map<string, Resolution>();
-    byAddresses.set(resolution.addresses, group.set(hostname, resolution));
+    const group = byAddresses.get(resolution.addresses)
+      ?? { index: byAddresses.size, addresses: resolution.addresses, names: new Map() };
+    byAddresses.set(resolution.addresses, group);
+    group.names.set(hostname, resolution);
   }
-  const reaching = new Map<string, Map<string, Resolution>[]>();
-  for (const [addresses, group] of byAddresses) {
-    for (const address of addresses.keys()) {
-      reaching.set(address, [...(reaching.get(address) ?? []), group]);
+  const reaching = new Map<string, Group[]>();
+  for (const group of byAddresses.values()) {
+    for (const address of group.addresses.keys()) {
+      const groups = reaching.get(address) ?? [];
+      reaching.set(address, groups);
+      groups.push(group);
     }
   }
+  // Addresses reached by the same groups share their CNAMEs: walked once for all of them, whatever the groups overlap.
+  const followedByGroups = new Map<string, Set<string>>();
   return new Map([...reaching].map(([address, groups]) => {
-    const names = groups.flatMap((group) => [...group]);
     let recordIds: string[] | undefined;
     return [address, {
-      hostnames: names.map(([hostname]) => hostname).sort(),
+      hostnames: groups.flatMap(({ names }) => [...names.keys()]).sort(),
       // Built on first use: callers only ask for the addresses that lead somewhere.
       get recordIds() {
         if (recordIds === undefined) {
-          const used = names.flatMap(([, resolution]) =>
-            [...followedFrom(resolution), ...(resolution.addresses.get(address) ?? [])]);
-          recordIds = [...new Set(used)].sort();
+          const key = groups.map(({ index }) => index).join(' ');
+          const followed = followedByGroups.get(key)
+            ?? followedFrom(groups.flatMap(({ names }) => [...names.values()]));
+          followedByGroups.set(key, followed);
+          const records = groups.flatMap((group) => [...(group.addresses.get(address) ?? [])]);
+          recordIds = [...new Set([...followed, ...records])].sort();
         }
         return recordIds;
       },

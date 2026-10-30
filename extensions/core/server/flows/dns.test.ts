@@ -1,6 +1,8 @@
+import { flowDraftSchema } from '@stackmap/extension-sdk/server';
 import { describe, expect, it } from 'vitest';
 
 import { deriveDnsFlows } from './dns';
+import { growthRatio } from '../../../../tests/support/timing';
 
 import type { DnsFlowEntities } from './dns';
 import type { FlowDraft } from '@stackmap/extension-sdk/server';
@@ -152,19 +154,38 @@ describe('core DNS flow deriver', () => {
     })).toEqual([entry('internal', any.id, ['app.homelab.example'], [id(20)])]);
   });
 
-  it('resolves a dense CNAME graph in well under 100 ms', () => {
-    const names = Array.from({ length: 8 }, (_, index) => `n${String(index)}`);
-    // Every name has a CNAME to every other name, and one of them an A record.
-    const clique = names.flatMap((name, from) => names.filter((_, to) => to !== from).map((target, to) => record({
-      id: id(1000 + (from * 100) + to), name, type: 'CNAME', value: `${target}.homelab.example`,
-    })));
+  it('resolves a dense CNAME graph in time that grows about linearly with its records', () => {
     const any = listener(10, '0.0.0.0');
-    const started = performance.now();
+    // Every name has a CNAME to every other name, and one of them an A record.
+    const clique = (size: number) => {
+      const names = Array.from({ length: size }, (_, index) => `n${String(index)}`);
+      return names.flatMap((name, from) => names.filter((_, to) => to !== from).map((target, to) => record({
+        id: id(1_000_000 + (from * 1000) + to), name, type: 'CNAME', value: `${target}.homelab.example`,
+      }))).concat(record({ id: id(20), name: 'n0' }));
+    };
+    const deriveClique = (size: number) => {
+      const dnsRecords = clique(size);
+      return () => derive({ dnsRecords, listeners: [any] });
+    };
 
-    const drafts = derive({ dnsRecords: [...clique, record({ id: id(20), name: 'n0' })], listeners: [any] });
-
-    expect(performance.now() - started).toBeLessThan(100);
+    // Twice the names is 4× the records: linear is about 4; walking every path, as before, was exponential.
+    expect(growthRatio((records) => deriveClique(Math.sqrt(records)), 64)).toBeLessThan(8);
+    const drafts = deriveClique(8)();
     expect(drafts).toHaveLength(1);
-    expect(drafts[0]?.hostnames).toEqual(names.map((name) => `${name}.homelab.example`).sort());
+    expect(drafts[0]?.hostnames).toEqual(Array.from({ length: 8 }, (_, index) => `n${String(index)}.homelab.example`).sort());
+  });
+
+  it('gives a valid draft for a listener that more than a thousand names reach, such as a reverse proxy', () => {
+    const any = listener(10, '0.0.0.0');
+    const aliases = Array.from({ length: 1500 }, (_, index) => record({
+      id: id(100_000 + index), name: `app${String(index)}`, type: 'CNAME', value: 'proxy.homelab.example',
+    }));
+
+    const drafts = derive({ dnsRecords: [record({ id: id(20), name: 'proxy' }), ...aliases], listeners: [any] });
+
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.hostnames).toHaveLength(1501);
+    expect(drafts[0]?.basis).toHaveLength(1501);
+    expect(flowDraftSchema.safeParse(drafts[0]).success).toBe(true);
   });
 });
