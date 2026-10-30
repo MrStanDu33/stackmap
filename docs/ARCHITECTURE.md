@@ -74,9 +74,13 @@ lowercase DNS names), so equal values are stored the same way.
   nothing, and the writes of one transaction run one after another, so a blocked removal's savepoint never undoes
   another write. The core derives client entry flows from DNS records (A/AAAA, through the CNAMEs of the same view,
   each name resolved once, to the listeners bound to that address or to every address), the reverse proxy one flow
-  per route, and NAT one public flow per port forward and listener it reaches (by its published port or port), named
-  by the public records of the external address, or by none: a forwarded port is exposed either way. The core exports
-  the shared rules (`reachableListeners`, `dnsNamesByAddress`) from `@stackmap/extension-core/flows`. Access
+  per route, and NAT one flow per port forward and listener it reaches (by its published port or port), named by
+  the records of the external address, or by none: a forwarded port is exposed either way. The flow is public, or
+  internal when the external address is private, carrier-grade NAT or loopback. A forward reaches the hosts holding
+  its internal address on one of the forwarding host's networks, the forwarding host itself, or any holder when no
+  network is documented; a forward whose host no longer holds its external address gives nothing. The core exports
+  the shared rules (`listenerIndex`, `reachableListeners`, `dnsNamesByAddress`, which resolves each name once per
+  CNAME budget) from `@stackmap/extension-core/flows`. Access
   policies, VPNs and NAT come with their extensions _(planned)_.
 
 _(Planned.)_

@@ -31,28 +31,39 @@ const groupBy = <T, K>(items: readonly T[], keyOf: (item: T) => K): Map<K, T[]> 
   return groups;
 };
 
-/** Looks up the listeners reachable at an address, like reachableListeners, from indexes built once. */
-export function listenerIndex<L extends DnsFlowEntities['listeners'][number]>(
-  _entities: Pick<DnsFlowEntities, 'hosts' | 'services'> & { listeners: readonly L[] },
-): (address: string) => L[] {
-  throw new Error('Not implemented');
+/** A host holding an address, and the network it holds it on when documented. */
+export interface AddressHolder {
+  hostId: string;
+  networkId: string | null;
 }
 
 /**
- * The listeners reachable at an address: on the hosts holding it, bound to it or to every address of its IP
- * version. A null bind address (container network, external service) is never reachable.
+ * Looks up the listeners reachable at an address, from indexes built once: on the hosts holding it (those `accepts`
+ * keeps), bound to it or to every address of its IP version. A null bind address (container network, external
+ * service) is never reachable.
  */
-export function reachableListeners<L extends DnsFlowEntities['listeners'][number]>(
+export function listenerIndex<L extends DnsFlowEntities['listeners'][number]>(
   { hosts, services, listeners }: Pick<DnsFlowEntities, 'hosts' | 'services'> & { listeners: readonly L[] },
+): (address: string, accepts?: (holder: AddressHolder) => boolean) => L[] {
+  const holders = groupBy(hosts.flatMap(({ id, addresses }) =>
+    addresses.map(({ address, networkId }) => ({ address, hostId: id, networkId }))), ({ address }) => address);
+  const servicesByHost = groupBy(services, ({ hostId }) => hostId);
+  const listenersByService = groupBy(listeners, ({ serviceId }) => serviceId);
+  return (address, accepts = () => true) => {
+    const any = address.includes(':') ? '::' : '0.0.0.0';
+    return (holders.get(address) ?? []).filter(accepts)
+      .flatMap(({ hostId }) => servicesByHost.get(hostId) ?? [])
+      .flatMap(({ id }) => listenersByService.get(id) ?? [])
+      .filter(({ bindAddress }) => bindAddress === address || bindAddress === any);
+  };
+}
+
+/** The listeners reachable at one address; build a `listenerIndex` to look up many. */
+export function reachableListeners<L extends DnsFlowEntities['listeners'][number]>(
+  entities: Pick<DnsFlowEntities, 'hosts' | 'services'> & { listeners: readonly L[] },
   address: string,
 ): L[] {
-  const any = address.includes(':') ? '::' : '0.0.0.0';
-  const hostIds = new Set(hosts.filter(({ addresses }) => addresses.some((held) => held.address === address))
-    .map(({ id }) => id));
-  const serviceIds = new Set(services.filter(({ hostId }) => hostId !== null && hostIds.has(hostId))
-    .map(({ id }) => id));
-  return listeners.filter(({ serviceId, bindAddress }) =>
-    serviceIds.has(serviceId) && (bindAddress === address || bindAddress === any));
+  return listenerIndex(entities)(address);
 }
 
 /**
@@ -73,40 +84,87 @@ export function dnsNamesByAddress(
     && (record.type === 'A' || record.type === 'AAAA' || record.type === 'CNAME'));
   const byName = groupBy(resolvable, hostnameOf);
 
-  const collected = new Map<string, { hostnames: Set<string>; recordIds: Set<string> }>();
+  // What a name resolves to with a number of CNAME steps left, memoized: a name is resolved once per budget, not once
+  // per path, so a dense or fanned-out CNAME graph costs about its size.
+  interface Resolution {
+    /** Address → the A/AAAA records reached for it. */
+    addresses: Map<string, Set<string>>;
+    cnames: string[];
+    via: Resolution[];
+    followed?: string[];
+  }
+  const memo = new Map<string, Resolution>();
+  const resolveName = (name: string, budget: number): Resolution => {
+    const key = `${String(budget)} ${name}`;
+    const known = memo.get(key);
+    if (known) {
+      return known;
+    }
+    const records = byName.get(name) ?? [];
+    const resolution: Resolution = { addresses: new Map(), cnames: [], via: [] };
+    for (const record of records) {
+      if (record.type !== 'CNAME') {
+        resolution.addresses.set(record.value, (resolution.addresses.get(record.value) ?? new Set()).add(record.id));
+      } else if (budget > 0) {
+        resolution.cnames.push(record.id);
+        resolution.via.push(resolveName(record.value, budget - 1));
+      }
+    }
+    const [only] = resolution.via;
+    if (resolution.addresses.size === 0 && resolution.via.length === 1 && only) {
+      // A plain alias shares its target's addresses instead of copying them.
+      resolution.addresses = only.addresses;
+    } else {
+      // Aliases of one name share its addresses: each distinct set is merged once.
+      for (const addresses of new Set(resolution.via.map((next) => next.addresses))) {
+        for (const [address, ids] of addresses) {
+          const merged = resolution.addresses.get(address) ?? new Set<string>();
+          ids.forEach((id) => merged.add(id));
+          resolution.addresses.set(address, merged);
+        }
+      }
+    }
+    memo.set(key, resolution);
+    return resolution;
+  };
+  /** Every CNAME followed from a resolution, computed once. */
+  const followedFrom = (resolution: Resolution): string[] => {
+    resolution.followed ??= [...new Set([...resolution.cnames, ...resolution.via.flatMap(followedFrom)])];
+    return resolution.followed;
+  };
+
+  // Names grouped by the addresses they share, so each shared set is walked once, not once per alias.
+  const byAddresses = new Map<Map<string, Set<string>>, Map<string, Resolution>>();
   for (const hostname of byName.keys()) {
     if (hostname === undefined) {
       continue;
     }
-    const distance = new Map([[hostname, 0]]);
-    const queue = [hostname];
-    const followed: string[] = [];
-    const addresses: DnsRecordView[] = [];
-    for (const name of queue) {
-      const steps = distance.get(name) ?? 0;
-      for (const record of byName.get(name) ?? []) {
-        if (record.type !== 'CNAME') {
-          addresses.push(record);
-        } else if (steps < MAX_CNAME_STEPS) {
-          followed.push(record.id);
-          if (!distance.has(record.value)) {
-            distance.set(record.value, steps + 1);
-            queue.push(record.value);
-          }
-        }
-      }
-    }
-    for (const { id, value } of addresses) {
-      const names = collected.get(value) ?? { hostnames: new Set<string>(), recordIds: new Set<string>() };
-      names.hostnames.add(hostname);
-      for (const recordId of [...followed, id]) {
-        names.recordIds.add(recordId);
-      }
-      collected.set(value, names);
+    const resolution = resolveName(hostname, MAX_CNAME_STEPS);
+    const group = byAddresses.get(resolution.addresses) ?? new Map<string, Resolution>();
+    byAddresses.set(resolution.addresses, group.set(hostname, resolution));
+  }
+  const reaching = new Map<string, Map<string, Resolution>[]>();
+  for (const [addresses, group] of byAddresses) {
+    for (const address of addresses.keys()) {
+      reaching.set(address, [...(reaching.get(address) ?? []), group]);
     }
   }
-  return new Map([...collected].map(([address, { hostnames, recordIds }]) =>
-    [address, { hostnames: [...hostnames].sort(), recordIds: [...recordIds].sort() }]));
+  return new Map([...reaching].map(([address, groups]) => {
+    const names = groups.flatMap((group) => [...group]);
+    let recordIds: string[] | undefined;
+    return [address, {
+      hostnames: names.map(([hostname]) => hostname).sort(),
+      // Built on first use: callers only ask for the addresses that lead somewhere.
+      get recordIds() {
+        if (recordIds === undefined) {
+          const used = names.flatMap(([, resolution]) =>
+            [...followedFrom(resolution), ...(resolution.addresses.get(address) ?? [])]);
+          recordIds = [...new Set(used)].sort();
+        }
+        return recordIds;
+      },
+    }];
+  }));
 }
 
 /** Client entry flows: from a record's view's client to each listener reachable at the address it leads to. */
@@ -114,9 +172,10 @@ export function deriveDnsFlows(entities: DnsFlowEntities): FlowDraft[] {
   // Per view and listener, every hostname and record that reaches it, from all of its addresses.
   type EntryFlow = { view: DnsView; listenerId: string; hostnames: Set<string>; recordIds: Set<string> };
   const flows = new Map<string, EntryFlow>();
+  const listenersAt = listenerIndex(entities);
   for (const view of DNS_VIEWS) {
     for (const [address, names] of dnsNamesByAddress(entities, view)) {
-      for (const { id: listenerId } of reachableListeners(entities, address)) {
+      for (const { id: listenerId } of listenersAt(address)) {
         const key = `${view}:${listenerId}`;
         const flow = flows.get(key) ?? { view, listenerId, hostnames: new Set<string>(), recordIds: new Set<string>() };
         names.hostnames.forEach((hostname) => flow.hostnames.add(hostname));

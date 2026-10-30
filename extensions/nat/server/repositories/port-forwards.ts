@@ -23,7 +23,8 @@ async function checkPortForward(
     .where('hostId', '=', forward.hostId)
     .where('address', '=', forward.externalAddress)
     .executeTakeFirst();
-  return held ? [] : [{ path: 'externalAddress', message: `${forward.externalAddress} is not an address of this host` }];
+  // The path names the field; the message does not echo the address, so logged problems carry no infrastructure data.
+  return held ? [] : [{ path: 'externalAddress', message: 'Expected an address of this host' }];
 }
 
 /** A host's forwards belong to it: the database deletes them with it. */

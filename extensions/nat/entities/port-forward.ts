@@ -47,7 +47,7 @@ export const portForwardSchema: EntitySchema<PortForwardFields, PortForwardInput
     context.addIssue({
       code: 'custom',
       path: ['internalAddress'],
-      message: `${forward.internalAddress} is not of the same IP version as ${forward.externalAddress}`,
+      message: 'Expected an address of the same IP version as the external one',
     });
   }
   return forward;
