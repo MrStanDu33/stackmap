@@ -139,4 +139,32 @@ describe('core DNS flow deriver', () => {
       listeners: [listener(10, '0.0.0.0')],
     })).toEqual([]);
   });
+
+  it('resolves a CNAME only through records of its own view', () => {
+    const any = listener(10, '0.0.0.0');
+
+    expect(derive({
+      dnsRecords: [
+        record({ id: id(20), name: 'app', view: 'internal' }),
+        record({ id: id(21), name: 'www', type: 'CNAME', value: 'app.homelab.example', view: 'public' }),
+      ],
+      listeners: [any],
+    })).toEqual([entry('internal', any.id, ['app.homelab.example'], [id(20)])]);
+  });
+
+  it('resolves a dense CNAME graph in well under 100 ms', () => {
+    const names = Array.from({ length: 8 }, (_, index) => `n${String(index)}`);
+    // Every name has a CNAME to every other name, and one of them an A record.
+    const clique = names.flatMap((name, from) => names.filter((_, to) => to !== from).map((target, to) => record({
+      id: id(1000 + (from * 100) + to), name, type: 'CNAME', value: `${target}.homelab.example`,
+    })));
+    const any = listener(10, '0.0.0.0');
+    const started = performance.now();
+
+    const drafts = derive({ dnsRecords: [...clique, record({ id: id(20), name: 'n0' })], listeners: [any] });
+
+    expect(performance.now() - started).toBeLessThan(100);
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.hostnames).toEqual(names.map((name) => `${name}.homelab.example`).sort());
+  });
 });

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { sql } from 'kysely';
 import { describe, expect, it } from 'vitest';
 
 import { listDerivedFlows } from './derived-flows';
@@ -38,10 +39,14 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
   });
 
   /** Repositories of a workspace that run only the given derivers, each as the extension `probe`. */
-  const reposWith = (derivers: FlowDeriver[], workspaceId = workspaces.a.workspace.id): WorkspaceRepositories => {
+  const reposWith = (
+    derivers: FlowDeriver[],
+    workspaceId = workspaces.a.workspace.id,
+    definitions = BUILTIN_REGISTRY.repositories(),
+  ): WorkspaceRepositories => {
     logs.length = 0;
     const flowDerivers: RegisteredFlowDeriver[] = derivers.map((deriver) => ({ extension: 'probe', deriver }));
-    return createWorkspaceRepositories(BUILTIN_REGISTRY.repositories(), { flowDerivers, logger, deriverTimeoutMs: 50 })(
+    return createWorkspaceRepositories(definitions, { flowDerivers, logger, deriverTimeoutMs: 50 })(
       workspaces.db, { workspaceId, actorId: ACTOR, kinds: BUILTIN_KINDS },
     );
   };
@@ -153,7 +158,7 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
   describe.each([
     ['throws', () => Promise.reject(new Error('boom'))],
     ['times out', () => new Promise<never>(() => undefined)],
-    ['returns an invalid result', () => Promise.resolve([{ key: 'broken' }] as never)],
+    ['returns an invalid result', () => Promise.resolve({ not: 'a list' } as never)],
   ])('given a deriver that %s', (_, failure: () => Promise<readonly FlowDraft[]>) => {
     it('keeps the write, refreshes the other derivers, keeps its stored flows and logs the failure with its extension', async () => {
       let failing = false;
@@ -191,10 +196,102 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
     const listener = await repos.transaction((tx) => createListener(tx));
 
     expect((await flowsOf()).map(({ key }) => key)).toEqual([listener.id]);
+    // By position, not by key: a deriver's keys may carry names.
     expect(logs).toEqual([
-      expect.stringMatching(/^probe: .*other-workspace/) as unknown,
-      expect.stringMatching(/^probe: .*unknown-source/) as unknown,
+      expect.stringMatching(/^probe: .*mixed.*draft 1\b/) as unknown,
+      expect.stringMatching(/^probe: .*mixed.*draft 2\b/) as unknown,
     ]);
+    expect(logs.join('\n')).not.toMatch(/other-workspace|unknown-source/);
+  });
+
+  it('drops only the invalid drafts of a deriver, and a draft whose key an earlier one has, and stores the others', async () => {
+    const repos = reposWith([{
+      id: 'partly',
+      derive: async (context) => {
+        const [valid] = await perListener().derive(context);
+        return valid ? [valid, { ...valid, key: 'bad', hostnames: ['not a hostname'] }, { ...valid, hostnames: [] }] : [];
+      },
+    }]);
+
+    const listener = await repos.transaction((tx) => createListener(tx, { tags: ['app'] }));
+
+    expect(await flowsOf()).toMatchObject([{ key: listener.id, hostnames: ['app.homelab.example'] }]);
+    expect(logs).toEqual([
+      expect.stringMatching(/^probe: .*partly.*draft 1\b/) as unknown,
+      expect.stringMatching(/^probe: .*partly.*draft 2\b/) as unknown,
+    ]);
+  });
+
+  it('runs no deriver after a write that changed nothing', async () => {
+    let runs = 0;
+    const counted = perListener();
+    const repos = reposWith([{
+      id: 'counted',
+      derive: (context) => {
+        runs += 1;
+        return counted.derive(context);
+      },
+    }]);
+
+    expect(await repos.listeners.update(randomUUID(), { port: 8080 })).toBeUndefined();
+    expect(await repos.listeners.remove(randomUUID())).toBe(false);
+
+    expect(runs).toBe(0);
+  });
+
+  it('gives derivers a frozen reader, so one cannot change what the next reads', async () => {
+    let frozen: boolean[] = [];
+    const repos = reposWith([{
+      id: 'spy',
+      derive: ({ read }) => {
+        frozen = [Object.isFrozen(read), Object.isFrozen(read.listeners)];
+        return Promise.resolve([]);
+      },
+    }]);
+
+    await createService(repos);
+
+    expect(frozen).toEqual([true, true]);
+  });
+
+  it('given a deriver whose query fails, keeps the write and the other derivers\' flows (the transaction stays usable)', async () => {
+    const sites = BUILTIN_REGISTRY.repositories().find(({ key }) => key === 'sites');
+    const broken = {
+      ...sites,
+      key: 'brokenSites',
+      expand: async ({ db }: { db: never }) => {
+        await sql`select missing from no_such_table`.execute(db);
+        return [];
+      },
+    };
+    const repos = reposWith([
+      { id: 'failing', derive: async ({ read }) => [...await (read as unknown as Record<string, { list: () => Promise<never[]> }>).brokenSites?.list() ?? []] },
+      perListener('healthy'),
+    ], workspaces.a.workspace.id, [...BUILTIN_REGISTRY.repositories(), broken as never]);
+
+    const listener = await repos.transaction((tx) => createListener(tx));
+
+    expect(await repos.listeners.get(listener.id)).toBeDefined();
+    expect((await flowsOf()).map(({ deriver }) => deriver)).toEqual(['healthy']);
+    expect(logs).toEqual([expect.stringMatching(/^probe: .*failing/) as unknown]);
+  });
+
+  it('refuses the reads of a deriver after it timed out', async () => {
+    let late: Promise<unknown> | undefined;
+    const repos = reposWith([{
+      id: 'slow',
+      derive: async ({ read }) => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        // Caught now: the read fails while the test waits.
+        late = read.listeners.list().then(() => undefined, (error: unknown) => error);
+        return [];
+      },
+    }]);
+
+    await repos.transaction((tx) => createListener(tx));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    expect(String(await late)).toMatch(/timed out/);
   });
 
   it('given two workspaces, leaves the other workspace\'s derived flows untouched and lets derivers read only the written workspace', async () => {
