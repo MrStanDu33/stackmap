@@ -11,5 +11,10 @@ export default defineExtension({
   alwaysOn: false,
   dependsOn: ['core'],
   code: { server: true },
-  contributes: { kinds: {} },
+  contributes: {
+    entities: [
+      { id: 'port-forward', table: 'nat_portForward', label: 'extensions.nat.entities.port-forward' },
+    ],
+    kinds: {},
+  },
 });

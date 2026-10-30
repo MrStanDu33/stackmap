@@ -1,4 +1,6 @@
-import { defineEntitySchema } from '@stackmap/extension-sdk/entities';
+import { TRANSPORTS } from '@stackmap/extension-core/entities';
+import { defineEntitySchema, entityId, ipAddress, line, port } from '@stackmap/extension-sdk/entities';
+import { z } from 'zod';
 
 import type { Transport } from '@stackmap/extension-core/entities';
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from '@stackmap/extension-sdk/entities';
@@ -29,4 +31,24 @@ export type PortForwardInput = CommonInput & {
 };
 export type PortForwardPatch = Partial<PortForwardInput>;
 
-export const portForwardSchema: EntitySchema<PortForwardFields, PortForwardInput> = defineEntitySchema({});
+const isIpv6 = (address: string) => address.includes(':');
+
+export const portForwardSchema: EntitySchema<PortForwardFields, PortForwardInput> = defineEntitySchema({
+  hostId: entityId(),
+  externalAddress: ipAddress(),
+  externalPort: port(),
+  transport: z.enum(TRANSPORTS),
+  internalAddress: ipAddress(),
+  internalPort: port(),
+  description: line(200).nullable().default(null),
+}, (forward: PortForwardFields, context) => {
+  // NAT66 and NAT64 are out of scope: a forward stays within one IP version.
+  if (isIpv6(forward.externalAddress) !== isIpv6(forward.internalAddress)) {
+    context.addIssue({
+      code: 'custom',
+      path: ['internalAddress'],
+      message: `${forward.internalAddress} is not of the same IP version as ${forward.externalAddress}`,
+    });
+  }
+  return forward;
+});

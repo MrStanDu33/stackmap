@@ -2,6 +2,7 @@ import type {
   DnsRecord, DnsRecordInput, Domain, DomainInput, Flow, FlowInput, Host, HostInput, Listener, ListenerInput, Network,
   NetworkInput, Service, ServiceInput, Site, SiteInput,
 } from '../../extensions/core/entities';
+import type { PortForward, PortForwardInput } from '../../extensions/nat/entities';
 import type { ProxyRoute, ProxyRouteInput } from '../../extensions/reverse-proxy/entities';
 import type { WorkspaceRepositories } from '../repositories';
 
@@ -24,6 +25,7 @@ export interface DemoStack {
     proxy: string;
     upstream: string;
   }>;
+  portForwards: Record<string, Omit<PortForwardInput, 'hostId'> & { host: string }>;
   /** Flows documented by hand: what nothing derives, such as an app calling its database. */
   flows: Record<string, Omit<FlowInput, 'sourceServiceId' | 'targetListenerId'> & { source: string; target: string }>;
 }
@@ -38,6 +40,7 @@ export interface SeededDemoStack {
   domains: Record<string, Domain>;
   dnsRecords: Record<string, DnsRecord>;
   proxyRoutes: Record<string, ProxyRoute>;
+  portForwards: Record<string, PortForward>;
   flows: Record<string, Flow>;
 }
 
@@ -99,6 +102,16 @@ export const DEMO_STACK: DemoStack = {
     },
     npmAdmin: { proxy: 'npm', hostnames: ['npm.homelab.example'], upstream: 'npmAdmin' },
   },
+  portForwards: {
+    http: {
+      host: 'router', externalAddress: '203.0.113.10', externalPort: 80, transport: 'tcp',
+      internalAddress: '10.0.10.20', internalPort: 80, description: 'Nginx Proxy Manager, HTTP',
+    },
+    https: {
+      host: 'router', externalAddress: '203.0.113.10', externalPort: 443, transport: 'tcp',
+      internalAddress: '10.0.10.20', internalPort: 443, description: 'Nginx Proxy Manager, HTTPS',
+    },
+  },
   flows: {
     database: { source: 'website', target: 'database', purpose: 'Stores the site content' },
     weatherApi: { source: 'website', target: 'weatherApi', purpose: 'Fetches the forecasts', encrypted: true },
@@ -154,11 +167,13 @@ export function seedDemoStack(repos: WorkspaceRepositories): Promise<SeededDemoS
         proxyServiceId: idOf(services, proxy),
         upstreamListenerId: idOf(listeners, upstream),
       }));
+    const portForwards = await createEach(DEMO_STACK.portForwards, ({ host, ...forward }) =>
+      tx.portForwards.create({ ...forward, hostId: idOf(hosts, host) }));
     const flows = await createEach(DEMO_STACK.flows, ({ source, target, ...flow }) => tx.flows.create({
       ...flow,
       sourceServiceId: idOf(services, source),
       targetListenerId: idOf(listeners, target),
     }));
-    return { sites, networks, hosts, services, listeners, domains, dnsRecords, proxyRoutes, flows };
+    return { sites, networks, hosts, services, listeners, domains, dnsRecords, proxyRoutes, portForwards, flows };
   });
 }
