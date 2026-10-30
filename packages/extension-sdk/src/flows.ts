@@ -16,8 +16,10 @@ export const FLOW_CLIENTS = ['public', 'internal'] as const;
 export type FlowClient = (typeof FLOW_CLIENTS)[number];
 
 export const MAX_FLOW_DRAFTS = 5000;
-export const MAX_FLOW_HOSTNAMES = 1000;
-export const MAX_FLOW_BASIS = 1000;
+// shortcut: one flow carries every name reaching a listener (all of a reverse proxy's), up to 10,000; split such
+// flows if a workspace documents more.
+export const MAX_FLOW_HOSTNAMES = 10_000;
+export const MAX_FLOW_BASIS = 10_000;
 
 /** An entity a flow was derived from. */
 export interface FlowBasis {
