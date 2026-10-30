@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { flowDraftSchema, flowDraftsSchema, MAX_FLOW_DRAFTS } from './flows';
+import { flowDraftSchema, flowDraftsSchema, MAX_FLOW_BASIS, MAX_FLOW_DRAFTS, MAX_FLOW_HOSTNAMES } from './flows';
 import { defineExtensionServer } from './hooks';
 import { issuePaths } from '../../../tests/support/issues';
 
@@ -70,16 +70,16 @@ describe('flow draft schema', () => {
     expect(issuePaths(flowDraftSchema.safeParse(draft({ source: { client: 'everyone' } })))).toEqual(['source']);
   });
 
-  it('refuses unbounded fields: more than 1,000 hostnames or basis entries, an invalid hostname, key or id', () => {
-    const many = Array.from({ length: 1001 }, (_, index) => `host-${String(index)}.homelab.example`);
+  it('refuses unbounded fields: more hostnames or basis entries than their limits, an invalid hostname, key or id', () => {
+    const many = Array.from({ length: MAX_FLOW_HOSTNAMES + 1 }, (_, index) => `host-${String(index)}.homelab.example`);
 
     expect(issuePaths(flowDraftSchema.safeParse(draft({
       key: 'x'.repeat(201),
       targetListenerId: 'not-an-id',
       hostnames: many,
-      basis: Array.from({ length: 1001 }, () => ({ entity: 'peer', id: SERVICE_ID })),
+      basis: Array.from({ length: MAX_FLOW_BASIS + 1 }, () => ({ entity: 'peer', id: SERVICE_ID })),
     })))).toEqual(['key', 'targetListenerId', 'hostnames', 'basis']);
-    expect(flowDraftSchema.safeParse(draft({ hostnames: many.slice(0, 1000) })).success).toBe(true);
+    expect(flowDraftSchema.safeParse(draft({ hostnames: many.slice(0, MAX_FLOW_HOSTNAMES) })).success).toBe(true);
     expect(issuePaths(flowDraftSchema.safeParse(draft({ hostnames: ['not a hostname'] })))).toEqual(['hostnames.0']);
     expect(issuePaths(flowDraftSchema.safeParse(draft({ basis: [{ entity: 'Peer!', id: SERVICE_ID }] }))))
       .toEqual(['basis.0.entity']);
