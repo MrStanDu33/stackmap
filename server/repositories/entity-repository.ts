@@ -74,7 +74,7 @@ export function createEntityRepository<Fields, Input, DB>(
     if (JSON_COLUMNS.has(column)) {
       return [column, toJson(value)];
     }
-    return [column, booleans.has(column) ? toBoolean(value as boolean) : value];
+    return [column, booleans.has(column) && value !== null ? toBoolean(value as boolean) : value];
   }));
 
   const fromRow = (row: Row): Row => Object.fromEntries(selected.map((column) => {
@@ -86,7 +86,7 @@ export function createEntityRepository<Fields, Input, DB>(
     if (TIMESTAMP_COLUMNS.has(column)) {
       return [column, fromTimestamp(value as string, name)];
     }
-    return [column, booleans.has(column) ? fromBoolean(value as number, name) : value];
+    return [column, booleans.has(column) && value !== null ? fromBoolean(value as number, name) : value];
   }));
 
   return ({ db, scope }) => {
@@ -253,16 +253,27 @@ export function createEntityRepository<Fields, Input, DB>(
         if (dependents.length > 0) {
           throw new EntityInUseError(dependents);
         }
+        // A savepoint keeps the transaction usable when the delete fails: Postgres refuses any query after a failure.
+        const savepoint = db.isTransaction;
         try {
+          if (savepoint) {
+            await sql`savepoint remove_entity`.execute(db);
+          }
           const { numDeletedRows } = await loose(db).deleteFrom(table)
             .where('workspaceId', '=', scope.workspaceId)
             .where('id', '=', id)
             .executeTakeFirstOrThrow();
+          if (savepoint) {
+            await sql`release savepoint remove_entity`.execute(db);
+          }
           return numDeletedRows > 0n;
         } catch (error) {
-          // A dependent added since the count. Inside a transaction, Postgres refuses any query after the failure.
+          // A dependent through another table, or one added since the count.
           if (isForeignKeyViolation(error)) {
-            throw new EntityInUseError(db.isTransaction ? [] : await countDependents(db, id, true));
+            if (savepoint) {
+              await sql`rollback to savepoint remove_entity`.execute(db);
+            }
+            throw new EntityInUseError(await countDependents(db, id, true));
           }
           throw error;
         }

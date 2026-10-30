@@ -109,7 +109,7 @@ export function useTestWorkspaces(dialect: Dialect): TestWorkspaces {
 /** Tables whose rows belong to a workspace. */
 export const SCOPED_TABLES = [
   'core_site', 'core_network', 'core_host', 'core_hostAddress', 'core_service', 'core_listener', 'core_domain',
-  'core_dnsRecord', 'core_flow', 'reverse_proxy_route', 'reverse_proxy_routeHostname',
+  'core_dnsRecord', 'core_flow', 'derived_flow', 'reverse_proxy_route', 'reverse_proxy_routeHostname',
 ] as const satisfies readonly (keyof TestSchema)[];
 
 export type ScopedTable = (typeof SCOPED_TABLES)[number];

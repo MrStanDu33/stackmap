@@ -62,10 +62,19 @@ lowercase DNS names), so equal values are stored the same way.
   **proxy routes**, **certificates**, **VPNs**, **NAT rules** and **access policies** (ordered authentication
   chains) _(planned)_.
 
+- A **flow** is an edge from a source to a listener: a service, or a `public` or `internal` client for traffic that
+  enters from outside or inside. Flows added by hand are a core entity (`flow`: source service, target listener,
+  protocol, purpose, encryption); removing their service or listener is refused while they exist. **Derived** flows
+  are stored in the app's `derived_flow` table and rewritten by the active extensions' **flow derivers** after every
+  write, inside the write's transaction and once per transaction, so a write and its flows are committed together.
+  The refresh compares by deriver and key: a flow that stays keeps its id. A deriver that fails, times out (5 s) or
+  returns an invalid result is logged and keeps its stored flows; a flow whose source or target is not in the
+  workspace is dropped. The core derives client entry flows from DNS records (A/AAAA, through the workspace's CNAMEs,
+  to the listeners bound to that address or to every address), the reverse proxy one flow per route. Access
+  policies, VPNs and NAT come with their extensions _(planned)_.
+
 _(Planned.)_
 
-- A **flow** is an edge from a service to a listener: protocol, purpose, encryption, access policy. Flows are
-  **derived** from DNS records, proxy routes, NAT rules and so on, or added by hand.
 - A **trace** is computed for a hostname: client → DNS → public IP, NAT or tunnel → proxy → upstream → dependencies.
 - A **plan** is an ordered checklist. A step can link to an entity and turn it from `planned` to `active`. A
   **template** is a reusable plan with an entity blueprint.
@@ -172,8 +181,10 @@ admin approves it again _(install flows: phase 5; community extensions: after v1
   `localStorage['stackmap:debug'] = 'extensions'` does the same in the browser. An icon the app cannot show is left out,
   and `ExtensionIcon` shows a generic fallback icon.
 
-_(Planned.)_ Extensions will also contribute fields on other extensions' entities, flow types, **flow derivers** (turn
-its entities into flows), **trace hop resolvers** (resolve the next hop through its entities), templates, wizard
+An extension's server code can contribute **flow derivers** (`flowDerivers`, ids unique in the extension): each reads
+the workspace through `get` and `list` only and returns flow drafts, which the SDK's `flowDraftsSchema` bounds.
+
+_(Planned.)_ Extensions will also contribute fields on other extensions' entities, flow types, **trace hop resolvers** (resolve the next hop through its entities), templates, wizard
 questions and themes, and domain events will join the hooks as the features that emit them arrive.
 
 Admins install and remove extensions, and workspace admins turn them on or off _(planned, phase 5; who may do it is a

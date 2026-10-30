@@ -48,21 +48,22 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
   const flowsOf = (workspaceId = workspaces.a.workspace.id) => listDerivedFlows(workspaces.db, workspaceId);
 
   it('gives derivers read access to the workspace entities, with get and list only', async () => {
-    let seen: FlowReader | undefined;
-    const repos = reposWith([{
-      id: 'spy',
-      derive: ({ read }) => {
-        seen = read;
-        return Promise.resolve([]);
-      },
-    }]);
+    // The reader belongs to the refresh's transaction: it is used inside derive, before the commit.
+    let seen: { keys: string[]; methods: string[]; listed: unknown; got: unknown } | undefined;
+    const spy = async (read: FlowReader) => {
+      const listed = await read.listeners.list();
+      const got = listed[0] ? await read.listeners.get(listed[0].id) : undefined;
+      seen = { keys: Object.keys(read), methods: Object.keys(read.listeners).sort(), listed, got };
+      return [];
+    };
+    const repos = reposWith([{ id: 'spy', derive: ({ read }) => spy(read) }]);
 
-    const listener = await createListener(repos);
+    const listener = await repos.transaction((tx) => createListener(tx));
 
-    expect(await seen?.listeners.list()).toEqual([listener]);
-    expect(await seen?.listeners.get(listener.id)).toEqual(listener);
-    expect(Object.keys(seen?.listeners ?? {}).sort()).toEqual(['get', 'list']);
-    expect(Object.keys(seen ?? {})).not.toContain('transaction');
+    expect(seen?.listed).toEqual([listener]);
+    expect(seen?.got).toEqual(listener);
+    expect(seen?.methods).toEqual(['get', 'list']);
+    expect(seen?.keys).not.toContain('transaction');
   });
 
   it('given a write that makes a deriver return a flow, stores it with its extension, deriver, key, source, target, hostnames and basis', async () => {
@@ -163,7 +164,8 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
       const stored = (await flowsOf()).filter(({ deriver }) => deriver === 'flaky');
       failing = true;
 
-      const second = await createListener(repos);
+      // One transaction: one refresh, so one failure to log.
+      const second = await repos.transaction((tx) => createListener(tx));
 
       expect(await repos.listeners.get(second.id)).toBeDefined();
       const flows = await flowsOf();
@@ -186,7 +188,7 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
       ],
     }]);
 
-    const listener = await createListener(repos);
+    const listener = await repos.transaction((tx) => createListener(tx));
 
     expect((await flowsOf()).map(({ key }) => key)).toEqual([listener.id]);
     expect(logs).toEqual([

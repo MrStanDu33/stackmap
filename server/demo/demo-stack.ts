@@ -1,6 +1,6 @@
 import type {
-  DnsRecord, DnsRecordInput, Domain, DomainInput, Host, HostInput, Listener, ListenerInput, Network, NetworkInput,
-  Service, ServiceInput, Site, SiteInput,
+  DnsRecord, DnsRecordInput, Domain, DomainInput, Flow, FlowInput, Host, HostInput, Listener, ListenerInput, Network,
+  NetworkInput, Service, ServiceInput, Site, SiteInput,
 } from '../../extensions/core/entities';
 import type { ProxyRoute, ProxyRouteInput } from '../../extensions/reverse-proxy/entities';
 import type { WorkspaceRepositories } from '../repositories';
@@ -24,6 +24,8 @@ export interface DemoStack {
     proxy: string;
     upstream: string;
   }>;
+  /** Flows documented by hand: what nothing derives, such as an app calling its database. */
+  flows: Record<string, Omit<FlowInput, 'sourceServiceId' | 'targetListenerId'> & { source: string; target: string }>;
 }
 
 /** The created entities, by the demo stack's references. */
@@ -36,6 +38,7 @@ export interface SeededDemoStack {
   domains: Record<string, Domain>;
   dnsRecords: Record<string, DnsRecord>;
   proxyRoutes: Record<string, ProxyRoute>;
+  flows: Record<string, Flow>;
 }
 
 /** A home server behind an edge router: a website and its database behind Nginx Proxy Manager, on homelab.example. */
@@ -96,6 +99,10 @@ export const DEMO_STACK: DemoStack = {
     },
     npmAdmin: { proxy: 'npm', hostnames: ['npm.homelab.example'], upstream: 'npmAdmin' },
   },
+  flows: {
+    database: { source: 'website', target: 'database', purpose: 'Stores the site content' },
+    weatherApi: { source: 'website', target: 'weatherApi', purpose: 'Fetches the forecasts', encrypted: true },
+  },
 };
 
 /** Creates each entry in order, keeping the created entities by reference. */
@@ -147,6 +154,11 @@ export function seedDemoStack(repos: WorkspaceRepositories): Promise<SeededDemoS
         proxyServiceId: idOf(services, proxy),
         upstreamListenerId: idOf(listeners, upstream),
       }));
-    return { sites, networks, hosts, services, listeners, domains, dnsRecords, proxyRoutes };
+    const flows = await createEach(DEMO_STACK.flows, ({ source, target, ...flow }) => tx.flows.create({
+      ...flow,
+      sourceServiceId: idOf(services, source),
+      targetListenerId: idOf(listeners, target),
+    }));
+    return { sites, networks, hosts, services, listeners, domains, dnsRecords, proxyRoutes, flows };
   });
 }

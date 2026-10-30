@@ -1,5 +1,6 @@
 import { dnsRecordRepository } from './dns-records';
 import { domainRepository } from './domains';
+import { flowRepository } from './flows';
 import { hostRepository } from './hosts';
 import { listenerRepository } from './listeners';
 import { networkRepository } from './networks';
@@ -37,5 +38,5 @@ export type {
 /** The core's repository definitions, one per entity its manifest declares. */
 export const REPOSITORIES: readonly EntityRepositoryDefinition[] = [
   siteRepository, networkRepository, hostRepository, serviceRepository, listenerRepository, domainRepository,
-  dnsRecordRepository,
+  dnsRecordRepository, flowRepository,
 ] as readonly EntityRepositoryDefinition[];

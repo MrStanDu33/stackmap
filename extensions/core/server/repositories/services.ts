@@ -17,4 +17,9 @@ export const serviceRepository = defineEntityRepository<ServiceFields, ServiceIn
   kinds: { kind: 'service' },
   filters: ['hostId'],
   references: ({ hostId }) => (hostId ? [{ field: 'hostId', table: 'core_host', id: hostId }] : []),
+  dependents: [
+    { entity: 'flow', table: 'core_flow', column: 'sourceServiceId' },
+    // Removing a service removes its listeners: explains which flows to them blocked it.
+    { entity: 'flow', table: 'core_flow', column: 'targetListenerId', through: { table: 'core_listener', column: 'serviceId' } },
+  ],
 });

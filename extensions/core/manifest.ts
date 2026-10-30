@@ -19,6 +19,7 @@ export default defineExtension({
       { id: 'listener', table: 'core_listener', label: 'extensions.core.entities.listener' },
       { id: 'domain', table: 'core_domain', label: 'extensions.core.entities.domain' },
       { id: 'dns-record', table: 'core_dnsRecord', label: 'extensions.core.entities.dns-record' },
+      { id: 'flow', table: 'core_flow', label: 'extensions.core.entities.flow' },
     ],
     kinds: {
       host: [

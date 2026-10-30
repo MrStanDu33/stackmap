@@ -362,7 +362,8 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
-    flowDerivers: () => [],
+    flowDerivers: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
+      (server?.flowDerivers ?? []).map((deriver) => ({ extension: manifest.id, deriver }))),
     // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime, and the
     // dependents its dependents' extensions declare on it.
     repositories: () => {

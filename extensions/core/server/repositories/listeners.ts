@@ -16,4 +16,5 @@ export const listenerRepository = defineEntityRepository<ListenerFields, Listene
   kinds: { protocol: 'protocol' },
   filters: ['serviceId'],
   references: ({ serviceId }) => [{ field: 'serviceId', table: 'core_service', id: serviceId }],
+  dependents: [{ entity: 'flow', table: 'core_flow', column: 'targetListenerId' }],
 });

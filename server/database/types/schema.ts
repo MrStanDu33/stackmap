@@ -5,6 +5,7 @@
 export interface Database {
   appSetting: AppSettingTable;
   workspace: WorkspaceTable;
+  derived_flow: DerivedFlowTable;
 }
 
 /** Instance-wide settings (registration toggle, default landing page…), one JSON value per key. */
@@ -23,4 +24,23 @@ export interface WorkspaceTable {
   slug: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Flows the extensions' derivers produce, rewritten after every write. */
+export interface DerivedFlowTable {
+  id: string;
+  workspaceId: string;
+  extension: string;
+  deriver: string;
+  key: string;
+  sourceServiceId: string | null;
+  sourceClient: string | null;
+  targetListenerId: string;
+  protocol: string | null;
+  /** 0 or 1, null when unknown. */
+  encrypted: number | null;
+  /** JSON array of hostnames. */
+  hostnames: string;
+  /** JSON array of `{ entity, id }`. */
+  basis: string;
 }

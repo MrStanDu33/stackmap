@@ -1,4 +1,5 @@
-import { defineEntitySchema } from '@stackmap/extension-sdk/entities';
+import { defineEntitySchema, entityId, kindId, line } from '@stackmap/extension-sdk/entities';
+import { z } from 'zod';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from '@stackmap/extension-sdk/entities';
 
@@ -24,4 +25,10 @@ export type FlowInput = CommonInput & {
 };
 export type FlowPatch = Partial<FlowInput>;
 
-export const flowSchema: EntitySchema<FlowFields, FlowInput> = defineEntitySchema({});
+export const flowSchema: EntitySchema<FlowFields, FlowInput> = defineEntitySchema({
+  sourceServiceId: entityId(),
+  targetListenerId: entityId(),
+  protocol: kindId().nullable().default(null),
+  purpose: line(200).nullable().default(null),
+  encrypted: z.boolean().nullable().default(null),
+});
