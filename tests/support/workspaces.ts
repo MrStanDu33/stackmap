@@ -10,6 +10,7 @@ import { createWorkspaceRepositories } from '../../server/repositories';
 import { createWorkspace as insertWorkspace } from '../../server/repositories/workspaces';
 
 import type { Dialect, TestDatabase } from './databases';
+import type { NatDatabase } from '../../extensions/nat/server/types/schema';
 import type { ReverseProxyDatabase } from '../../extensions/reverse-proxy/server/types/schema';
 import type { Database } from '../../server/database/types/schema';
 import type { WorkspaceRepositories } from '../../server/repositories';
@@ -18,7 +19,7 @@ import type { KindCatalog, RepositoryScope } from '@stackmap/extension-sdk/serve
 import type { Kysely } from 'kysely';
 
 /** The platform's tables and the built-in extensions'. */
-export type TestSchema = Database & ReverseProxyDatabase;
+export type TestSchema = Database & ReverseProxyDatabase & NatDatabase;
 
 /** The built-in extensions, as the app starts them. */
 export const BUILTIN_REGISTRY = createExtensionRegistry(BUILTIN_EXTENSIONS, { servers: BUILTIN_EXTENSION_SERVERS });
@@ -110,6 +111,7 @@ export function useTestWorkspaces(dialect: Dialect): TestWorkspaces {
 export const SCOPED_TABLES = [
   'core_site', 'core_network', 'core_host', 'core_hostAddress', 'core_service', 'core_listener', 'core_domain',
   'core_dnsRecord', 'core_flow', 'derived_flow', 'reverse_proxy_route', 'reverse_proxy_routeHostname',
+  'nat_portForward',
 ] as const satisfies readonly (keyof TestSchema)[];
 
 export type ScopedTable = (typeof SCOPED_TABLES)[number];

@@ -1,0 +1,11 @@
+{
+  "extensions": {
+    "nat": {
+      "name": "Router and NAT",
+      "description": "Document which ports your routers forward, and to where.",
+      "entities": {
+        "port-forward": "Port forward"
+      }
+    }
+  }
+}

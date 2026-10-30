@@ -75,6 +75,21 @@ describe.each(DIALECTS)('demo stack seed on %s', (dialect: Dialect) => {
     expect(manual.sort()).toEqual(['website -> database', 'website -> weatherApi']);
   });
 
+  it('forwards the router\'s ports 80 and 443 to NPM, so the public records reach NPM 80 and 443', async () => {
+    const { a, db } = workspaces;
+    const { listeners } = await seedDemoStack(a.repos);
+    const listenerRef = (id: string) => Object.keys(listeners).find((ref) => listeners[ref]?.id === id);
+
+    const fromPublic = (await listDerivedFlows(db as never, a.workspace.id))
+      .filter(({ sourceClient }) => sourceClient === 'public')
+      .map((flow) => `${flow.extension} -> ${listenerRef(flow.targetListenerId) ?? '?'} ${flow.hostnames.join(' ')}`);
+
+    expect(fromPublic.sort()).toEqual([
+      'nat -> npmHttp app.homelab.example homelab.example www.homelab.example',
+      'nat -> npmHttps app.homelab.example homelab.example www.homelab.example',
+    ]);
+  });
+
   it('given a failure halfway, keeps nothing (one transaction)', async () => {
     const { a, db } = workspaces;
     // Without the external-api kind, the Weather API cannot be created, after the other services.

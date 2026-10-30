@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EntityConflictError, EntityValidationError } from './errors';
 import { createWorkspace, deleteWorkspace, getWorkspace } from './workspaces';
-import { populateWorkspace } from '../../extensions/core/testing';
+import { createHost, populateWorkspace } from '../../extensions/core/testing';
 import { createProxyRoute } from '../../extensions/reverse-proxy/testing';
 import { DIALECTS, openTestDatabase } from '../../tests/support/databases';
 import { countRows, SCOPED_TABLES, useTestWorkspaces } from '../../tests/support/workspaces';
@@ -86,6 +86,11 @@ describe.each(DIALECTS)('workspace deletion on %s', (dialect: Dialect) => {
     for (const { repos } of [a, b]) {
       await populateWorkspace(repos);
       await createProxyRoute(repos);
+      const router = await createHost(repos, { kind: 'router', addresses: [{ address: '203.0.113.10' }] });
+      await repos.portForwards.create({
+        hostId: router.id, externalAddress: '203.0.113.10', externalPort: 443, transport: 'tcp',
+        internalAddress: '10.0.10.20', internalPort: 443,
+      });
     }
     const countAll = (workspaceId: string) =>
       Promise.all(SCOPED_TABLES.map((table) => countRows(db, table, workspaceId)));
