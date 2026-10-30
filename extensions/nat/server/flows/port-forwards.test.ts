@@ -17,7 +17,7 @@ const listener = (overrides: ListenerInput) => ({
 });
 type ForwardInput = Partial<PortForwardFlowEntities['portForwards'][number]> & { id: string };
 const forward = (overrides: ForwardInput) => ({
-  externalAddress: '203.0.113.10', transport: 'tcp' as const, internalAddress: '10.0.10.20', internalPort: 443,
+  hostId: ROUTER.id, externalAddress: '203.0.113.10', transport: 'tcp' as const, internalAddress: '10.0.10.20', internalPort: 443,
   ...overrides,
 });
 const record = (n: number, name: string, type: 'A' | 'CNAME', value: string, view: 'public' | 'internal' = 'public') =>
@@ -103,5 +103,92 @@ describe('port forward flow deriver', () => {
       listeners: [listener({ id: id(10) }), listener({ id: id(11), serviceId: other.id })],
       portForwards: [forward({ id: id(30) })],
     }).map(({ targetListenerId }) => targetListenerId).sort()).toEqual([id(10), id(11)]);
+  });
+
+  describe('which hosts a forward reaches', () => {
+    const LAN = id(40);
+    const LAB = id(41);
+    const router = { id: id(2), addresses: [{ address: '203.0.113.10', networkId: null }, { address: '192.168.1.1', networkId: LAN }] };
+    const onLan = { id: id(5), addresses: [{ address: '192.168.1.10', networkId: LAN }] };
+    const onLab = { id: id(6), addresses: [{ address: '192.168.1.10', networkId: LAB }] };
+    const unknown = { id: id(7), addresses: [{ address: '192.168.1.10', networkId: null }] };
+    const services = [onLan, onLab, unknown, router].map((host, index) => ({ id: id(50 + index), hostId: host.id }));
+    const listeners = services.map((service, index) => listener({ id: id(60 + index), serviceId: service.id }));
+    const targets = (hosts: { id: string; addresses: { address: string; networkId: string | null }[] }[], internalAddress = '192.168.1.10') =>
+      derive({ hosts, services, listeners, portForwards: [forward({ id: id(30), internalAddress })] })
+        .map(({ targetListenerId }) => targetListenerId).sort();
+
+    it('reaches a host holding the internal address on a network the forwarding host is on, not one on another network', () => {
+      expect(targets([router, onLan, onLab])).toEqual([id(60)]);
+    });
+
+    it('reaches a host whose address has no documented network, so missing data never hides exposure', () => {
+      expect(targets([router, onLan, onLab, unknown])).toEqual([id(60), id(62)]);
+    });
+
+    it('reaches every holder when the forwarding host documents no network', () => {
+      const bare = { id: router.id, addresses: [{ address: '203.0.113.10', networkId: null }] };
+
+      expect(targets([bare, onLan, onLab])).toEqual([id(60), id(61)]);
+    });
+
+    it('reaches the forwarding host itself, such as a VPS forwarding to its own loopback', () => {
+      const vps = { id: router.id, addresses: [...router.addresses, { address: '127.0.0.1', networkId: null }] };
+      const elsewhere = { id: id(5), addresses: [{ address: '127.0.0.1', networkId: LAB }] };
+
+      expect(targets([vps, elsewhere], '127.0.0.1')).toEqual([id(63)]);
+    });
+  });
+
+  it('gives no flow for a forward whose host no longer holds its external address', () => {
+    const moved = { ...ROUTER, addresses: [{ address: '203.0.113.11', networkId: null }] };
+
+    expect(derive({
+      hosts: [moved, SERVER],
+      dnsRecords: [record(20, 'app', 'A', '203.0.113.10')],
+      listeners: [listener({ id: id(10) })],
+      portForwards: [forward({ id: id(30) })],
+    })).toEqual([]);
+  });
+
+  it('gives an internal flow, named by the internal records, for a forward on a private, carrier-grade NAT or loopback address', () => {
+    for (const address of ['10.0.10.1', '172.16.0.1', '192.168.1.1', '100.64.0.5', '127.0.0.1', 'fd00::1', 'fe80::1']) {
+      const router = { id: ROUTER.id, addresses: [{ address, networkId: null }] };
+      const [flow] = derive({
+        hosts: [router, SERVER],
+        dnsRecords: [record(20, 'gw', 'A', address, 'internal'), record(21, 'pub', 'A', address)],
+        listeners: [listener({ id: id(10) })],
+        portForwards: [forward({ id: id(30), externalAddress: address })],
+      });
+
+      expect(flow, address).toMatchObject({ source: { client: 'internal' }, hostnames: ['gw.homelab.example'] });
+    }
+  });
+
+  it('keeps a public flow for a forward on a public address', () => {
+    expect(derive({ listeners: [listener({ id: id(10) })], portForwards: [forward({ id: id(30) })] }))
+      .toMatchObject([{ source: { client: 'public' } }]);
+  });
+
+  it('derives the flows of thousands of forwards in well under 200 ms', () => {
+    const count = 4000;
+    const hosts = Array.from({ length: count }, (_, index) => ({
+      id: id(100_000 + index),
+      addresses: [{ address: `10.${String(Math.floor(index / 250))}.${String(index % 250)}.1`, networkId: null }],
+    }));
+    const services = hosts.map((host, index) => ({ id: id(200_000 + index), hostId: host.id }));
+    const many = services.flatMap((service, index) => [
+      listener({ id: id(300_000 + index), serviceId: service.id }),
+      listener({ id: id(400_000 + index), serviceId: service.id, port: 80 }),
+    ]);
+    const forwards = hosts.map((host, index) => forward({
+      id: id(500_000 + index), internalAddress: host.addresses[0]?.address ?? '',
+    }));
+    const started = performance.now();
+
+    const drafts = derive({ hosts: [ROUTER, ...hosts], services, listeners: many, portForwards: forwards });
+
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(drafts).toHaveLength(count);
   });
 });

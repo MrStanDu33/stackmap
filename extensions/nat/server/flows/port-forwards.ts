@@ -9,7 +9,7 @@ import type { FlowDeriver, FlowDraft } from '@stackmap/extension-sdk/server';
 export interface PortForwardFlowEntities extends Omit<DnsFlowEntities, 'listeners'> {
   listeners: readonly Pick<Listener, 'id' | 'serviceId' | 'bindAddress' | 'port' | 'publishedPort' | 'transport'>[];
   portForwards: readonly Pick<
-    PortForward, 'id' | 'externalAddress' | 'transport' | 'internalAddress' | 'internalPort'
+    PortForward, 'id' | 'hostId' | 'externalAddress' | 'transport' | 'internalAddress' | 'internalPort'
   >[];
 }
 

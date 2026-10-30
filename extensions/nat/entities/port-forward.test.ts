@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { portForwardSchema } from './port-forward';
-import { issuePaths } from '../../../tests/support/issues';
+import { issueMessages, issuePaths } from '../../../tests/support/issues';
 
 const HOST_ID = '0199d6a0-0000-7000-8000-000000000001';
 
@@ -44,5 +44,7 @@ describe('port forward schema', () => {
   it('refuses an internal address of another IP version than the external one, with an issue on internalAddress', () => {
     expect(issuePaths(parse({ internalAddress: '2001:db8::20' }))).toEqual(['internalAddress']);
     expect(issuePaths(parse({ externalAddress: '2001:db8::10' }))).toEqual(['internalAddress']);
+    expect(issueMessages(parse({ internalAddress: '2001:db8::20' })))
+      .toEqual(['Expected an address of the same IP version as the external one']);
   });
 });

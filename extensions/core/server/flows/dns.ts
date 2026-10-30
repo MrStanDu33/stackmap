@@ -31,6 +31,13 @@ const groupBy = <T, K>(items: readonly T[], keyOf: (item: T) => K): Map<K, T[]> 
   return groups;
 };
 
+/** Looks up the listeners reachable at an address, like reachableListeners, from indexes built once. */
+export function listenerIndex<L extends DnsFlowEntities['listeners'][number]>(
+  _entities: Pick<DnsFlowEntities, 'hosts' | 'services'> & { listeners: readonly L[] },
+): (address: string) => L[] {
+  throw new Error('Not implemented');
+}
+
 /**
  * The listeners reachable at an address: on the hosts holding it, bound to it or to every address of its IP
  * version. A null bind address (container network, external service) is never reachable.

@@ -51,19 +51,28 @@ describe.each(DIALECTS)('port forwards on %s', (dialect: Dialect) => {
     expect(await forwards().list()).toEqual([forward]);
   });
 
-  it('refuses an external address the host does not hold, on create or move, with an issue on externalAddress naming the address', async () => {
+  it('refuses an external address the host does not hold, on create or move, with an issue on externalAddress that does not echo it', async () => {
     const router = await createRouter(workspaces.a.repos);
     const other = await createHost(workspaces.a.repos, { addresses: [{ address: '198.51.100.7' }] });
     const forward = await forwards().create(forwardOn(router.id));
-    const refused = (address: string) => ({
+    // The path names the field; the message does not echo the address, so logged problems carry no infrastructure data.
+    const refused = {
       constructor: EntityValidationError,
-      issues: [{ path: 'externalAddress', message: expect.stringContaining(address) as unknown }],
-    });
+      issues: [{ path: 'externalAddress', message: 'Expected an address of this host' }],
+    };
 
     await expect(forwards().create(forwardOn(router.id, { externalAddress: '198.51.100.7' })))
-      .rejects.toMatchObject(refused('198.51.100.7'));
-    await expect(forwards().update(forward.id, { hostId: other.id })).rejects.toMatchObject(refused('203.0.113.10'));
+      .rejects.toMatchObject(refused);
+    await expect(forwards().update(forward.id, { hostId: other.id })).rejects.toMatchObject(refused);
     expect(await forwards().get(forward.id)).toEqual(forward);
+  });
+
+  it('refuses an external address that only another workspace\'s host holds', async () => {
+    await createRouter(workspaces.b.repos, ['198.51.100.7']);
+    const mine = await createRouter(workspaces.a.repos);
+
+    await expect(forwards().create(forwardOn(mine.id, { externalAddress: '198.51.100.7' })))
+      .rejects.toMatchObject({ constructor: EntityValidationError, issues: [{ path: 'externalAddress' }] });
   });
 
   it('refuses a second forward of the same port, transport and address of a host as a conflict on externalPort', async () => {
