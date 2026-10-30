@@ -4,6 +4,7 @@ import { migration as host } from './0003_host';
 import { migration as service } from './0004_service';
 import { migration as listener } from './0005_listener';
 import { migration as domain } from './0006_domain';
+import { migration as flow } from './0007_flow';
 
 import type { Migration } from '@stackmap/extension-sdk/server';
 
@@ -15,4 +16,5 @@ export const MIGRATIONS: Record<string, Migration> = {
   '0004_service': service,
   '0005_listener': listener,
   '0006_domain': domain,
+  '0007_flow': flow,
 };

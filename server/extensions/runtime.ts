@@ -19,7 +19,8 @@ const splitHook = (hook: string) => {
   return parts.length === 2 ? { owner: parts[0] ?? '', name: parts[1] ?? '' } : undefined;
 };
 
-const loggerFor = (id: string): ExtensionLogger => ({
+/** The logger an extension's code gets: its id on every line. */
+export const loggerFor = (id: string): ExtensionLogger => ({
   info: (message) => {
     console.info(`[extension:${id}] ${message}`);
   },

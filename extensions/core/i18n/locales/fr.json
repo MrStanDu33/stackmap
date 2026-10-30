@@ -40,7 +40,8 @@
         "service": "Service",
         "listener": "Port d’écoute",
         "domain": "Domaine",
-        "dns-record": "Enregistrement DNS"
+        "dns-record": "Enregistrement DNS",
+        "flow": "Flux"
       }
     }
   }

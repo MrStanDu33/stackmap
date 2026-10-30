@@ -9,7 +9,7 @@ import type { EntityRepositories } from '@stackmap/extension-sdk/server';
 
 /** The core's repositories, in any workspace. */
 type CoreRepositories = Pick<
-  EntityRepositories, 'sites' | 'networks' | 'hosts' | 'services' | 'listeners' | 'domains' | 'dnsRecords'
+  EntityRepositories, 'sites' | 'networks' | 'hosts' | 'services' | 'listeners' | 'domains' | 'dnsRecords' | 'flows'
 >;
 
 /*
@@ -97,12 +97,16 @@ export async function createDnsRecord(
   return repos.dnsRecords.create(buildDnsRecord({ ...overrides, domainId }));
 }
 
-/** One of every entity in a workspace, a host address and a DNS record included. */
+/**
+ * One of every entity in a workspace, a host address, a manual flow and a DNS record included; the record reaches the
+ * listener, so the workspace has a derived flow too.
+ */
 export async function populateWorkspace(repos: CoreRepositories): Promise<void> {
   const site = await createSite(repos);
   const network = await createNetwork(repos, { siteId: site.id, cidr: '10.0.10.0/24' });
   const host = await createHost(repos, { siteId: site.id, addresses: [{ address: '10.0.10.20', networkId: network.id }] });
   const service = await createService(repos, { hostId: host.id });
-  await createListener(repos, { serviceId: service.id });
-  await createDnsRecord(repos);
+  const listener = await createListener(repos, { serviceId: service.id, bindAddress: '0.0.0.0' });
+  await createDnsRecord(repos, { value: '10.0.10.20' });
+  await repos.flows.create({ sourceServiceId: (await createService(repos)).id, targetListenerId: listener.id });
 }

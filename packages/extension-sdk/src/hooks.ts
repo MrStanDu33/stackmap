@@ -1,3 +1,4 @@
+import type { FlowDeriver } from './flows';
 import type { ExtensionManifest } from './manifest';
 import type { EntityRepositoryDefinition, Migration } from './server';
 
@@ -49,6 +50,8 @@ export interface ExtensionServer {
   migrations?: Readonly<Record<string, Migration>>;
   /** One per entity its manifest declares. */
   repositories?: readonly EntityRepositoryDefinition[];
+  /** Turn its entities into flows; run after every write, in registry order. */
+  flowDerivers?: readonly FlowDeriver[];
 }
 
 export interface ExtensionClient {
@@ -84,10 +87,14 @@ export const CORE_CLIENT_HOOKS: readonly (keyof ClientHooks)[] = ['app:mounted',
 /** Ties an extension's server code to its manifest. */
 export function defineExtensionServer(
   manifest: ExtensionManifest,
-  { setup, hooks = {}, migrations, repositories }: Omit<ExtensionServer, 'extension' | 'hooks'> & {
+  { setup, hooks = {}, migrations, repositories, flowDerivers }: Omit<ExtensionServer, 'extension' | 'hooks'> & {
     hooks?: HookHandlers<ServerHooks>;
   },
 ): ExtensionServer {
+  const twice = flowDerivers?.find(({ id }, index) => flowDerivers.findIndex((other) => other.id === id) !== index);
+  if (twice) {
+    throw new Error(`Extension "${manifest.id}" defines flow deriver "${twice.id}" twice.`);
+  }
   // A frozen copy: an extension cannot add handlers after the app checked which hooks it may handle.
   return {
     extension: manifest.id,
@@ -95,6 +102,7 @@ export function defineExtensionServer(
     hooks: Object.freeze({ ...hooks }),
     ...(migrations ? { migrations: Object.freeze({ ...migrations }) } : {}),
     ...(repositories ? { repositories: Object.freeze(repositories.map(freezeDefinition)) } : {}),
+    ...(flowDerivers ? { flowDerivers: Object.freeze(flowDerivers.map((item) => Object.freeze({ ...item }))) } : {}),
   };
 }
 

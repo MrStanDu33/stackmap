@@ -14,6 +14,7 @@ const MINIMAL: Record<keyof typeof ENTITY_SCHEMAS, Record<string, unknown>> = {
   listener: { serviceId: ID, port: 443, transport: 'tcp' },
   domain: { name: 'homelab.example' },
   dnsRecord: { domainId: ID, name: '@', type: 'A', value: '203.0.113.10' },
+  flow: { sourceServiceId: ID, targetListenerId: ID },
 };
 
 const SET_BY_THE_REPOSITORY = {

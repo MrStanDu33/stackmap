@@ -223,6 +223,23 @@ describe.each(DIALECTS)('proxy routes on %s', (dialect: Dialect) => {
     expect(await repos.services.get(upstream!.serviceId)).toBeDefined();
   });
 
+  it('given two removals at once in one transaction, one blocked by a route, keeps the other\'s removal', async () => {
+    const { repos } = workspaces.a;
+    const route = await createProxyRoute(repos);
+    const upstream = await repos.listeners.get(route.upstreamListenerId);
+    const unused = await createService(repos);
+
+    const [blocked, removed] = await repos.transaction((tx) => Promise.allSettled([
+      tx.services.remove(upstream?.serviceId ?? ''),
+      tx.services.remove(unused.id),
+    ]));
+
+    expect(blocked).toMatchObject({ status: 'rejected', reason: { constructor: EntityInUseError } });
+    expect(removed).toEqual({ status: 'fulfilled', value: true });
+    expect(await repos.services.get(unused.id)).toBeUndefined();
+    expect(await repos.services.get(upstream?.serviceId ?? '')).toBeDefined();
+  });
+
   it('given a proxy whose route forwards to the proxy\'s own listener, removes the proxy with the route and listener', async () => {
     const { repos } = workspaces.a;
     const proxy = await createProxy(repos);

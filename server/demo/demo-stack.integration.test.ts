@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEMO_STACK, seedDemoStack } from './demo-stack';
 import { DIALECTS } from '../../tests/support/databases';
 import { BUILTIN_KINDS, countRows, SCOPED_TABLES, useTestWorkspaces } from '../../tests/support/workspaces';
+import { listDerivedFlows } from '../repositories/derived-flows';
 
 import type { Dialect } from '../../tests/support/databases';
 
@@ -51,6 +52,27 @@ describe.each(DIALECTS)('demo stack seed on %s', (dialect: Dialect) => {
       hostnames: ['npm.homelab.example'],
       upstreamListenerId: listeners.npmAdmin?.id,
     });
+  });
+
+  it('derives the flows of the demo stack: internal client to NPM 80, 443 and 81, NPM to the website and to its admin port, and the manual website flows, with none from the public records', async () => {
+    const { a, db } = workspaces;
+    const { services, listeners } = await seedDemoStack(a.repos);
+    const serviceRef = (id: string | null) => Object.keys(services).find((ref) => services[ref]?.id === id);
+    const listenerRef = (id: string) => Object.keys(listeners).find((ref) => listeners[ref]?.id === id);
+
+    const derived = (await listDerivedFlows(db as never, a.workspace.id)).map((flow) =>
+      `${flow.sourceClient ?? serviceRef(flow.sourceServiceId) ?? '?'} -> ${listenerRef(flow.targetListenerId) ?? '?'} ${flow.hostnames.join(' ')}`);
+    const manual = (await a.repos.flows.list()).map((flow) =>
+      `${serviceRef(flow.sourceServiceId) ?? '?'} -> ${listenerRef(flow.targetListenerId) ?? '?'}`);
+
+    expect(derived.sort()).toEqual([
+      'internal -> npmAdmin npm.homelab.example',
+      'internal -> npmHttp npm.homelab.example',
+      'internal -> npmHttps npm.homelab.example',
+      'npm -> npmAdmin npm.homelab.example',
+      'npm -> website homelab.example www.homelab.example app.homelab.example',
+    ]);
+    expect(manual.sort()).toEqual(['website -> database', 'website -> weatherApi']);
   });
 
   it('given a failure halfway, keeps nothing (one transaction)', async () => {

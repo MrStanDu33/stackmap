@@ -1,5 +1,6 @@
 import { dnsRecordSchema } from './dns-record';
 import { domainSchema } from './domain';
+import { flowSchema } from './flow';
 import { hostSchema } from './host';
 import { listenerSchema } from './listener';
 import { networkSchema } from './network';
@@ -8,6 +9,7 @@ import { siteSchema } from './site';
 
 export * from './dns-record';
 export * from './domain';
+export * from './flow';
 export * from './host';
 export * from './listener';
 export * from './network';
@@ -23,4 +25,5 @@ export const ENTITY_SCHEMAS = {
   listener: listenerSchema,
   domain: domainSchema,
   dnsRecord: dnsRecordSchema,
+  flow: flowSchema,
 } as const;

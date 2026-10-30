@@ -40,7 +40,8 @@
         "service": "Service",
         "listener": "Listener",
         "domain": "Domain",
-        "dns-record": "DNS record"
+        "dns-record": "DNS record",
+        "flow": "Flow"
       }
     }
   }

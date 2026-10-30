@@ -11,6 +11,7 @@ export interface CoreDatabase {
   core_listener: ListenerTable;
   core_domain: DomainTable;
   core_dnsRecord: DnsRecordTable;
+  core_flow: FlowTable;
 }
 
 /** Columns every entity table has. */
@@ -90,4 +91,13 @@ export interface DnsRecordTable extends EntityColumns {
   view: string;
   /** 0 or 1. */
   proxied: number;
+}
+
+export interface FlowTable extends EntityColumns {
+  sourceServiceId: string;
+  targetListenerId: string;
+  protocol: string | null;
+  purpose: string | null;
+  /** 0 or 1, null when unknown. */
+  encrypted: number | null;
 }

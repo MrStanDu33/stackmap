@@ -10,6 +10,8 @@ import type { Migration } from 'kysely/migration';
 
 export type { Migration };
 
+export * from './flows';
+
 /** Tells which kinds the active extensions provide. */
 export interface KindCatalog {
   hasKind: (entity: KindEntity, id: string) => boolean;

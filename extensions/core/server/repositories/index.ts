@@ -1,5 +1,6 @@
 import { dnsRecordRepository } from './dns-records';
 import { domainRepository } from './domains';
+import { flowRepository } from './flows';
 import { hostRepository } from './hosts';
 import { listenerRepository } from './listeners';
 import { networkRepository } from './networks';
@@ -8,6 +9,7 @@ import { siteRepository } from './sites';
 
 import type { DnsRecordRepository } from './dns-records';
 import type { DomainRepository } from './domains';
+import type { FlowRepository } from './flows';
 import type { HostRepository } from './hosts';
 import type { ListenerRepository } from './listeners';
 import type { NetworkRepository } from './networks';
@@ -24,16 +26,17 @@ declare module '@stackmap/extension-sdk/server' {
     listeners: ListenerRepository;
     domains: DomainRepository;
     dnsRecords: DnsRecordRepository;
+    flows: FlowRepository;
   }
 }
 
 export type {
-  DnsRecordRepository, DomainRepository, HostRepository, ListenerRepository, NetworkRepository, ServiceRepository,
-  SiteRepository,
+  DnsRecordRepository, DomainRepository, FlowRepository, HostRepository, ListenerRepository, NetworkRepository,
+  ServiceRepository, SiteRepository,
 };
 
 /** The core's repository definitions, one per entity its manifest declares. */
 export const REPOSITORIES: readonly EntityRepositoryDefinition[] = [
   siteRepository, networkRepository, hostRepository, serviceRepository, listenerRepository, domainRepository,
-  dnsRecordRepository,
+  dnsRecordRepository, flowRepository,
 ] as readonly EntityRepositoryDefinition[];
