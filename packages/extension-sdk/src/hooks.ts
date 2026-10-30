@@ -1,3 +1,4 @@
+import type { FlowDeriver } from './flows';
 import type { ExtensionManifest } from './manifest';
 import type { EntityRepositoryDefinition, Migration } from './server';
 
@@ -49,6 +50,8 @@ export interface ExtensionServer {
   migrations?: Readonly<Record<string, Migration>>;
   /** One per entity its manifest declares. */
   repositories?: readonly EntityRepositoryDefinition[];
+  /** Turn its entities into flows; run after every write, in registry order. */
+  flowDerivers?: readonly FlowDeriver[];
 }
 
 export interface ExtensionClient {

@@ -8,6 +8,7 @@ import { siteSchema } from './site';
 
 export * from './dns-record';
 export * from './domain';
+export * from './flow';
 export * from './host';
 export * from './listener';
 export * from './network';

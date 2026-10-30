@@ -1,7 +1,8 @@
 import { createEntityRepository, inTransaction } from './entity-repository';
 
 import type { Database } from '../database/types/schema';
-import type { KindEntity } from '@stackmap/extension-sdk';
+import type { RegisteredFlowDeriver } from '../extensions/registry';
+import type { ExtensionLogger, KindEntity } from '@stackmap/extension-sdk';
 import type { EntityRepositories, EntityRepositoryDefinition, RepositoryScope } from '@stackmap/extension-sdk/server';
 import type { Kysely } from 'kysely';
 
@@ -15,8 +16,17 @@ export type WorkspaceRepositories = EntityRepositories & {
  * Builds the repositories of the active extensions' entities, under each definition's key. The scope is copied and
  * frozen: changing the caller's object afterwards cannot move them to another workspace.
  */
+export interface WorkspaceRepositoriesOptions {
+  /** Run after every write, at the end of the outermost transaction, to refresh the derived flows. */
+  flowDerivers?: readonly RegisteredFlowDeriver[];
+  /** The logger of a deriver's extension, for its failures. */
+  logger?: (extension: string) => ExtensionLogger;
+  deriverTimeoutMs?: number;
+}
+
 export function createWorkspaceRepositories(
   definitions: readonly (EntityRepositoryDefinition & { tableOwners?: readonly string[] })[],
+  _options: WorkspaceRepositoriesOptions = {},
 ): (db: Kysely<Database>, scope: RepositoryScope) => WorkspaceRepositories {
   const factories = definitions.map((definition) => [definition.key, createEntityRepository(definition)] as const);
   const build = (db: Kysely<Database>, scope: RepositoryScope): WorkspaceRepositories => {

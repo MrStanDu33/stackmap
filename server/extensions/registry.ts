@@ -2,7 +2,7 @@ import { EXTENSION_API_VERSION, isExtensionTable, KIND_ENTITIES, manifestProblem
 import { ENTITY_META_FIELDS } from '@stackmap/extension-sdk/entities';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
-import type { EntityRepositoryDefinition } from '@stackmap/extension-sdk/server';
+import type { EntityRepositoryDefinition, FlowDeriver } from '@stackmap/extension-sdk/server';
 
 export interface RegisteredKind extends Kind {
   /** Id of the extension that contributes it. */
@@ -42,6 +42,14 @@ export interface ExtensionRegistry {
   fail: (id: string, error: string) => void;
   /** The repository definitions of the active extensions, in registry order. */
   repositories: () => readonly RegisteredRepository[];
+  /** The flow derivers of the active extensions, in registry order. */
+  flowDerivers: () => readonly RegisteredFlowDeriver[];
+}
+
+/** A flow deriver, with the extension that contributes it. */
+export interface RegisteredFlowDeriver {
+  extension: string;
+  deriver: FlowDeriver;
 }
 
 export interface ExtensionRegistryOptions {
@@ -354,6 +362,7 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
+    flowDerivers: () => [],
     // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime, and the
     // dependents its dependents' extensions declare on it.
     repositories: () => {

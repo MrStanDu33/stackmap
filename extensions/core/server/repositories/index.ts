@@ -8,6 +8,7 @@ import { siteRepository } from './sites';
 
 import type { DnsRecordRepository } from './dns-records';
 import type { DomainRepository } from './domains';
+import type { FlowRepository } from './flows';
 import type { HostRepository } from './hosts';
 import type { ListenerRepository } from './listeners';
 import type { NetworkRepository } from './networks';
@@ -24,12 +25,13 @@ declare module '@stackmap/extension-sdk/server' {
     listeners: ListenerRepository;
     domains: DomainRepository;
     dnsRecords: DnsRecordRepository;
+    flows: FlowRepository;
   }
 }
 
 export type {
-  DnsRecordRepository, DomainRepository, HostRepository, ListenerRepository, NetworkRepository, ServiceRepository,
-  SiteRepository,
+  DnsRecordRepository, DomainRepository, FlowRepository, HostRepository, ListenerRepository, NetworkRepository,
+  ServiceRepository, SiteRepository,
 };
 
 /** The core's repository definitions, one per entity its manifest declares. */
