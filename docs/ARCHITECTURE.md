@@ -90,8 +90,11 @@ lowercase DNS names), so equal values are stored the same way.
   dependencies, followed 8 levels deep. A listener is one node, followed once; a step back to a listener on its own
   path is marked as a cycle. The walk stops at 500 nodes or 1,000 steps (`truncated`). Each step's hops come from
   the **trace hop resolvers** of the entities in its flow's basis: the core describes DNS records (the traced name's
-  chain), NAT port forwards and the reverse proxy routes; an entity without a resolver, or whose resolver fails,
-  times out (5 s) or returns an invalid result, gets a generic hop, logged with its extension.
+  chain), NAT port forwards and the reverse proxy routes. An entity without a resolver, or whose resolver fails,
+  times out (5 s), returns an invalid result or labels outside its extension's `extensions.<id>.` keys, gets one
+  generic hop counting its entries, logged with its extension; a resolver that failed is not called again in that
+  trace. A step keeps at most 200 hops, the last counting those left out. Each table is read once per trace, and
+  each resolver call reads through its own frozen reader, refused once the call is over.
 
 _(Planned.)_
 
@@ -205,7 +208,8 @@ the workspace through a frozen reader (`get` and `list` only) and returns flow d
 `flowDraftSchema` (at most 10,000 hostnames and 10,000 basis entries per flow). It can also contribute **trace hop
 resolvers** (`traceHopResolvers`): each describes the basis entities of one entity type as hops (stage `dns`,
 `network` or `proxy`, an i18n label and its params, and the port a client connects to, if any), checked with
-`traceHopsSchema`. One extension per entity: a second one resolving the same entity fails.
+`traceHopsSchema` (at most 50 hops per call). One extension per entity, which it or one of its dependencies declares:
+otherwise it fails.
 
 _(Planned.)_ Extensions will also contribute fields on other extensions' entities, flow types, templates, wizard
 questions and themes, and domain events will join the hooks as the features that emit them arrive.

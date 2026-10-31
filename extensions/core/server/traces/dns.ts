@@ -35,8 +35,9 @@ export function resolveDnsHops(
           entity: 'dns-record',
           id: record.id,
           stage: 'dns',
-          label: alias ? 'extensions.core.trace.alias' : 'extensions.core.trace.address',
-          params: { name: record.fqdn, [alias ? 'target' : 'address']: record.value, view: record.view },
+          // The view is in the key, translated, not a raw parameter.
+          label: `extensions.core.trace.${alias ? 'alias' : 'address'}.${record.view}`,
+          params: { name: record.fqdn, [alias ? 'target' : 'address']: record.value },
         });
         if (alias) {
           next.push(record.value);

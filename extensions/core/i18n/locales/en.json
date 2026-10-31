@@ -44,8 +44,14 @@
         "flow": "Flow"
       },
       "trace": {
-        "address": "{name} resolves to {address} ({view})",
-        "alias": "{name} is an alias of {target} ({view})"
+        "address": {
+          "public": "{name} resolves to {address} in public DNS",
+          "internal": "{name} resolves to {address} in internal DNS"
+        },
+        "alias": {
+          "public": "{name} is an alias of {target} in public DNS",
+          "internal": "{name} is an alias of {target} in internal DNS"
+        }
       }
     }
   }

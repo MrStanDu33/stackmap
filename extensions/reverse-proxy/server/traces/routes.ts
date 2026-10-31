@@ -18,7 +18,8 @@ export function resolveRouteHops(
 ): TraceHop[] {
   const given = new Set(ids);
   const serviceNames = new Map(services.map(({ id, name }) => [id, name]));
-  return routes.filter(({ id }) => given.has(id)).map((route) => ({
+  // A route whose proxy is gone (references normally prevent it) has nothing to say: no hop.
+  return routes.filter(({ id, proxyServiceId }) => given.has(id) && serviceNames.has(proxyServiceId)).map((route) => ({
     entity: 'route',
     id: route.id,
     stage: 'proxy',

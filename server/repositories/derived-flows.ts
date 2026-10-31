@@ -97,12 +97,15 @@ const batches = <T>(items: readonly T[]): T[][] => Array.from(
   (_, index) => items.slice(index * BATCH, (index + 1) * BATCH),
 );
 
-/** A deriver's own reader: frozen, refusing reads once its run is over, so a late read cannot touch the transaction. */
-function readerFor(read: FlowReader, deriver: string, ended: { reason?: string }): FlowReader {
+/**
+ * Its own reader for one run of a deriver or resolver (`owner`, as logs name it): frozen, refusing reads once the run
+ * is over, so a late read cannot touch the transaction.
+ */
+export function readerFor(read: FlowReader, owner: string, ended: { reason?: string }): FlowReader {
   type Read = (...args: unknown[]) => Promise<unknown>;
   const guard = (call: Read): Read => (...args) => (ended.reason === undefined
     ? call(...args)
-    : Promise.reject(new Error(`flow deriver "${deriver}" ${ended.reason}: its reads are refused`)));
+    : Promise.reject(new Error(`${owner} ${ended.reason}: its reads are refused`)));
   const repositories = Object.entries(read as unknown as Record<string, { get: Read; list: Read }>);
   return Object.freeze(Object.fromEntries(repositories.map(([key, { get, list }]) =>
     [key, Object.freeze({ get: guard(get), list: guard(list) })]))) as unknown as FlowReader;
@@ -120,7 +123,7 @@ async function runDeriver(
   const ended: { reason?: string } = {};
   await sql`savepoint flow_deriver`.execute(db);
   try {
-    const result = await withTimeout(deriver.derive({ read: readerFor(read, deriver.id, ended) }), timeoutMs);
+    const result = await withTimeout(deriver.derive({ read: readerFor(read, `flow deriver "${deriver.id}"`, ended) }), timeoutMs);
     ended.reason = 'finished';
     await sql`release savepoint flow_deriver`.execute(db);
     const list = resultSchema.safeParse(result);

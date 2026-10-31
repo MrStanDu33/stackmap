@@ -9,7 +9,8 @@
   },
   "trace": {
     "hop": {
-      "unknown": "{entity} (no details available)"
+      "unknown": "No details available | No details available for {count} entries",
+      "more": "{count} more step | {count} more steps"
     }
   }
 }

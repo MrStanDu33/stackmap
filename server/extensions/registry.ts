@@ -242,6 +242,7 @@ function contributionErrors(ordered: readonly Entry[], appLocales: readonly Loca
   const tables = new Map<string, string>();
   const repositoryKeys = new Map<string, string>();
   const resolvedEntities = new Map<string, string>();
+  const manifests = new Map(ordered.map(({ manifest }) => [manifest.id, manifest]));
   for (const entry of ordered.filter((candidate) => !isFailed(candidate))) {
     const errors: string[] = [];
     for (const { table } of entry.manifest.contributes.entities ?? []) {
@@ -260,9 +261,14 @@ function contributionErrors(ordered: readonly Entry[], appLocales: readonly Loca
         errors.push(`defines repository "${key}", which "${owner}" already defines`);
       }
     }
+    // An extension describes its own entities, or those of what it builds on.
+    const declared = new Set([entry.manifest.id, ...entry.manifest.dependsOn].flatMap((id) =>
+      (manifests.get(id)?.contributes.entities ?? []).map((item) => item.id)));
     for (const { entity } of entry.server?.traceHopResolvers ?? []) {
       const owner = resolvedEntities.get(entity);
-      if (owner === undefined) {
+      if (!declared.has(entity)) {
+        errors.push(`resolves trace hops of "${entity}", which neither it nor its dependencies declare`);
+      } else if (owner === undefined) {
         resolvedEntities.set(entity, entry.manifest.id);
       } else {
         errors.push(`resolves trace hops of "${entity}", which "${owner}" already resolves`);

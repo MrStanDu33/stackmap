@@ -1,6 +1,8 @@
 import { servesHostname, TRACE_STAGES, traceHopsSchema } from '@stackmap/extension-sdk/server';
 
-import { MAX_TRACE_DEPENDENCY_DEPTH, MAX_TRACE_NODES, MAX_TRACE_STEPS } from '../../shared/contracts/traces';
+import {
+  MAX_TRACE_DEPENDENCY_DEPTH, MAX_TRACE_NODES, MAX_TRACE_STEP_HOPS, MAX_TRACE_STEPS,
+} from '../../shared/contracts/traces';
 
 import type { Trace, TraceNode, TraceStep } from '../../shared/contracts/traces';
 import type { RegisteredTraceHopResolver } from '../extensions/registry';
@@ -69,14 +71,21 @@ function serving(flows: readonly TraceFlow[], hostname: string): TraceFlow[] {
     : flows.filter(({ hostnames }) => hostnames.some((name) => servesHostname(name, hostname)));
 }
 
-const genericHop = ({ entity, id }: FlowBasis): TraceHop =>
-  ({ entity, id, stage: 'network', label: 'trace.hop.unknown', params: { entity } });
+/** One hop for all of an entity's basis entries that no resolver describes, counting them. */
+const genericHop = (entity: string, basis: readonly FlowBasis[]): TraceHop[] => [{
+  entity, id: basis[0]?.id ?? '', stage: 'network', label: 'trace.hop.unknown',
+  params: { entity, count: String(basis.length) },
+}];
+
+class ResolverTimeoutError extends Error {
+  override name = 'ResolverTimeoutError';
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      reject(new Error(`timed out after ${String(timeoutMs)} ms`));
+      reject(new ResolverTimeoutError(`timed out after ${String(timeoutMs)} ms`));
     }, timeoutMs);
   });
   return Promise.race([promise, timeout]).finally(() => {
@@ -84,37 +93,64 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   });
 }
 
+/** At most MAX_TRACE_STEP_HOPS hops: past it, the last one counts those left out. */
+function capped(hops: TraceHop[]): TraceHop[] {
+  const kept = MAX_TRACE_STEP_HOPS - 1;
+  const first = hops[kept];
+  if (hops.length <= MAX_TRACE_STEP_HOPS || !first) {
+    return hops;
+  }
+  return [
+    ...hops.slice(0, kept),
+    { entity: first.entity, id: first.id, stage: first.stage, label: 'trace.hop.more', params: { count: String(hops.length - kept) } },
+  ];
+}
+
 /**
  * Describes a flow's basis as hops, one resolver call per entity, ordered by stage then basis order. A basis entity
- * no resolver knows, or whose resolver fails, gets generic hops: the trace never breaks on an extension.
+ * no resolver knows, or whose resolver fails, gets a generic hop: the trace never breaks on an extension, and a
+ * resolver that failed once is not called again for the trace.
  */
 function hopResolver(hostname: string, { resolvers, reader, logger, timeoutMs = RESOLVER_TIMEOUT_MS }: TraceOptions) {
   const byEntity = new Map(resolvers.map((registered) => [registered.resolver.entity, registered]));
-  const resolveEntity = async (entity: string, basis: FlowBasis[]): Promise<TraceHop[]> => {
-    const registered = byEntity.get(entity);
-    if (!registered) {
-      return basis.map(genericHop);
-    }
+  const failed = new Set<string>();
+  const call = async (registered: RegisteredTraceHopResolver, basis: FlowBasis[]): Promise<TraceHop[] | undefined> => {
+    const { entity } = registered.resolver;
     const log = logger(registered.extension);
     const ids = basis.map(({ id }) => id);
+    const owner = `trace hop resolver "${entity}"`;
+    const { read, end } = reader(owner);
     try {
       const result = traceHopsSchema.safeParse(
-        await withTimeout(registered.resolver.resolve({ hostname, ids, read: reader(entity).read }), timeoutMs),
+        await withTimeout(registered.resolver.resolve({ hostname, ids, read }), timeoutMs),
       );
-      if (!result.success) {
-        log.error(`trace hop resolver "${entity}" returned an invalid result: ${String(result.error.issues.length)} issues`);
-        return basis.map(genericHop);
+      end('finished');
+      // Labels in its own namespace only: an extension cannot speak with the app's or another extension's words.
+      const namespace = `extensions.${registered.extension}.`;
+      if (!result.success || result.data.some(({ label }) => !label.startsWith(namespace))) {
+        log.error(`${owner} returned an invalid result: `
+          + (result.success ? `labels outside ${namespace}` : `${String(result.error.issues.length)} issues`));
+        return undefined;
       }
       const given = new Set(ids);
       const hops = result.data.filter((hop) => hop.entity === entity && given.has(hop.id));
       if (hops.length < result.data.length) {
-        log.warn(`trace hop resolver "${entity}" returned hops for entities it was not given; they are left out`);
+        log.warn(`${owner} returned hops for entities it was not given; they are left out`);
       }
       return hops;
     } catch (error) {
-      log.error(`trace hop resolver "${entity}" failed: ${error instanceof Error ? error.message : String(error)}`, error);
-      return basis.map(genericHop);
+      end(error instanceof ResolverTimeoutError ? 'timed out' : 'failed');
+      log.error(`${owner} failed: ${error instanceof Error ? error.message : String(error)}`, error);
+      return undefined;
     }
+  };
+  const resolveEntity = async (entity: string, basis: FlowBasis[]): Promise<TraceHop[]> => {
+    const registered = byEntity.get(entity);
+    const hops = registered && !failed.has(entity) ? await call(registered, basis) : undefined;
+    if (registered && !hops) {
+      failed.add(entity);
+    }
+    return hops ?? genericHop(entity, basis);
   };
   const cache = new Map<string, Promise<TraceHop[]>>();
   const stageOf = (hop: TraceHop) => TRACE_STAGES.indexOf(hop.stage);
@@ -123,10 +159,15 @@ function hopResolver(hostname: string, { resolvers, reader, logger, timeoutMs = 
     if (!hops) {
       const groups = new Map<string, FlowBasis[]>();
       for (const item of flow.basis) {
-        groups.set(item.entity, [...(groups.get(item.entity) ?? []), item]);
+        const group = groups.get(item.entity);
+        if (group) {
+          group.push(item);
+        } else {
+          groups.set(item.entity, [item]);
+        }
       }
       hops = Promise.all([...groups].map(([entity, basis]) => resolveEntity(entity, basis)))
-        .then((resolved) => resolved.flat().sort((a, b) => stageOf(a) - stageOf(b)));
+        .then((resolved) => capped(resolved.flat().sort((a, b) => stageOf(a) - stageOf(b))));
       cache.set(flow.id, hops);
     }
     return hops;
@@ -157,7 +198,12 @@ export async function computeTrace(
   const fromService = new Map<string, TraceFlow[]>();
   for (const flow of flows) {
     if (flow.sourceServiceId !== null) {
-      fromService.set(flow.sourceServiceId, [...(fromService.get(flow.sourceServiceId) ?? []), flow]);
+      const outgoing = fromService.get(flow.sourceServiceId);
+      if (outgoing) {
+        outgoing.push(flow);
+      } else {
+        fromService.set(flow.sourceServiceId, [flow]);
+      }
     }
   }
   const hopsOf = hopResolver(hostname, options);

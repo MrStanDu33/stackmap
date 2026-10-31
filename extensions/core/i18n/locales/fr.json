@@ -44,8 +44,14 @@
         "flow": "Flux"
       },
       "trace": {
-        "address": "{name} pointe vers {address} ({view})",
-        "alias": "{name} est un alias de {target} ({view})"
+        "address": {
+          "public": "{name} pointe vers {address} dans le DNS public",
+          "internal": "{name} pointe vers {address} dans le DNS interne"
+        },
+        "alias": {
+          "public": "{name} est un alias de {target} dans le DNS public",
+          "internal": "{name} est un alias de {target} dans le DNS interne"
+        }
       }
     }
   }

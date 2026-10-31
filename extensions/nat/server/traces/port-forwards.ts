@@ -19,7 +19,8 @@ export function resolvePortForwardHops(
   const hostNames = new Map(hosts.map(({ id, name }) => [id, name]));
   const endpoint = (address: string, port: number) =>
     (address.includes(':') ? `[${address}]:${String(port)}` : `${address}:${String(port)}`);
-  return portForwards.filter(({ id }) => given.has(id)).map((forward) => ({
+  // A forward whose router is gone (references normally prevent it) has nothing to say: no hop.
+  return portForwards.filter(({ id, hostId }) => given.has(id) && hostNames.has(hostId)).map((forward) => ({
     entity: 'port-forward',
     id: forward.id,
     stage: 'network',
