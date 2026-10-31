@@ -1,8 +1,6 @@
 {
   "app": {
-    "name": "Stackmap",
-    "tagline": "Self-hosted documentation for your infrastructure.",
-    "status": "Work in progress."
+    "name": "Stackmap"
   },
   "a11y": {
     "skipToContent": "Skip to main content"
@@ -17,8 +15,7 @@
     "retry": "Try again"
   },
   "nav": {
-    "label": "Main navigation",
-    "graph": "Graph"
+    "label": "Main navigation"
   },
   "preferences": {
     "title": "Display",
@@ -38,7 +35,7 @@
     "empty": "Nothing to draw yet",
     "emptyHint": "Hosts, services and their flows will appear here.",
     "noWorkspace": "No workspace yet",
-    "noWorkspaceHint": "Start Stackmap without STACKMAP_DEMO=false to explore the demo workspace.",
+    "noWorkspaceHint": "Remove STACKMAP_DEMO=false (or 0, no, off) from Stackmap’s environment and restart it to explore the demo workspace.",
     "error": "The traffic could not be loaded.",
     "layoutError": "The graph could not be laid out.",
     "truncated": "Only part of this workspace is shown: it is too large to draw at once.",
@@ -60,8 +57,9 @@
     "canvas": "Traffic graph",
     "node": {
       "host": "{name}, {kind}, {count} service | {name}, {kind}, {count} services",
-      "service": "{name}, {kind}, on {host}, {count} port | {name}, {kind}, on {host}, {count} ports",
-      "externalService": "{name}, {kind}, external, {count} port | {name}, {kind}, external, {count} ports"
+      "service": "{name}, {kind}, {ports}, on {host}",
+      "externalService": "{name}, {kind}, {ports}, external",
+      "noPort": "no port"
     },
     "edge": "From {source} to {service}, port {port}",
     "more": "+{count} more",
@@ -73,24 +71,29 @@
       "label": "Traffic by host",
       "port": "Port",
       "from": "From",
-      "names": "Names",
-      "how": "How",
+      "names": "Hostnames",
+      "how": "Origin",
       "noFlow": "No incoming flow",
       "noService": "No service"
     },
-    "list": "List"
+    "list": "List",
+    "flowName": "From {source} to {target}",
+    "role": {
+      "client": "client",
+      "host": "host",
+      "service": "service",
+      "flow": "flow"
+    }
   },
   "detail": {
-    "label": "Details",
     "close": "Close details",
     "kind": "Kind",
     "host": "Host",
     "service": "Service",
-    "port": "Port",
     "from": "From",
     "to": "To",
     "origin": "Origin",
-    "names": "Names",
+    "names": "Hostnames",
     "ports": "Ports",
     "incoming": "Incoming flows",
     "outgoing": "Outgoing flows",

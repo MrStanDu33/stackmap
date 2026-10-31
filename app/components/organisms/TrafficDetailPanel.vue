@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { indexTraffic, originLabel, portLabel, selectionName, targetName } from '../../utils/traffic-index';
+import { indexTraffic, originLabel, portLabel, selectionName, sourceOf, targetName } from '../../utils/traffic-index';
 
 import type { Traffic } from '#shared/contracts/traffic';
 import type { Selection } from '../../utils/traffic-selection';
@@ -18,6 +18,17 @@ const flow = computed(() => (props.selection.type === 'flow' ? index.value.flow(
 const client = computed(() => (props.selection.type === 'client' ? props.selection.id : undefined));
 
 const title = computed(() => selectionName(index.value, props.selection, t) ?? '');
+
+const root = useTemplateRef<HTMLElement>('root');
+const heading = useTemplateRef<HTMLElement>('heading');
+// Following a link inside the panel replaces what holds the focus: move it to the new title rather than lose it.
+watch(() => props.selection, async () => {
+  const inside = root.value?.contains(document.activeElement) ?? false;
+  await nextTick();
+  if (inside) {
+    heading.value?.focus();
+  }
+});
 
 const incoming = computed(() => (service.value
   ? index.value.portsOf(service.value.id).flatMap(({ id }) => index.value.flowsInto(id))
@@ -42,13 +53,16 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
 
 <template>
   <aside
+    ref="root"
     aria-labelledby="traffic-detail-title"
     class="flex flex-col gap-4"
   >
     <div class="flex items-start justify-between gap-2">
       <h2
         id="traffic-detail-title"
-        class="text-lg font-semibold"
+        ref="heading"
+        tabindex="-1"
+        class="text-lg font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
       >
         {{ title }}
       </h2>
@@ -184,7 +198,19 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
             :class="link"
             @click="select('flow', item.id)"
           >
-            <span>{{ index.sourceName(item, t) }}</span> → {{ portLabel(index.port(item.targetListenerId) ?? port!) }}
+            <!-- Slots keep the source its own element: the sentence is the translation's. -->
+            <i18n-t
+              keypath="traffic.flowName"
+              scope="global"
+              tag="span"
+            >
+              <template #source>
+                <span>{{ index.sourceName(item, t) }}</span>
+              </template>
+              <template #target>
+                <span>{{ portLabel(index.port(item.targetListenerId) ?? port!) }}</span>
+              </template>
+            </i18n-t>
           </button>
           <span
             v-if="item.hostnames.length > 0"
@@ -236,16 +262,12 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
       </dt>
       <dd>
         <button
-          v-if="flow.source.type === 'service'"
           type="button"
           :class="link"
-          @click="select('service', flow.source.serviceId)"
+          @click="emit('select', sourceOf(flow))"
         >
           {{ index.sourceName(flow, t) }}
         </button>
-        <template v-else>
-          {{ index.sourceName(flow, t) }}
-        </template>
       </dd>
       <dt class="text-muted">
         {{ t('detail.to') }}

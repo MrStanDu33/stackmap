@@ -12,6 +12,11 @@ export const originLabel = (flow: TrafficFlow, t: Translate): string => (flow.or
   ? t('traffic.origin.manual')
   : t('traffic.origin.derived', { extension: flow.extension, deriver: flow.deriver }));
 
+/** What selecting a flow's source selects: its client or its service. */
+export const sourceOf = ({ source }: TrafficFlow): Selection => (source.type === 'client'
+  ? { type: 'client', id: source.client }
+  : { type: 'service', id: source.serviceId });
+
 /** Lookups over a traffic response, in its order: services by name, ports by port, flows as sent. */
 export function indexTraffic(traffic: Traffic) {
   const hosts = new Map(traffic.hosts.map((host) => [host.id, host]));
@@ -65,7 +70,7 @@ export function selectionName(index: TrafficIndex, { type, id }: Selection, t: T
     }
     case 'flow': {
       const flow = index.flow(id);
-      return flow && `${index.sourceName(flow, t)} → ${targetName(index, flow)}`;
+      return flow && t('traffic.flowName', { source: index.sourceName(flow, t), target: targetName(index, flow) });
     }
   }
 }

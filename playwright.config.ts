@@ -5,13 +5,22 @@ import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 /** The built app with the demo workspace, and a second one started without it. Run `pnpm build` first. */
-const DEMO_URL = 'http://localhost:3100';
+const DEMO_URL = 'http://127.0.0.1:3100';
 
 const server = (port: number, env: Record<string, string> = {}) => ({
   command: 'node .output/server/index.mjs',
-  url: `http://localhost:${String(port)}/api/health`,
+  url: `http://127.0.0.1:${String(port)}/api/health`,
   // A fresh SQLite database per run, so the demo workspace is seeded as on a first start.
-  env: { PORT: String(port), DATA_DIR: mkdtempSync(join(tmpdir(), 'stackmap-e2e-')), ...env },
+  // Pinned rather than inherited from the shell: a DATABASE_URL there must not receive the test data, and the servers
+  // listen on this machine only.
+  env: {
+    DATABASE_URL: '',
+    STACKMAP_DEMO: 'true',
+    HOST: '127.0.0.1',
+    PORT: String(port),
+    DATA_DIR: mkdtempSync(join(tmpdir(), 'stackmap-e2e-')),
+    ...env,
+  },
   reuseExistingServer: false,
   timeout: 60_000,
 });

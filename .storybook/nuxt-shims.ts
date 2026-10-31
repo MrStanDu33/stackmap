@@ -7,6 +7,7 @@ import { defineComponent, h, ref } from 'vue';
 import { createI18n, useI18n } from 'vue-i18n';
 import { createMemoryHistory, createRouter, RouterLink } from 'vue-router';
 
+import i18nConfig from '../i18n/i18n.config';
 import en from '../i18n/locales/en.json';
 import fr from '../i18n/locales/fr.json';
 
@@ -16,6 +17,7 @@ import type { RouteLocationRaw } from 'vue-router';
 export type Locale = 'en' | 'fr';
 
 export const i18n = createI18n({
+  ...i18nConfig(),
   legacy: false,
   locale: 'en',
   fallbackLocale: 'en',

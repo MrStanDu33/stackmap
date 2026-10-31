@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { indexTraffic, originLabel, portLabel } from '../../utils/traffic-index';
+import { indexTraffic, originLabel, portLabel, sourceOf } from '../../utils/traffic-index';
 
 import type { Traffic, TrafficFlow } from '#shared/contracts/traffic';
 import type { Selection } from '../../utils/traffic-selection';
@@ -45,6 +45,17 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
     class="flex flex-col gap-6"
   >
     <div
+      v-if="groups.length === 0"
+      class="flex flex-col items-center gap-1 p-6 text-center"
+    >
+      <p class="font-medium">
+        {{ t('traffic.empty') }}
+      </p>
+      <p class="text-muted">
+        {{ t('traffic.emptyHint') }}
+      </p>
+    </div>
+    <div
       v-for="group in groups"
       :key="group.key"
       class="overflow-x-auto"
@@ -70,6 +81,9 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
           >
             {{ group.caption }}
           </button>
+          <template v-if="group.host">
+            {{ ' ' }}<span class="ms-2 text-sm font-normal text-muted">{{ group.host.kind }}</span>
+          </template>
           <template v-else>
             {{ group.caption }}
           </template>
@@ -175,7 +189,13 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
               </td>
               <template v-else>
                 <td class="px-2 py-1">
-                  {{ index.sourceName(flow, t) }}
+                  <button
+                    type="button"
+                    :class="link"
+                    @click="emit('select', sourceOf(flow))"
+                  >
+                    {{ index.sourceName(flow, t) }}
+                  </button>
                 </td>
                 <td class="px-2 py-1">
                   <ul class="flex flex-wrap gap-x-2">

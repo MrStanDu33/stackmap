@@ -22,11 +22,15 @@ const skipToMain = () => {
     <AppSidebar />
     <UDashboardPanel>
       <template #header>
+        <!-- Narrow screens only: the navigation toggle in a header landmark. The page keeps the one h1. -->
         <UDashboardNavbar
+          as="header"
           class="lg:hidden"
-          :title="t('app.name')"
-          :ui="{ title: 'text-base' }"
-        />
+        >
+          <template #left>
+            <span class="font-semibold">{{ t('app.name') }}</span>
+          </template>
+        </UDashboardNavbar>
       </template>
       <template #body>
         <main

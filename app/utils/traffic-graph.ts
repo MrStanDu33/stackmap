@@ -115,6 +115,15 @@ export function elkToVueFlow(traffic: Traffic, laidOut: ElkNode, t: Translate): 
   const listeners = new Map(traffic.listeners.map((listener) => [listener.id, listener]));
   const clientName = (client: Client) => t(`traffic.client.${client}`);
   const box = ({ x = 0, y = 0, width = 0, height = 0 }: ElkNode) => ({ position: { x, y }, width, height });
+  // Spread last by Vue Flow: nodes are buttons, and role descriptions are in the current language, not English.
+  const button = (role: 'client' | 'host' | 'service') =>
+    ({ domAttributes: { role: 'button', 'aria-roledescription': t(`traffic.role.${role}`) } });
+
+  // The ports as the node shows them, so the name starts with the visible text (WCAG 2.5.3).
+  const portsText = (ports: Listener[]) => (ports.length === 0
+    ? t('traffic.node.noPort')
+    : ports.map(({ port, transport, protocol }) => [`${String(port)}/${transport}`, protocol].filter(Boolean).join(' '))
+        .join(', '));
 
   const toServiceNode = (child: ElkNode, service: Service, parentNode?: string): Node => {
     const ports = listenersOf(service.id);
@@ -123,10 +132,11 @@ export function elkToVueFlow(traffic: Traffic, laidOut: ElkNode, t: Translate): 
       id: child.id,
       type: 'service',
       ...box(child),
+      ...button('service'),
       parentNode,
       ariaLabel: host === undefined
-        ? t('traffic.node.externalService', { name: service.name, kind: service.kind, count: ports.length }, ports.length)
-        : t('traffic.node.service', { name: service.name, kind: service.kind, host, count: ports.length }, ports.length),
+        ? t('traffic.node.externalService', { name: service.name, kind: service.kind, ports: portsText(ports) })
+        : t('traffic.node.service', { name: service.name, kind: service.kind, ports: portsText(ports), host }),
       data: { service, listeners: ports },
     };
   };
@@ -140,6 +150,7 @@ export function elkToVueFlow(traffic: Traffic, laidOut: ElkNode, t: Translate): 
           id: child.id,
           type: 'host',
           ...box(child),
+          ...button('host'),
           ariaLabel: t('traffic.node.host', { name: host.name, kind: host.kind, count }, count),
           data: { host },
         },
@@ -154,7 +165,9 @@ export function elkToVueFlow(traffic: Traffic, laidOut: ElkNode, t: Translate): 
       return [toServiceNode(child, service)];
     }
     const client = child.id.slice('client:'.length) as Client;
-    return [{ id: child.id, type: 'client', ...box(child), ariaLabel: clientName(client), data: { client } }];
+    return [{
+      id: child.id, type: 'client', ...box(child), ...button('client'), ariaLabel: clientName(client), data: { client },
+    }];
   });
 
   const edges = traffic.flows.map((flow): Edge => {
@@ -165,6 +178,7 @@ export function elkToVueFlow(traffic: Traffic, laidOut: ElkNode, t: Translate): 
       target: nodeIds.service(target?.serviceId ?? ''),
       targetHandle: nodeIds.listener(flow.targetListenerId),
       type: 'smoothstep',
+      domAttributes: { 'aria-roledescription': t('traffic.role.flow') },
       ariaLabel: t('traffic.edge', {
         source: flow.source.type === 'client' ? clientName(flow.source.client) : serviceName.get(flow.source.serviceId),
         service: serviceName.get(target?.serviceId ?? ''),

@@ -9,7 +9,7 @@ import { relatedFlowIds } from '../../utils/traffic-selection';
 import type { Traffic, TrafficFlow } from '#shared/contracts/traffic';
 import type { TrafficLayout } from '../../utils/traffic-graph';
 import type { Selection } from '../../utils/traffic-selection';
-import type { EdgeProps } from '@vue-flow/core';
+import type { EdgeProps, Node } from '@vue-flow/core';
 
 /** The traffic drawn as a read-only graph: hosts holding services, services with their ports, flows to ports. */
 const props = defineProps<{
@@ -22,7 +22,7 @@ const emit = defineEmits<{ select: [selection: Selection | null]; retry: [] }>()
 
 const { t } = useI18n();
 const flowId = useId();
-const { zoomIn, zoomOut, fitView } = useVueFlow(flowId);
+const { zoomIn, zoomOut, fitView, viewport, setCenter, findNode } = useVueFlow(flowId);
 
 const TYPES: Record<string, Selection['type']> = {
   client: 'client', host: 'host', service: 'service', listener: 'listener', flow: 'flow',
@@ -48,12 +48,13 @@ const isSelected = (elementId: string) => {
   return selection?.type === props.selection?.type && selection?.id === props.selection?.id;
 };
 
-const nodes = computed(() => (props.layout?.nodes ?? []).map((node) => ({
+const nodes = computed(() => (props.layout?.nodes ?? []).map((node): Node => ({
   ...node,
   draggable: false,
   connectable: false,
   focusable: true,
-  class: isSelected(node.id) ? 'is-selected' : undefined,
+  // The selected state is exposed, not only drawn.
+  domAttributes: { ...node.domAttributes, 'aria-pressed': isSelected(node.id) ? 'true' : 'false' },
 })));
 const edges = computed(() => (props.layout?.edges ?? []).map((edge) => ({
   ...edge,
@@ -77,6 +78,31 @@ const select = (elementId: string) => {
 };
 
 /** Enter or Space on a focused node selects it, as a click does. */
+/**
+ * A node that gets focus outside the canvas is brought into view by panning, keeping the zoom: focus is never hidden,
+ * and Tab is a way to move around the graph. The browser's own scrolling of the clipped canvas is undone first, since
+ * it would shift the graph under the pointer.
+ */
+const onFocusin = (event: FocusEvent) => {
+  const element = event.target instanceof HTMLElement ? event.target : null;
+  const canvas = element?.closest<HTMLElement>('.vue-flow');
+  const node = element?.dataset.id ? findNode(element.dataset.id) : undefined;
+  if (!element || !canvas || !node) {
+    return;
+  }
+  canvas.scrollTo(0, 0);
+  const shown = element.getBoundingClientRect();
+  const room = canvas.getBoundingClientRect();
+  if (shown.left >= room.left && shown.right <= room.right && shown.top >= room.top && shown.bottom <= room.bottom) {
+    return;
+  }
+  const { x, y } = node.computedPosition;
+  void setCenter(x + node.dimensions.width / 2, y + node.dimensions.height / 2, {
+    zoom: viewport.value.zoom,
+    duration: duration(),
+  });
+};
+
 const onKeydown = (event: KeyboardEvent) => {
   const element = event.target instanceof HTMLElement ? event.target : null;
   const nodeId = element?.classList.contains('vue-flow__node') ? element.dataset.id : undefined;
@@ -92,6 +118,7 @@ const root = useTemplateRef<HTMLElement>('root');
 let resized: ResizeObserver | undefined;
 onMounted(() => {
   root.value?.addEventListener('keydown', onKeydown);
+  root.value?.addEventListener('focusin', onFocusin);
   // Debounced: after Vue Flow has measured its new size, and once per resize rather than per frame.
   let pending: ReturnType<typeof setTimeout> | undefined;
   resized = new ResizeObserver(() => {
@@ -108,11 +135,12 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   root.value?.removeEventListener('keydown', onKeydown);
+  root.value?.removeEventListener('focusin', onFocusin);
   resized?.disconnect();
 });
 
 const clientClass = 'flex h-full items-center justify-center rounded-full border border-default bg-elevated px-4 '
-  + 'text-sm font-medium data-selected:ring-2 data-selected:ring-primary';
+  + 'text-sm font-medium';
 
 const edgePath = (edge: EdgeProps) => getSmoothStepPath(edge)[0];
 const portTop = (index: number) => `${String(SIZES.service.header + index * SIZES.service.port + SIZES.service.port / 2)}px`;
@@ -122,6 +150,7 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
   <div
     ref="root"
     class="relative flex h-full min-h-96 flex-col rounded-lg border border-default bg-default"
+    :style="{ '--graph-zoom': String(viewport.zoom) }"
   >
     <div
       v-if="error"
@@ -208,15 +237,16 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
           :elements-selectable="false"
           :disable-keyboard-a11y="true"
           :min-zoom="0.2"
+          :zoom-on-scroll="false"
+          :prevent-scrolling="false"
           @nodes-initialized="fit"
           @node-click="({ node }) => select(node.id)"
           @edge-click="({ edge }) => select(edge.id)"
           @pane-click="emit('select', null)"
         >
-          <template #node-client="{ id, data }">
+          <template #node-client="{ data }">
             <div
               :class="clientClass"
-              :data-selected="isSelected(id) || undefined"
             >
               <UIcon
                 :name="data.client === 'public' ? 'i-lucide-globe' : 'i-lucide-house'"
@@ -232,10 +262,9 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
             />
           </template>
 
-          <template #node-host="{ id, data }">
+          <template #node-host="{ data }">
             <div
               class="h-full rounded-lg border border-dashed border-accented bg-muted/40 p-3"
-              :class="{ 'ring-2 ring-primary': isSelected(id) }"
             >
               <p class="flex items-center gap-2 text-sm font-semibold">
                 <UIcon
@@ -245,16 +274,17 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
                 />
                 {{ data.host.name }}
               </p>
+              <!-- Spaces between the parts: the accessible name must contain the text as read (WCAG 2.5.3). -->
+              {{ ' ' }}
               <p class="text-xs text-muted">
                 {{ data.host.kind }}
               </p>
             </div>
           </template>
 
-          <template #node-service="{ id, data }">
+          <template #node-service="{ data }">
             <div
               class="h-full overflow-hidden rounded-md border border-default bg-default text-sm shadow-sm"
-              :class="{ 'ring-2 ring-primary': isSelected(id) }"
             >
               <div
                 class="px-3 py-2"
@@ -263,6 +293,7 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
                 <p class="truncate font-semibold">
                   {{ data.service.name }}
                 </p>
+                {{ ' ' }}
                 <p class="truncate text-xs text-muted">
                   {{ data.service.kind }}
                 </p>
@@ -274,8 +305,8 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
                   class="flex items-center gap-2 border-t border-default px-3 text-xs"
                   :style="{ height: `${String(SIZES.service.port)}px` }"
                 >
-                  <span class="font-mono">{{ portLabel(port) }}</span>
-                  <span
+                  {{ ' ' }}<span class="font-mono">{{ portLabel(port) }}</span>
+                  {{ ' ' }}<span
                     v-if="port.protocol"
                     class="text-muted"
                   >{{ port.protocol }}</span>
@@ -306,6 +337,7 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
               <path
                 :d="edgePath(edge)"
                 fill="none"
+                vector-effect="non-scaling-stroke"
                 class="traffic-edge"
                 :class="`is-${flowState(edge.data.flow)}`"
               />
@@ -330,7 +362,26 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
 }
 
 .traffic-edge.is-dimmed {
-  opacity: 0.35;
+  /* Still 3:1 against the background: dimmed flows carry information too. */
+  opacity: 0.6;
   stroke-dasharray: 4 4;
+}
+
+/*
+ * Focus and selection are outlines, which forced-colors mode keeps (a ring is a shadow, which it drops). The nodes are
+ * scaled with the zoom, so the outline is divided by it to keep its width on screen.
+ */
+:deep([data-id][role='button']:focus-visible) {
+  outline: calc(3px / var(--graph-zoom, 1)) solid var(--ui-primary);
+  outline-offset: calc(2px / var(--graph-zoom, 1));
+}
+
+:deep([data-id][aria-pressed='true']) {
+  outline: calc(2px / var(--graph-zoom, 1)) solid var(--ui-primary);
+  outline-offset: calc(2px / var(--graph-zoom, 1));
+}
+
+:deep([data-id][aria-pressed='true']:focus-visible) {
+  outline-width: calc(4px / var(--graph-zoom, 1));
 }
 </style>

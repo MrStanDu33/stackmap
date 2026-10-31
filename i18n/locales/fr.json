@@ -1,8 +1,6 @@
 {
   "app": {
-    "name": "Stackmap",
-    "tagline": "Documentation auto-hébergée de votre infrastructure.",
-    "status": "Travail en cours."
+    "name": "Stackmap"
   },
   "a11y": {
     "skipToContent": "Aller au contenu principal"
@@ -17,8 +15,7 @@
     "retry": "Réessayer"
   },
   "nav": {
-    "label": "Navigation principale",
-    "graph": "Graphe"
+    "label": "Navigation principale"
   },
   "preferences": {
     "title": "Affichage",
@@ -35,20 +32,20 @@
     "view": "Vue",
     "graph": "Graphe",
     "loading": "Chargement du trafic…",
-    "empty": "Rien à dessiner pour l'instant",
+    "empty": "Rien à dessiner pour l’instant",
     "emptyHint": "Les hôtes, les services et leurs flux apparaîtront ici.",
     "noWorkspace": "Aucun espace de travail",
-    "noWorkspaceHint": "Démarrez Stackmap sans STACKMAP_DEMO=false pour explorer l'espace de démonstration.",
-    "error": "Le trafic n'a pas pu être chargé.",
-    "layoutError": "Le graphe n'a pas pu être disposé.",
-    "truncated": "Seule une partie de cet espace de travail est affichée : il est trop grand pour être dessiné d'un coup.",
+    "noWorkspaceHint": "Retirez STACKMAP_DEMO=false (ou 0, no, off) de l’environnement de Stackmap et redémarrez-le pour explorer l’espace de démonstration.",
+    "error": "Le trafic n’a pas pu être chargé.",
+    "layoutError": "Le graphe n’a pas pu être mis en page.",
+    "truncated": "Seule une partie de cet espace de travail est affichée : il est trop grand pour être dessiné d’un coup.",
     "summary": "{hosts}, {services}, {flows}",
     "count": {
       "hosts": "{count} hôte | {count} hôtes",
       "services": "{count} service | {count} services",
       "flows": "{count} flux | {count} flux"
     },
-    "selected": "Sélection : {name}",
+    "selected": "Sélection : {name}",
     "client": {
       "public": "Internet",
       "internal": "Réseau local"
@@ -56,15 +53,16 @@
     "external": "Externe",
     "zoomIn": "Zoomer",
     "zoomOut": "Dézoomer",
-    "fit": "Ajuster à la vue",
+    "fit": "Ajuster à l’écran",
     "canvas": "Graphe du trafic",
     "node": {
       "host": "{name}, {kind}, {count} service | {name}, {kind}, {count} services",
-      "service": "{name}, {kind}, sur {host}, {count} port | {name}, {kind}, sur {host}, {count} ports",
-      "externalService": "{name}, {kind}, externe, {count} port | {name}, {kind}, externe, {count} ports"
+      "service": "{name}, {kind}, {ports}, sur {host}",
+      "externalService": "{name}, {kind}, {ports}, externe",
+      "noPort": "aucun port"
     },
-    "edge": "De {source} vers {service}, port {port}",
-    "more": "+{count} de plus",
+    "edge": "Depuis {source} vers {service}, port {port}",
+    "more": "+{count}",
     "origin": {
       "derived": "Déduit par {extension} ({deriver})",
       "manual": "Documenté à la main"
@@ -73,24 +71,29 @@
       "label": "Trafic par hôte",
       "port": "Port",
       "from": "Depuis",
-      "names": "Noms",
-      "how": "Comment",
+      "names": "Noms d’hôte",
+      "how": "Origine",
       "noFlow": "Aucun flux entrant",
       "noService": "Aucun service"
     },
-    "list": "Liste"
+    "list": "Liste",
+    "flowName": "Depuis {source} vers {target}",
+    "role": {
+      "client": "client",
+      "host": "hôte",
+      "service": "service",
+      "flow": "flux"
+    }
   },
   "detail": {
-    "label": "Détails",
     "close": "Fermer les détails",
     "kind": "Type",
     "host": "Hôte",
     "service": "Service",
-    "port": "Port",
     "from": "Depuis",
     "to": "Vers",
     "origin": "Origine",
-    "names": "Noms",
+    "names": "Noms d’hôte",
     "ports": "Ports",
     "incoming": "Flux entrants",
     "outgoing": "Flux sortants",

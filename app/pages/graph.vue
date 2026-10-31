@@ -47,11 +47,22 @@ watch(locale, relayout);
 
 const failed = computed(() => Boolean(workspaceError.value ?? trafficError.value));
 const noWorkspace = computed(() => workspaces.value !== undefined && !workspace.value);
+const heading = useTemplateRef<HTMLElement>('heading');
+// The retry button goes away with the error: focus moves to the page's heading rather than being lost.
+const focusHeading = async () => {
+  await nextTick();
+  heading.value?.focus();
+};
 const retry = async () => {
   await refreshWorkspaces();
   if (trafficUrl.value) {
     await refreshTraffic();
   }
+  await focusHeading();
+};
+const retryLayout = async () => {
+  relayout();
+  await focusHeading();
 };
 
 const index = computed(() => (traffic.value ? indexTraffic(traffic.value) : undefined));
@@ -68,11 +79,20 @@ const select = (next: Selection | null) => {
 };
 const close = () => {
   selection.value = null;
-  opener?.focus();
+  // The opener may be gone (the view was switched): the heading then takes the focus.
+  if (opener?.isConnected) {
+    opener.focus();
+  } else {
+    void focusHeading();
+  }
   opener = null;
 };
+/** Escape closes the panel, unless another widget used it: a select, a menu, the sidebar drawer. */
 const onKeydown = (event: KeyboardEvent) => {
-  if (event.key === 'Escape' && selection.value) {
+  const target = event.target instanceof Element ? event.target : null;
+  const elsewhere = event.defaultPrevented
+    || target?.closest('[role="combobox"], [role="listbox"], [role="menu"], [role="dialog"]');
+  if (event.key === 'Escape' && selection.value && !elsewhere) {
     close();
   }
 };
@@ -83,27 +103,33 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKeydown);
 });
 
-const announcement = computed(() => {
-  if (selection.value && index.value) {
-    const name = selectionName(index.value, selection.value, t);
-    return name ? t('traffic.selected', { name }) : '';
+// Events only, so a reader hears each once: the counts when the traffic arrives, then each selection.
+const announcement = ref('');
+watch(traffic, (loadedTraffic) => {
+  if (!loadedTraffic) {
+    return;
   }
-  if (!traffic.value) {
-    return '';
-  }
-  const { hosts, services, flows } = traffic.value;
-  return t('traffic.summary', {
+  const { hosts, services, flows } = loadedTraffic;
+  announcement.value = t('traffic.summary', {
     hosts: t('traffic.count.hosts', { count: hosts.length }, hosts.length),
     services: t('traffic.count.services', { count: services.length }, services.length),
     flows: t('traffic.count.flows', { count: flows.length }, flows.length),
   });
+});
+watch(selection, (selected) => {
+  const name = selected && index.value ? selectionName(index.value, selected, t) : undefined;
+  announcement.value = name ? t('traffic.selected', { name }) : '';
 });
 </script>
 
 <template>
   <AppShell>
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-2xl font-semibold">
+      <h1
+        ref="heading"
+        tabindex="-1"
+        class="text-2xl font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      >
         {{ t('traffic.title') }}
       </h1>
       <ViewToggle v-model="view" />
@@ -151,21 +177,29 @@ const announcement = computed(() => {
       />
       <div class="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
         <div class="min-w-0 flex-1">
+          <p
+            v-if="view === 'list' && !traffic"
+            role="status"
+            class="p-6 text-center text-muted"
+          >
+            {{ t('traffic.loading') }}
+          </p>
           <TrafficList
-            v-if="view === 'list' && traffic"
+            v-else-if="view === 'list' && traffic"
             :traffic="traffic"
             :selection="selection"
             @select="select"
           />
           <ClientOnly v-else-if="view === 'graph'">
-            <div class="h-[calc(100dvh-12rem)] min-h-96">
+            <!-- Capped on phones, so the page keeps room to scroll past the graph. -->
+            <div class="h-[calc(100dvh-12rem)] min-h-96 max-lg:max-h-[70dvh]">
               <TrafficGraph
                 :traffic="traffic ?? { hosts: [], services: [], listeners: [], flows: [], truncated: false }"
                 :layout="traffic ? layout : null"
                 :error="layoutError"
                 :selection="selection"
                 @select="select"
-                @retry="relayout"
+                @retry="retryLayout"
               />
             </div>
           </ClientOnly>

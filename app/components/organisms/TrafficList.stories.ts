@@ -58,7 +58,8 @@ export const Demo: Story = {
 export const Selected: Story = {
   args: { selection: { type: 'service', id: services.npm } },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('button', { name: 'Nginx Proxy Manager' }))
+    // The first: the service's own row; the others are flows coming from it.
+    await expect(within(canvasElement).getAllByRole('button', { name: 'Nginx Proxy Manager' })[0])
       .toHaveAttribute('aria-current', 'true');
   },
 };

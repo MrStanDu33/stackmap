@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
 
 /** The app started with STACKMAP_DEMO=false (playwright.config.ts). */
-const EMPTY_URL = 'http://localhost:3101';
+const EMPTY_URL = 'http://127.0.0.1:3101';
 const DEMO_SERVICES = ['Nginx Proxy Manager', 'Website', 'Website database', 'Weather API'];
 
 const expectNoAxeViolation = async (page: Page) => {
@@ -41,7 +41,7 @@ test.describe('traffic view', () => {
     await expect(page).toHaveURL(/\?view=list$/);
     await expect(page.getByRole('table', { name: /^Home server/ })).toBeVisible();
     for (const name of DEMO_SERVICES) {
-      await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name, exact: true }).first()).toBeVisible();
     }
     await expectNoAxeViolation(page);
     await page.reload();
@@ -51,7 +51,8 @@ test.describe('traffic view', () => {
 
   test('given the list, activating Nginx Proxy Manager opens its details; Escape closes them and returns focus to the row', async ({ page }) => {
     await page.goto('/graph?view=list');
-    const npm = page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Nginx Proxy Manager' });
+    // The service's own row: the From column repeats it for the flows it sends.
+    const npm = page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Nginx Proxy Manager' }).first();
 
     await npm.focus();
     await page.keyboard.press('Enter');
@@ -119,6 +120,8 @@ test.describe('traffic view', () => {
     await page.goto('/graph');
     await graphReady(page);
     const pane = page.locator('.vue-flow__transformationpane');
+    // Once the first fit has finished animating.
+    await page.waitForTimeout(800);
     const before = await pane.getAttribute('style');
 
     await page.locator('.vue-flow').hover();
@@ -130,7 +133,7 @@ test.describe('traffic view', () => {
 
   test('given the panel open, Escape in the language list closes only the list', async ({ page }) => {
     await page.goto('/graph?view=list');
-    await page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Website', exact: true }).click();
+    await page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Website', exact: true }).first().click();
     const panel = page.getByRole('complementary');
     await expect(panel).toBeVisible();
 
@@ -145,7 +148,7 @@ test.describe('traffic view', () => {
     await page.goto('/graph?view=list');
     const summary = page.getByRole('status').filter({ hasText: '2 hosts, 4 services, 9 flows' });
     await expect(summary).toHaveCount(1);
-    await page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Website', exact: true }).click();
+    await page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Website', exact: true }).first().click();
     await expect(page.getByRole('status').filter({ hasText: 'Selected: Website' })).toHaveCount(1);
 
     await page.keyboard.press('Escape');

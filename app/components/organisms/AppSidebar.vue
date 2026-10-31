@@ -2,7 +2,7 @@
 /** The app's navigation: only the sections that exist, and the display preferences in its footer. */
 const { t } = useI18n();
 
-const items = computed(() => [{ label: t('nav.graph'), icon: 'i-lucide-waypoints', to: '/graph' }]);
+const items = computed(() => [{ label: t('traffic.title'), icon: 'i-lucide-waypoints', to: '/graph' }]);
 </script>
 
 <template>

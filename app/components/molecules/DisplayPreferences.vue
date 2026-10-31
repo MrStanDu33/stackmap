@@ -54,12 +54,13 @@ const languages = APP_LOCALES.map(({ code, name }) => ({ label: name, value: cod
     class="flex flex-col gap-3"
     aria-labelledby="display-preferences"
   >
-    <h2
+    <!-- A named region rather than a heading: the sidebar comes before the page's h1. -->
+    <p
       id="display-preferences"
       class="text-sm font-semibold"
     >
       {{ t('preferences.title') }}
-    </h2>
+    </p>
     <URadioGroup
       v-model="theme"
       :items="themes"

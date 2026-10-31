@@ -16,7 +16,7 @@ const meta = {
   component: TrafficGraph,
   parameters: { layout: 'fullscreen' },
   args: { traffic: DEMO_TRAFFIC, layout: null, error: null, selection: null, onSelect: fn(), onRetry: fn() },
-  loaders: [async () => ({ layout: await layOut(DEMO_TRAFFIC) })],
+  loaders: [async ({ globals }) => ({ layout: await layOut(DEMO_TRAFFIC, globals.locale) })],
   render: (args, { loaded }) => ({
     components: { TrafficGraph },
     setup: () => {

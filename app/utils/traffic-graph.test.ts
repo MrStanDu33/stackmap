@@ -71,14 +71,15 @@ describe('elkToVueFlow', () => {
     expect(npm).toMatchObject({
       type: 'service',
       parentNode: `host:${hosts.server}`,
-      ariaLabel: 'Nginx Proxy Manager, reverse-proxy, on Home server, 3 ports',
+      // The visible text first, in order (WCAG 2.5.3), then the host.
+      ariaLabel: 'Nginx Proxy Manager, reverse-proxy, 80/tcp http, 81/tcp http, 443/tcp https, on Home server',
     });
     expect(npm?.position).toEqual({ x: expect.any(Number) as unknown, y: expect.any(Number) as unknown });
     // A parent comes before its children, as Vue Flow requires.
     expect(nodes.findIndex(({ id }) => id === `host:${hosts.server}`))
       .toBeLessThan(nodes.findIndex(({ id }) => id === `service:${services.npm}`));
     expect(node(`service:${services.weatherApi}`)).toMatchObject({
-      parentNode: undefined, ariaLabel: 'Weather API, external-api, external, 1 port',
+      parentNode: undefined, ariaLabel: 'Weather API, external-api, 443/tcp https, external',
     });
     expect(node(`host:${hosts.server}`)?.ariaLabel).toBe('Home server, physical, 3 services');
     expect(node('client:public')?.ariaLabel).toBe('Internet');

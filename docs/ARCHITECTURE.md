@@ -296,11 +296,14 @@ healthcheck calls it. The database error goes to the logs, never to the response
   by `app/plugins/contrast.ts` and i18n) until accounts save them per user.
 - The Traffic view (`/graph`) draws `GET /api/workspaces/:workspaceId/traffic` for the `demo` workspace with Vue Flow:
   hosts hold their services, services list their ports, and each flow ends on its port. ELK lays it out in a web
-  worker (`app/composables/useTrafficLayout.ts`, from the pure helpers in `app/utils/traffic-graph.ts`); nodes are
-  focusable with names in the current language (Vue Flow's own English keyboard help is turned off, the graph is
-  read-only). `?view=list` shows the same data as tables, one per host. Selecting a host, service, port or flow opens
+  worker (`app/composables/useTrafficLayout.ts`, from the pure helpers in `app/utils/traffic-graph.ts`). Nodes are
+  buttons with a pressed state, names that start with their visible text and role descriptions in the current
+  language (Vue Flow's own English keyboard help is turned off, the graph is read-only); a node that gets focus off
+  the canvas is panned into view, and outlines keep their width whatever the zoom. The wheel scrolls the page; the
+  buttons zoom. `?view=list` shows the same data as tables, one per host. Selecting a host, service, port or flow opens
   the detail panel and highlights its flows, thicker and solid against dimmed and dashed ones; a live region
-  announces it, and Escape closes the panel and returns focus.
+  announces it (events only: the counts on load, then each selection), following a link inside the panel moves focus
+  to its title, and Escape closes the panel and returns focus unless another widget used it.
 
 ## Testing
 
