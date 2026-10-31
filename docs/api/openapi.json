@@ -51,6 +51,14 @@
     {
       "name": "Traces",
       "description": "The path of a request to a hostname, hop by hop, computed from the workspace's flows."
+    },
+    {
+      "name": "Traffic",
+      "description": "The flows between a workspace's clients, services and listeners, for the traffic graph."
+    },
+    {
+      "name": "Workspaces",
+      "description": "Isolated sets of infrastructure data. Until accounts exist, the app seeds a `demo` workspace."
     }
   ],
   "externalDocs": {
@@ -314,6 +322,75 @@
         }
       }
     },
+    "/api/workspaces": {
+      "get": {
+        "operationId": "listWorkspaces",
+        "summary": "Find workspaces",
+        "description": "Gives the workspace with this slug, such as `demo`, the workspace the app seeds with the demo stack, or none. The slug is required until accounts exist.\n\nRequires the viewer role.",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "slug",
+            "schema": {
+              "type": "string",
+              "maxLength": 48,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "description": "The workspace's slug",
+              "examples": [
+                "demo"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's slug",
+            "example": "demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The matching workspaces: one, or none for an unknown slug",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceList"
+                },
+                "examples": {
+                  "demo": {
+                    "summary": "The demo workspace",
+                    "value": {
+                      "workspaces": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000001",
+                          "name": "Demo",
+                          "slug": "demo",
+                          "createdAt": "2026-10-31T09:00:00.000Z",
+                          "updatedAt": "2026-10-31T09:00:00.000Z"
+                        }
+                      ]
+                    }
+                  },
+                  "none": {
+                    "summary": "An unknown slug",
+                    "value": {
+                      "workspaces": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/trace": {
       "get": {
         "operationId": "getTrace",
@@ -494,6 +571,131 @@
                       "status": 404,
                       "detail": "No workspace 0199d6a0-0000-7000-8000-000000000001.",
                       "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/trace",
+                      "code": "workspace_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/traffic": {
+      "get": {
+        "operationId": "getTraffic",
+        "summary": "Get the traffic graph",
+        "description": "Gives the workspace's hosts, services and listeners, and every flow between them: clients entering through DNS, port forwards and proxies, and the calls services make. Computed on each call from the stored flows.\n\nRequires the viewer role.",
+        "tags": [
+          "Traffic"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The traffic graph; empty lists for an empty workspace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Traffic"
+                },
+                "examples": {
+                  "demo": {
+                    "summary": "Through the router to NPM",
+                    "value": {
+                      "hosts": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000003",
+                          "name": "Home server",
+                          "kind": "physical"
+                        }
+                      ],
+                      "services": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000004",
+                          "name": "Nginx Proxy Manager",
+                          "kind": "reverse-proxy",
+                          "hostId": "0199d6a0-0000-7000-8000-000000000003"
+                        }
+                      ],
+                      "listeners": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000010",
+                          "serviceId": "0199d6a0-0000-7000-8000-000000000004",
+                          "port": 443,
+                          "transport": "tcp",
+                          "protocol": "https",
+                          "publishedPort": 443
+                        }
+                      ],
+                      "flows": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000050",
+                          "origin": "derived",
+                          "extension": "nat",
+                          "deriver": "port-forwards",
+                          "source": {
+                            "type": "client",
+                            "client": "public"
+                          },
+                          "targetListenerId": "0199d6a0-0000-7000-8000-000000000010",
+                          "protocol": null,
+                          "encrypted": null,
+                          "purpose": null,
+                          "hostnames": [
+                            "app.homelab.example",
+                            "homelab.example",
+                            "www.homelab.example"
+                          ],
+                          "hostnameCount": 3
+                        }
+                      ],
+                      "truncated": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "404": {
+            "description": "No such workspace",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "workspace_not_found": {
+                    "summary": "Unknown workspace",
+                    "value": {
+                      "type": "urn:stackmap:problem:workspace_not_found",
+                      "title": "The workspace does not exist",
+                      "status": 404,
+                      "detail": "No workspace 0199d6a0-0000-7000-8000-000000000001.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/traffic",
                       "code": "workspace_not_found"
                     }
                   }
@@ -3676,6 +3878,107 @@
           }
         ]
       },
+      "WorkspaceList": {
+        "type": "object",
+        "properties": {
+          "workspaces": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
+            },
+            "description": "By name"
+          }
+        },
+        "required": [
+          "workspaces"
+        ],
+        "additionalProperties": false,
+        "description": "Workspaces",
+        "examples": [
+          {
+            "workspaces": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000001",
+                "name": "Demo",
+                "slug": "demo",
+                "createdAt": "2026-10-31T09:00:00.000Z",
+                "updatedAt": "2026-10-31T09:00:00.000Z"
+              }
+            ]
+          }
+        ]
+      },
+      "Workspace": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000001"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "Its name",
+            "examples": [
+              "Demo"
+            ]
+          },
+          "slug": {
+            "type": "string",
+            "maxLength": 48,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "Its short name, unique on the instance",
+            "examples": [
+              "demo"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "maxLength": 30,
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When it was created",
+            "examples": [
+              "2026-10-31T09:00:00.000Z"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "maxLength": 30,
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When it last changed",
+            "examples": [
+              "2026-10-31T09:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false,
+        "description": "An isolated set of infrastructure data",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000001",
+            "name": "Demo",
+            "slug": "demo",
+            "createdAt": "2026-10-31T09:00:00.000Z",
+            "updatedAt": "2026-10-31T09:00:00.000Z"
+          }
+        ]
+      },
       "Trace": {
         "type": "object",
         "properties": {
@@ -4353,6 +4656,557 @@
               "external": "203.0.113.10:443/tcp",
               "internal": "10.0.10.20:443"
             }
+          }
+        ]
+      },
+      "Traffic": {
+        "type": "object",
+        "properties": {
+          "hosts": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficHost"
+            },
+            "description": "By name"
+          },
+          "services": {
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficService"
+            },
+            "description": "By name"
+          },
+          "listeners": {
+            "maxItems": 2000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficListener"
+            },
+            "description": "By service, then port"
+          },
+          "flows": {
+            "maxItems": 5000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrafficFlow"
+            },
+            "description": "Derived ones first, then manual ones"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "A list hit its maximum: the first items are kept, and what refers to a left-out item is left out",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "required": [
+          "hosts",
+          "services",
+          "listeners",
+          "flows",
+          "truncated"
+        ],
+        "additionalProperties": false,
+        "description": "Every host, service, listener and flow of a workspace",
+        "examples": [
+          {
+            "hosts": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000003",
+                "name": "Home server",
+                "kind": "physical"
+              }
+            ],
+            "services": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000004",
+                "name": "Nginx Proxy Manager",
+                "kind": "reverse-proxy",
+                "hostId": "0199d6a0-0000-7000-8000-000000000003"
+              }
+            ],
+            "listeners": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000010",
+                "serviceId": "0199d6a0-0000-7000-8000-000000000004",
+                "port": 443,
+                "transport": "tcp",
+                "protocol": "https",
+                "publishedPort": 443
+              }
+            ],
+            "flows": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000050",
+                "origin": "derived",
+                "extension": "nat",
+                "deriver": "port-forwards",
+                "source": {
+                  "type": "client",
+                  "client": "public"
+                },
+                "targetListenerId": "0199d6a0-0000-7000-8000-000000000010",
+                "protocol": null,
+                "encrypted": null,
+                "purpose": null,
+                "hostnames": [
+                  "app.homelab.example",
+                  "homelab.example",
+                  "www.homelab.example"
+                ],
+                "hostnameCount": 3
+              }
+            ],
+            "truncated": false
+          }
+        ]
+      },
+      "TrafficHost": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000003"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "Its name",
+            "examples": [
+              "Home server"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "Its host kind",
+            "examples": [
+              "physical"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "additionalProperties": false,
+        "description": "A host: a box holding its services",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000003",
+            "name": "Home server",
+            "kind": "physical"
+          }
+        ]
+      },
+      "TrafficService": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000004"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "Its name",
+            "examples": [
+              "Nginx Proxy Manager"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "Its service kind",
+            "examples": [
+              "reverse-proxy"
+            ]
+          },
+          "hostId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its host; null for an external service",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000003"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "hostId"
+        ],
+        "additionalProperties": false,
+        "description": "A service, with its listeners as ports",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000004",
+            "name": "Nginx Proxy Manager",
+            "kind": "reverse-proxy",
+            "hostId": "0199d6a0-0000-7000-8000-000000000003"
+          }
+        ]
+      },
+      "TrafficListener": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000010"
+            ]
+          },
+          "serviceId": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its service",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000004"
+            ]
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535,
+            "description": "Port it listens on",
+            "examples": [
+              443
+            ]
+          },
+          "transport": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "`tcp` or `udp`",
+            "examples": [
+              "tcp"
+            ]
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its protocol kind, when known",
+            "examples": [
+              "https"
+            ]
+          },
+          "publishedPort": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Port the host publishes it on",
+            "examples": [
+              443
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "serviceId",
+          "port",
+          "transport",
+          "protocol",
+          "publishedPort"
+        ],
+        "additionalProperties": false,
+        "description": "A port a service listens on: where flows end",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000010",
+            "serviceId": "0199d6a0-0000-7000-8000-000000000004",
+            "port": 443,
+            "transport": "tcp",
+            "protocol": "https",
+            "publishedPort": 443
+          }
+        ]
+      },
+      "TrafficFlow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000050"
+            ]
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "derived",
+              "manual"
+            ],
+            "description": "Derived from entities, or documented by hand",
+            "examples": [
+              "derived"
+            ]
+          },
+          "extension": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Extension of its deriver; null for a manual flow",
+            "examples": [
+              "nat"
+            ]
+          },
+          "deriver": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its deriver; null for a manual flow",
+            "examples": [
+              "port-forwards"
+            ]
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "client"
+                    ],
+                    "description": "Traffic entering from a client",
+                    "examples": [
+                      "client"
+                    ]
+                  },
+                  "client": {
+                    "type": "string",
+                    "enum": [
+                      "public",
+                      "internal"
+                    ],
+                    "description": "The internet (`public`) or the local network (`internal`)",
+                    "examples": [
+                      "public"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "client"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "service"
+                    ],
+                    "description": "A call a service makes",
+                    "examples": [
+                      "service"
+                    ]
+                  },
+                  "serviceId": {
+                    "type": "string",
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "description": "The calling service",
+                    "examples": [
+                      "0199d6a0-0000-7000-8000-000000000005"
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "serviceId"
+                ],
+                "additionalProperties": false
+              }
+            ],
+            "description": "Where it starts",
+            "examples": [
+              {
+                "type": "client",
+                "client": "public"
+              }
+            ],
+            "type": "object"
+          },
+          "targetListenerId": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "The listener it reaches",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000010"
+            ]
+          },
+          "protocol": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40,
+                "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its protocol kind, when known",
+            "examples": [
+              null
+            ]
+          },
+          "encrypted": {
+            "description": "Whether it is encrypted; null when unknown",
+            "examples": [
+              null
+            ],
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it exists (manual flows)",
+            "examples": [
+              null
+            ]
+          },
+          "hostnames": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 253,
+              "pattern": "^(?=.{1,253}$)(?:\\*\\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+            },
+            "description": "Names it serves, sorted: the first 50",
+            "examples": [
+              [
+                "app.homelab.example",
+                "homelab.example",
+                "www.homelab.example"
+              ]
+            ]
+          },
+          "hostnameCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000,
+            "description": "How many names it serves",
+            "examples": [
+              3
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "origin",
+          "extension",
+          "deriver",
+          "source",
+          "targetListenerId",
+          "protocol",
+          "encrypted",
+          "purpose",
+          "hostnames",
+          "hostnameCount"
+        ],
+        "additionalProperties": false,
+        "description": "A flow from a client or a service to a listener",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000050",
+            "origin": "derived",
+            "extension": "nat",
+            "deriver": "port-forwards",
+            "source": {
+              "type": "client",
+              "client": "public"
+            },
+            "targetListenerId": "0199d6a0-0000-7000-8000-000000000010",
+            "protocol": null,
+            "encrypted": null,
+            "purpose": null,
+            "hostnames": [
+              "app.homelab.example",
+              "homelab.example",
+              "www.homelab.example"
+            ],
+            "hostnameCount": 3
           }
         ]
       }

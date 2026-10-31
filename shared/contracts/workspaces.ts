@@ -2,7 +2,6 @@ import { entityId } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
 import { defineContract } from './contract';
-import { Problem, problemOf } from './errors';
 import { KEBAB_CASE, line } from './formats';
 
 const id = (n: number) => `0199d6a0-0000-7000-8000-${String(n).padStart(12, '0')}`;
@@ -30,34 +29,29 @@ export const WorkspaceSummary = z.object({
 
 export type WorkspaceSummary = z.infer<typeof WorkspaceSummary>;
 
-export const getWorkspaceBySlug = defineContract({
+export const MAX_WORKSPACES = 100;
+
+export const listWorkspaces = defineContract({
   method: 'get',
-  path: '/api/workspaces/by-slug/:slug',
-  operationId: 'getWorkspaceBySlug',
-  summary: 'Find a workspace by its slug',
-  description: 'Gives the workspace with this slug, such as `demo`, the workspace the app seeds with the demo stack.',
+  path: '/api/workspaces',
+  operationId: 'listWorkspaces',
+  summary: 'Find workspaces',
+  description: 'Gives the workspace with this slug, such as `demo`, the workspace the app seeds with the demo stack, '
+    + 'or none. The slug is required until accounts exist.',
   tags: ['Workspaces'],
   requiredRole: 'viewer',
-  params: z.object({
+  query: z.object({
     slug: slug().meta({ description: 'The workspace\'s slug', examples: ['demo'] }),
   }),
   responses: {
     200: {
-      description: 'The workspace',
-      schema: WorkspaceSummary,
-      examples: { demo: { summary: 'The demo workspace', value: workspace } },
-    },
-    404: {
-      description: 'No workspace has this slug',
-      schema: Problem,
+      description: 'The matching workspaces: one, or none for an unknown slug',
+      schema: z.object({
+        workspaces: z.array(WorkspaceSummary).max(MAX_WORKSPACES).meta({ description: 'By name' }),
+      }).meta({ id: 'WorkspaceList', description: 'Workspaces', examples: [{ workspaces: [workspace] }] }),
       examples: {
-        workspace_not_found: {
-          summary: 'Unknown slug',
-          value: problemOf('workspace_not_found', {
-            detail: 'No workspace demo.',
-            instance: '/api/workspaces/by-slug/demo',
-          }),
-        },
+        demo: { summary: 'The demo workspace', value: { workspaces: [workspace] } },
+        none: { summary: 'An unknown slug', value: { workspaces: [] } },
       },
     },
   },

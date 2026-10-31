@@ -15,6 +15,12 @@ export const TAGS: Readonly<Record<string, TagDocs>> = {
   Traces: {
     description: 'The path of a request to a hostname, hop by hop, computed from the workspace\'s flows.',
   },
+  Traffic: {
+    description: 'The flows between a workspace\'s clients, services and listeners, for the traffic graph.',
+  },
+  Workspaces: {
+    description: 'Isolated sets of infrastructure data. Until accounts exist, the app seeds a `demo` workspace.',
+  },
   System: {
     description: 'The instance itself: whether it is up, and the description of this API.',
   },
