@@ -1,10 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import { EMPTY_URL, signInTo } from './support/accounts';
+
 import type { Page } from '@playwright/test';
 
-/** The app started with STACKMAP_DEMO=false (playwright.config.ts). */
-const EMPTY_URL = 'http://127.0.0.1:3101';
 const DEMO_SERVICES = ['Nginx Proxy Manager', 'Website', 'Website database', 'Weather API'];
 
 const expectNoAxeViolation = async (page: Page) => {
@@ -212,10 +212,12 @@ test.describe('without a workspace', () => {
   test.use({ baseURL: EMPTY_URL });
 
   test('given no workspace, /graph explains how to get the demo workspace, with no error', async ({ page }) => {
+    await signInTo(page, EMPTY_URL);
     await page.goto('/graph');
 
     await expect(page.getByRole('heading', { name: 'No workspace yet' })).toBeVisible();
-    await expect(page.getByText('STACKMAP_DEMO=false')).toBeVisible();
+    // The demo is off by default now: the hint says how to turn it on.
+    await expect(page.getByText('STACKMAP_DEMO=true')).toBeVisible();
     await expect(page.getByRole('alert')).toBeHidden();
     await expectNoAxeViolation(page);
   });

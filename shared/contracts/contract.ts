@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-/** Who may call an operation; enforced from phase 4 (authentication). */
+/** Who may call an operation, checked before its input (server/utils/contract-handler.ts). */
 export type Role = 'public' | 'viewer' | 'editor' | 'admin' | 'owner';
 
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';

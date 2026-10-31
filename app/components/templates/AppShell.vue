@@ -1,5 +1,8 @@
 <script setup lang="ts">
 /** Every page's frame: the skip link, the sidebar and the main content, with the mobile navigation toggle. */
+defineProps<{ user?: { name: string } | null }>();
+const emit = defineEmits<{ signOut: [] }>();
+
 const { t } = useI18n();
 const main = useTemplateRef<HTMLElement>('main');
 
@@ -19,7 +22,10 @@ const skipToMain = () => {
       :class="skipLink"
       @click.prevent="skipToMain"
     >{{ t('a11y.skipToContent') }}</a>
-    <AppSidebar />
+    <AppSidebar
+      :user="user"
+      @sign-out="emit('signOut')"
+    />
     <UDashboardPanel>
       <template #header>
         <!-- Narrow screens only: the navigation toggle in a header landmark. The page keeps the one h1. -->

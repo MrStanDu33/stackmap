@@ -110,7 +110,7 @@
     "empty": "Nothing to draw yet",
     "emptyHint": "Hosts, services and their flows will appear here.",
     "noWorkspace": "No workspace yet",
-    "noWorkspaceHint": "Remove STACKMAP_DEMO=false (or 0, no, off) from Stackmap’s environment and restart it to explore the demo workspace.",
+    "noWorkspaceHint": "Restart Stackmap with STACKMAP_DEMO=true in its environment to add the demo workspace.",
     "error": "The traffic could not be loaded.",
     "layoutError": "The graph could not be laid out.",
     "truncated": "Only part of this workspace is shown: it is too large to draw at once.",
@@ -187,5 +187,37 @@
       "internal": "Trace {hostname} from the local network"
     },
     "namesReaching": "Hostnames that reach it"
+  },
+  "auth": {
+    "setup": {
+      "title": "Set up Stackmap",
+      "intro": "Create the administrator account. It can manage the whole instance.",
+      "demo": "Add the demo workspace",
+      "demoHint": "A fictional home lab to explore; you can delete it later.",
+      "submit": "Create the admin account",
+      "closed": "Setup is closed. Restart Stackmap to open it again for {minutes} minute. | Setup is closed. Restart Stackmap to open it again for {minutes} minutes."
+    },
+    "login": {
+      "title": "Sign in",
+      "submit": "Sign in",
+      "invalid": "Email or password is incorrect.",
+      "throttled": "Too many attempts. Try again in {seconds} second. | Too many attempts. Try again in {seconds} seconds."
+    },
+    "field": {
+      "name": "Name",
+      "email": "Email",
+      "password": "Password",
+      "passwordHint": "At least 12 characters.",
+      "showPassword": "Show password",
+      "required": "All fields are required."
+    },
+    "error": {
+      "email": "Enter an email address, such as {example}.",
+      "password": "Enter at least 12 characters.",
+      "name": "Enter a name.",
+      "network": "Stackmap could not be reached. Try again."
+    },
+    "signOut": "Sign out",
+    "signOutOf": "Sign out ({name})"
   }
 }

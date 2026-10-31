@@ -118,12 +118,42 @@ own table _(planned)_.
 The **demo stack** (`server/demo/demo-stack.ts`) is a fictional home lab, described with references by name: a home
 server behind an edge router, a website and its database behind Nginx Proxy Manager, `homelab.example`. It combines
 the extensions' entities, so it belongs to the app; tests use it, and the app seeds it into its demo workspace: when
-the server starts and no workspace has the slug `demo`, `server/plugins/demo.ts` creates it and seeds the demo stack,
-before the first request is served. The workspace and its data are written in one transaction: a seed that fails or is
-interrupted leaves nothing, the next start tries again, and the app runs on. An existing `demo` workspace is never
-touched, but a deleted one comes back on the next start. `STACKMAP_DEMO=false` (or `0`, `no`, `off`) turns it off. It
-is on by default until accounts exist (phase 4), since nothing else creates a workspace yet; the UI finds it with
-`GET /api/workspaces?slug=demo`, which accepts no other slug until then, so a guessed slug reveals no workspace id.
+`/setup` offers it ("Add the demo workspace", checked), and with `STACKMAP_DEMO=true` (or `1`, `yes`, `on`)
+`server/plugins/demo.ts` seeds it when the server starts and no workspace has the slug `demo`, before the first request
+is served. The workspace and its data are written in one transaction: a seed that fails or is interrupted leaves
+nothing, the next start tries again, and the app runs on (at setup, the administrator is created and signed in all the
+same). An existing `demo` workspace is never touched, but with `STACKMAP_DEMO` a deleted one comes back on the next
+start. The UI finds it with `GET /api/workspaces?slug=demo`, which accepts no other slug until memberships exist (phase
+4b), so a guessed slug reveals no workspace id.
+
+## Accounts
+
+Accounts are Better Auth's (`server/auth/`): email and password, and an instance role, `admin` or `user` (its admin
+plugin), on its own tables (`user`, `session`, `account`, `verification`, created by our migration `0004_auth` on both
+databases). Only its server API is used, from our contract routes; its own router is not mounted, so nothing answers
+under `/api/auth`, and every account operation is in the API document:
+
+- `/setup` creates the first administrator once (`POST /api/setup`), signs them in and, when asked, adds the demo
+  workspace. It is open while no account exists, for `SETUP_TIMEOUT_MINUTES` (15) after each server start; creating
+  the administrator claims an app setting first, so of two concurrent requests one wins and the other gets `409`.
+- `/login` signs in (`POST /api/session`); a wrong email and a wrong password get the same `401`. Setup and sign-in
+  are limited to 5 attempts a minute per client address (`429` with `Retry-After`), counted in the `rateLimit` table
+  (counts whose minute has passed are removed); an IPv6 client counts as its /64. The address is the socket's, or with
+  `TRUST_PROXY=true` the last `X-Forwarded-For` entry, the one the proxy added, when it is an IP address; sessions
+  record the same address. Whatever Better Auth refuses on sign-in (a banned account too) answers the same `401`.
+- The session is the `better-auth.session_token` cookie (`__Secure-` prefixed and Secure when `BETTER_AUTH_URL` is
+  HTTPS), HTTP-only and `SameSite=Lax`, valid 7 days and renewed daily while used (an expired one is cleared).
+  `GET /api/session` says who is signed in; `DELETE /api/session` signs out.
+- The secret that signs sessions is `BETTER_AUTH_SECRET`, or one generated once into `DATA_DIR/.auth-secret`, readable
+  by its owner only (an empty file is written again); it must be at least 32 characters.
+- `defineContractHandler` refuses a change sent by a browser from another origin than `BETTER_AUTH_URL`
+  (`403 invalid_origin`; Better Auth's own check belongs to its router, which is not mounted), answers every operation
+  with `Cache-Control: no-store`, and checks the session before reading or checking the input: `401` without one, `403`
+  below the required role (until memberships exist, `admin` and `owner` need the instance administrator, the workspace roles
+  any session). `server/api/routes.test.ts` checks every route.
+- In the app, a global route middleware sends visitors to `/setup` until an account exists, then to `/login` (with the
+  page asked for, kept only when it is a path on this site) until they sign in. Rendered pages are sent with
+  `Cache-Control: no-store`, so Back after signing out asks the server again.
 
 ## Workspaces and isolation
 
@@ -149,7 +179,7 @@ checks on both databases, and a test fails when code outside `server/database/`,
 extension's server code queries the database, or when anything selects every column.
 
 Members, roles (`owner`, `admin`, `editor`, `viewer`) and invitations come from Better Auth's organization plugin,
-mapped onto the `workspace` table _(planned, phase 4)_. An entitlements service, `can(workspace, feature)`, allows
+mapped onto the `workspace` table _(planned, phase 4b)_. An entitlements service, `can(workspace, feature)`, allows
 everything in v1 and prepares paid plans _(planned)_.
 
 ## Extensions
@@ -259,7 +289,8 @@ in `server/api/` implements exactly one contract with `defineContractHandler`, w
 
 Every error is RFC 9457 Problem Details, as `application/problem+json`: `type` (`urn:stackmap:problem:<code>`),
 `title`, `status`, `detail`, `instance` (the request path), a stable `code` (listed in `PROBLEMS`) and, for invalid
-values, `issues`. The required role is recorded now and enforced from phase 4.
+values, `issues`. The required role is checked before the input (see Accounts); operations that need a session also
+document `401 unauthenticated`, and those that need `admin` or `owner` `403 forbidden`.
 
 The OpenAPI 3.1.1 document is generated from the contracts (`zod-openapi`), served at `/api/openapi.json` and committed
 as `docs/api/openapi.json`; a test fails when the committed file is stale (`pnpm test:unit -u` updates it). It describes
@@ -269,8 +300,8 @@ error responses, every operation's role, examples and errors, and every property
 an anchored pattern, every array a maximum size, and every value a type (`shared/contracts/ formats.ts`; free text and
 one-line text refuse control, invisible and direction-changing characters, which make text read differently than it is),
 so responses validate tightly and API security audits (42Crunch) find no open-ended schema. The document requires the
-session cookie (`better-auth.session_token`, `shared/contracts/security.ts`) except on public operations; it is enforced
-once accounts exist (phase 4), which must use that cookie. Tests prove it: it is valid OpenAPI, the strict Redocly lint
+session cookie (`better-auth.session_token`, `shared/contracts/security.ts`) except on public operations, and a test
+checks that Better Auth sets that cookie. Tests prove it: it is valid OpenAPI, the strict Redocly lint
 (`redocly.yaml`) reports nothing, and every example matches its schema. `/api/docs` renders it with Scalar, bundled in
 the app: no CDN, remote fonts, telemetry or AI services.
 

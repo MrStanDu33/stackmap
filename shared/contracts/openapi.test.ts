@@ -102,6 +102,17 @@ describe('OpenAPI document', () => {
     expect(document.paths?.['/api/things']?.post).toHaveProperty('x-required-role', 'editor');
   });
 
+  it('documents 401 unauthenticated on operations that need a session, 403 forbidden on those that need a role, none on public ones', () => {
+    const operation = (contract: typeof getThing | typeof createThing, requiredRole: 'public' | 'viewer' | 'admin') => {
+      const built = createOpenApiDocument([{ ...contract, requiredRole }], TEST_TAGS);
+      return Object.values(built.paths ?? {})[0]?.[contract.method];
+    };
+
+    expect(Object.keys(operation(getThing, 'viewer')?.responses ?? {})).toContain('401');
+    expect(Object.keys(operation(getThing, 'admin')?.responses ?? {})).toEqual(expect.arrayContaining(['401', '403']));
+    expect(Object.keys(operation(getThing, 'public')?.responses ?? {})).not.toContain('401');
+  });
+
   it('emits schemas shared by several operations once, under components.schemas', () => {
     expect(document.components?.schemas).toHaveProperty('Thing');
     expect(document.paths?.['/api/things']?.post?.responses).toHaveProperty(
@@ -172,7 +183,7 @@ describe('OpenAPI document: top level', () => {
     const responses = document.components?.responses ?? {};
 
     expect(Object.keys(responses).sort())
-      .toEqual(['InternalError', 'PayloadTooLarge', 'UnsupportedMediaType', 'ValidationFailed']);
+      .toEqual(['InternalError', 'PayloadTooLarge', 'Unauthenticated', 'UnsupportedMediaType', 'ValidationFailed']);
     for (const response of Object.values(responses) as oas31.ResponseObject[]) {
       expect(response.description).toMatch(/\S/);
       expect(response.content?.['application/problem+json']).toMatchObject({

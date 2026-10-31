@@ -39,12 +39,16 @@ const fakeNuxtApp = () => {
 };
 
 /** Runs the plugin with the given clients; the server reports the given extension states. */
-const runPlugin = async (clients: ExtensionClient[], states: Record<string, 'active' | 'failed'>) => {
+const runPlugin = async (
+  clients: ExtensionClient[],
+  states: Record<string, 'active' | 'failed'>,
+  list: () => Promise<unknown> = () => Promise.resolve({
+    extensions: Object.entries(states).map(([id, state]) => ({ id, state })),
+  }),
+) => {
   vi.resetModules();
   vi.stubGlobal('defineNuxtPlugin', (plugin: unknown) => plugin);
-  vi.stubGlobal('$fetch', vi.fn(() => Promise.resolve({
-    extensions: Object.entries(states).map(([id, state]) => ({ id, state })),
-  })));
+  vi.stubGlobal('$fetch', vi.fn(list));
   vi.doMock('../extensions/builtin', () => ({ BUILTIN_EXTENSION_CLIENTS: clients }));
   const { default: plugin } = await import('./extensions.client');
   const nuxt = fakeNuxtApp();
@@ -118,5 +122,22 @@ describe('extensions client plugin', () => {
     await nuxt.run('app:mounted');
 
     expect(debug).toHaveBeenCalledWith(expect.stringMatching(/^\[extensions\] app:mounted → vpn \(\d/));
+  });
+
+  it('given the list cannot be read yet (signed out, 401), asks again at the next hook: once signed in, the handlers run', async () => {
+    const mounted = vi.fn();
+    const changed = vi.fn();
+    // Signed out at start and when mounted; signed in by the first navigation.
+    const list = vi.fn()
+      .mockRejectedValueOnce(new Error('401 Unauthorized'))
+      .mockRejectedValueOnce(new Error('401 Unauthorized'))
+      .mockResolvedValueOnce({ extensions: [{ id: 'fine', state: 'active' }] });
+    const nuxt = await runPlugin([client('fine', { 'app:mounted': mounted, 'route:changed': changed })], {}, list);
+
+    await nuxt.run('app:mounted');
+    await nuxt.run('page:finish');
+
+    expect(mounted).not.toHaveBeenCalled();
+    expect(changed).toHaveBeenCalledOnce();
   });
 });

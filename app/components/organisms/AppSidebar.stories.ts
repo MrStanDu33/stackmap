@@ -1,4 +1,4 @@
-import { expect, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import AppSidebar from './AppSidebar.vue';
 import { i18n, router } from '../../../.storybook/nuxt-shims';
@@ -33,5 +33,47 @@ export const Default: Story = {
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).not.toHaveAttribute('aria-current');
     await expect(canvas.getByText(t('app.name'))).toBeVisible();
     await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
+  },
+};
+
+/** Signed in: the footer shows the user's name and Sign out (24). */
+export const SignedIn: Story = {
+  args: { user: { name: 'Ada' }, onSignOut: fn() },
+  render: (args) => ({
+    components: { AppSidebar },
+    setup: () => ({ args }),
+    template: '<UDashboardGroup><AppSidebar v-bind="args" /></UDashboardGroup>',
+  }),
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText('Ada')).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: t('auth.signOut') }));
+    await expect(args.onSignOut).toHaveBeenCalledOnce();
+  },
+};
+
+/** Collapsed: an icon button named "Sign out (<name>)" (24). */
+export const SignedInCollapsed: Story = {
+  args: { user: { name: 'Ada' }, onSignOut: fn() },
+  render: (args) => ({
+    components: { AppSidebar },
+    setup: () => ({ args }),
+    template: '<UDashboardGroup><AppSidebar v-bind="args" :collapsed="true" /></UDashboardGroup>',
+  }),
+  play: async ({ canvasElement, args }) => {
+    const signOut = within(canvasElement).getByRole('button', { name: t('auth.signOutOf', { name: 'Ada' }) });
+
+    // Icons alone: a tooltip shows each name to sighted users too, after the usual hover delay (700 ms). It is what is
+    // seen that counts: screen readers have the button's name already, so Reka hides the tooltip's copy from them.
+    const delay = { timeout: 2000 };
+    const shownTooltip = () => document.querySelector('[data-reka-popper-content-wrapper] [data-slot="content"]');
+    await userEvent.hover(signOut);
+    await waitFor(() => expect(shownTooltip()).toHaveTextContent(t('auth.signOutOf', { name: 'Ada' })), delay);
+    await userEvent.hover(within(canvasElement).getByRole('link', { name: t('trace.title') }));
+    await waitFor(() => expect(shownTooltip()).toHaveTextContent(t('trace.title')), delay);
+
+    await userEvent.click(signOut);
+    await expect(args.onSignOut).toHaveBeenCalledOnce();
   },
 };

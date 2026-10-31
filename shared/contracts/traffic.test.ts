@@ -10,7 +10,7 @@ describe('getTraffic contract', () => {
 
     expect(CONTRACTS).toContain(getTraffic);
     expect(operation?.tags).toEqual(['Traffic']);
-    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '404', '500']);
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '401', '404', '500']);
     expect(Object.keys((operation?.responses?.['404'] as { content?: object } | undefined)?.content ?? {}))
       .toEqual(['application/problem+json']);
   });

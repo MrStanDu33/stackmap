@@ -4,8 +4,7 @@ import { join } from 'node:path';
 
 import { defineConfig, devices } from '@playwright/test';
 
-/** The built app with the demo workspace, and a second one started without it. Run `pnpm build` first. */
-const DEMO_URL = 'http://127.0.0.1:3100';
+import { DEMO_SESSION, DEMO_URL } from './tests/e2e/support/accounts';
 
 const server = (port: number, env: Record<string, string> = {}) => ({
   command: 'node .output/server/index.mjs',
@@ -18,6 +17,8 @@ const server = (port: number, env: Record<string, string> = {}) => ({
     STACKMAP_DEMO: 'true',
     HOST: '127.0.0.1',
     PORT: String(port),
+    // Where the browser reaches it: changes sent from another origin are refused.
+    BETTER_AUTH_URL: `http://127.0.0.1:${String(port)}`,
     DATA_DIR: mkdtempSync(join(tmpdir(), 'stackmap-e2e-')),
     ...env,
   },
@@ -29,7 +30,10 @@ export default defineConfig({
   testDir: 'tests/e2e',
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? 'github' : 'list',
-  use: { baseURL: DEMO_URL, trace: 'retain-on-failure' },
+  // Signed in to the demo server by the global setup; tests of other servers sign in themselves.
+  globalSetup: './tests/e2e/global-setup.ts',
+  use: { baseURL: DEMO_URL, storageState: DEMO_SESSION, trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: [server(3100), server(3101, { STACKMAP_DEMO: 'false' })],
+  /** The built app with the demo, one without it, and one never set up. Run `pnpm build` first. */
+  webServer: [server(3100), server(3101, { STACKMAP_DEMO: 'false' }), server(3102, { STACKMAP_DEMO: 'false' })],
 });

@@ -19,7 +19,10 @@ export const TAGS: Readonly<Record<string, TagDocs>> = {
     description: 'The flows between a workspace\'s clients, services and listeners, for the traffic graph.',
   },
   Workspaces: {
-    description: 'Isolated sets of infrastructure data. Until accounts exist, the app seeds a `demo` workspace.',
+    description: 'Isolated sets of infrastructure data. Setup can add a `demo` workspace with a fictional home lab.',
+  },
+  Accounts: {
+    description: 'Setting up the first administrator, and signing in and out. The session is a cookie.',
   },
   System: {
     description: 'The instance itself: whether it is up, and the description of this API.',

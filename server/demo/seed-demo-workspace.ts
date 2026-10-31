@@ -12,8 +12,8 @@ import type { Kysely } from 'kysely';
 
 export const DEMO_WORKSPACE: WorkspaceInput = { name: 'Demo', slug: DEMO_WORKSPACE_SLUG };
 
-/** Values of `STACKMAP_DEMO` that turn the seed off, in any case. */
-const OFF = new Set(['false', '0', 'no', 'off']);
+/** Values of `STACKMAP_DEMO` that turn the seed on, in any case. Off otherwise: setup offers the demo instead. */
+const ON = new Set(['true', '1', 'yes', 'on']);
 
 export interface SeedDemoOptions {
   env: { STACKMAP_DEMO?: string };
@@ -24,15 +24,15 @@ export interface SeedDemoOptions {
 }
 
 /**
- * Seeds the demo stack into workspace `demo` when it is missing, unless `STACKMAP_DEMO` is `false`, `0`, `no` or
- * `off`. An existing `demo` workspace is never touched. The workspace and its data are written in one transaction, so a
- * failed or interrupted seed leaves nothing and the next start tries again.
+ * Seeds the demo stack into workspace `demo` when it is missing and `STACKMAP_DEMO` is `true`, `1`, `yes` or `on`. An
+ * existing `demo` workspace is never touched. The workspace and its data are written in one transaction, so a failed
+ * or interrupted seed leaves nothing and the next start tries again.
  */
 export async function seedDemoWorkspace(
   db: Kysely<Database>,
   { env, registry, logger, seed = seedDemoStack }: SeedDemoOptions,
 ): Promise<void> {
-  if (OFF.has(env.STACKMAP_DEMO?.trim().toLowerCase() ?? '') || await getWorkspaceBySlug(db, DEMO_WORKSPACE.slug)) {
+  if (!ON.has(env.STACKMAP_DEMO?.trim().toLowerCase() ?? '') || await getWorkspaceBySlug(db, DEMO_WORKSPACE.slug)) {
     return;
   }
   try {

@@ -30,7 +30,7 @@ describe.each(DIALECTS)('demo workspace seed on %s', (dialect: Dialect) => {
   const logger = () => ({ info: vi.fn(), error: vi.fn() });
   const db = () => workspaces.db as unknown as Kysely<Database>;
   const seed = (options: Partial<SeedDemoOptions> = {}) =>
-    seedDemoWorkspace(db(), { env: {}, registry: BUILTIN_REGISTRY, logger: logger(), ...options });
+    seedDemoWorkspace(db(), { env: { STACKMAP_DEMO: 'true' }, registry: BUILTIN_REGISTRY, logger: logger(), ...options });
   const demoWorkspaces = () => db().selectFrom('workspace').select(['id', 'name']).where('slug', '=', 'demo').execute();
 
   it('given no demo workspace, creates workspace demo with the demo stack and its derived flows', async () => {
@@ -54,6 +54,19 @@ describe.each(DIALECTS)('demo workspace seed on %s', (dialect: Dialect) => {
 
     expect(await demoWorkspaces()).toEqual([{ id: existing.id, name: 'Mine' }]);
     expect(await countRows(workspaces.db, 'core_site', existing.id)).toBe(0);
+  });
+
+  it('given STACKMAP_DEMO unset or empty, creates no workspace: the demo is offered at setup instead (8)', async () => {
+    await seed({ env: {} });
+    await seed({ env: { STACKMAP_DEMO: ' ' } });
+
+    expect(await demoWorkspaces()).toEqual([]);
+  });
+
+  it.each(['TRUE', '1', 'Yes', 'on'])('given STACKMAP_DEMO=%s, seeds the demo workspace (8)', async (value) => {
+    await seed({ env: { STACKMAP_DEMO: value } });
+
+    expect(await demoWorkspaces()).toHaveLength(1);
   });
 
   it('given STACKMAP_DEMO=false, 0, no or off in any case, creates no workspace', async () => {

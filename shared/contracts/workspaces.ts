@@ -40,14 +40,14 @@ export const listWorkspaces = defineContract({
   operationId: 'listWorkspaces',
   summary: 'Find workspaces',
   description: 'Gives the demo workspace, the one the app seeds with the demo stack, or none when it does not '
-    + 'exist. Until accounts exist, only the `demo` slug is accepted.',
+    + 'exist. Until workspace memberships exist, only the `demo` slug is accepted.',
   tags: ['Workspaces'],
   requiredRole: 'viewer',
   query: z.object({
-    // shortcut: only the demo workspace can be looked up, so a guessed slug reveals no other workspace's id; phase 4
+    // shortcut: only the demo workspace can be looked up, so a guessed slug reveals no other workspace's id; phase 4b
     // replaces this with the workspaces the caller is a member of.
     slug: z.enum([DEMO_WORKSPACE_SLUG]).meta({
-      description: 'The workspace\'s slug: only `demo` until accounts exist',
+      description: 'The workspace\'s slug: only `demo` until workspace memberships exist',
       examples: [DEMO_WORKSPACE_SLUG],
     }),
   }),

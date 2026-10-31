@@ -3,11 +3,14 @@ import { createApp, toWebHandler } from 'h3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import handler from './diagnostics.get';
+import { useSignedIn } from '../../../tests/support/sessions';
 import { createExtensionRegistry } from '../../extensions/registry';
 import { setExtensionRegistry } from '../../utils/extensions';
 
 import type { ExtensionRegistry } from '../../extensions/registry';
 import type { ExtensionManifest } from '@stackmap/extension-sdk';
+
+useSignedIn();
 
 const manifest = (id: string, extra: Partial<ExtensionManifest> = {}): ExtensionManifest => ({
   id,
