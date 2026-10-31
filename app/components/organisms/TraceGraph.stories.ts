@@ -115,6 +115,24 @@ export const Cycle: Story = {
     await expect(canvasElement.querySelectorAll('[data-step-kind="cycle"]')).toHaveLength(1);
     await expect(edgeOf(canvasElement, `${flows.internalHttp}:${listeners.website}`)?.getAttribute('aria-label'))
       .toContain('Nginx Proxy Manager 80/tcp');
+    // Round dots, clearly apart from the dependencies' dashes.
+    const dots = canvasElement.querySelector('[data-step-kind="cycle"] path');
+    await expect(dots).toHaveAttribute('stroke-dasharray', '0 5');
+    await expect(dots).toHaveAttribute('stroke-linecap', 'round');
+  },
+};
+
+/** A visible legend says what each line style means; the canvas is named as the trace's. */
+export const Legend: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await ready(canvasElement, DEMO_TRACE.steps.length);
+
+    await expect(canvas.getByRole('region', { name: t('trace.canvas') })).toBeVisible();
+    const legend = canvas.getByRole('list', { name: t('trace.legend.title') });
+    await expect(within(legend).getAllByRole('listitem').map(({ textContent }) => textContent.trim())).toEqual([
+      t('trace.legend.request'), t('trace.legend.dependency'), t('trace.legend.cycle'),
+    ]);
   },
 };
 

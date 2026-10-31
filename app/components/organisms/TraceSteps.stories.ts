@@ -46,14 +46,6 @@ export const Demo: Story = {
   },
 };
 
-/** A truncated trace says so. */
-export const Truncated: Story = {
-  args: { trace: { ...DEMO_TRACE, truncated: true } },
-  play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(spaced(t('trace.truncated', { nodes: 500, steps: 1000 })))).toBeVisible();
-  },
-};
-
 /** A cycle is written out: where it goes back to, and that the walk stops there. */
 export const Cycle: Story = {
   args: {

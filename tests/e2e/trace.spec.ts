@@ -37,7 +37,9 @@ test.describe('trace view', () => {
     for (const name of ['Website', 'Website database', 'Weather API']) {
       await expect(page.locator('.vue-flow').getByText(name, { exact: true })).toBeVisible();
     }
-    await expect(page.getByRole('status').filter({ hasText: '2 entries, 4 steps, 2 dependencies' })).toHaveCount(1);
+    // Named, so a new result is told apart from the last one.
+    await expect(page.getByRole('status')
+      .filter({ hasText: 'app.homelab.example from the Internet: 2 entries, 4 steps, 2 dependencies' })).toHaveCount(1);
     await expectNoAxeViolation(page);
   });
 
@@ -81,23 +83,72 @@ test.describe('trace view', () => {
     await page.goto('/trace?hostname=nowhere.homelab.example&client=public');
 
     // The page's message; the live region announces the same words.
-    await expect(page.getByText('Nothing reaches nowhere.homelab.example from Internet.')
+    await expect(page.getByText('Nothing reaches nowhere.homelab.example from the Internet.')
       .and(page.locator(':not([role="status"])'))).toBeVisible();
-    await page.getByRole('button', { name: 'Try from Local network' }).click();
+    await page.getByRole('button', { name: 'Try from the local network' }).click();
     await expect(page).toHaveURL(/client=internal/);
+    // The button is gone with the old result: focus moves to the heading rather than being lost.
+    await expect(page.getByText('Nothing reaches nowhere.homelab.example from the local network.')
+      .and(page.locator(':not([role="status"])'))).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  });
+
+  test('given a new trace loading, the old result is gone and the new one is announced with its name, even with the same counts', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await expect(page.getByRole('status').filter({ hasText: 'app.homelab.example from the Internet' })).toHaveCount(1);
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/workspaces/*/trace**', async (route) => {
+      await held;
+      await route.continue();
+    });
+
+    await hostname(page).fill('homelab.example');
+    await page.getByRole('button', { name: 'Trace', exact: true }).click();
+
+    await expect(page.getByText('Tracing homelab.example…')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Request' })).toBeHidden();
+    release();
+    await expect(page.getByRole('status').filter({ hasText: 'homelab.example from the Internet: 2 entries' })).toHaveCount(1);
+  });
+
+  test('given a truncated trace, the graph view says only part of it is shown', async ({ page }) => {
+    await page.route('**/api/workspaces/*/trace**', async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({ response, json: { ...(await response.json() as object), truncated: true } });
+    });
+
+    await page.goto('/trace?hostname=app.homelab.example&client=public');
+
+    await expect(page.getByText('Only part of this trace is shown: it stops at 500 services or 1,000 steps.')).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: 'Only part of this trace is shown' })).toHaveCount(1);
+  });
+
+  test('given the panel open, Escape in the form leaves it open and the focus in the field', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await page.getByRole('region', { name: 'Request' }).getByRole('button').first().click();
+    await expect(page.getByRole('complementary')).toBeVisible();
+
+    await hostname(page).focus();
+    await page.keyboard.press('Escape');
+
+    await expect(page.getByRole('complementary')).toBeVisible();
+    await expect(hostname(page)).toBeFocused();
   });
 
   test('given a trace URL, the page fills the form and shows the trace, kept on reload', async ({ page }) => {
     await page.goto('/trace?hostname=app.homelab.example&client=public&port=443');
 
     await expect(hostname(page)).toHaveValue('app.homelab.example');
-    await expect(page.getByRole('spinbutton', { name: /Port/ })).toHaveValue('443');
+    await expect(page.getByRole('textbox', { name: /Port/ })).toHaveValue('443');
     await steps(page, 4);
     await page.reload();
     await steps(page, 4);
   });
 
-  test('given an invalid query in the URL, no request is made and the form shows the errors', async ({ page }) => {
+  test('given an invalid query in the URL, no request is made, the form shows the errors and focuses the first', async ({ page }) => {
     let requested = false;
     await page.route('**/api/workspaces/*/trace**', async (route) => {
       requested = true;
@@ -108,7 +159,12 @@ test.describe('trace view', () => {
 
     await expect(page.getByText('A wildcard cannot be traced: enter one name')).toBeVisible();
     await expect(page.getByText('Enter a port from 1 to 65535')).toBeVisible();
+    await expect(hostname(page)).toBeFocused();
+    await expect(page.getByText('Enter a hostname to see how a request reaches it.')).toBeHidden();
     expect(requested).toBe(false);
+
+    await page.goto('/trace?port=0');
+    await expect(page.getByText('Enter a port from 1 to 65535')).toBeVisible();
   });
 
   test('given the trace route fails, Try again reloads it and focus moves to the heading', async ({ page }) => {

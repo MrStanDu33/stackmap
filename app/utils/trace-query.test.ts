@@ -17,4 +17,11 @@ describe('parseTraceQuery', () => {
     expect(parseTraceQuery({ hostname: 'bad_label.example' }).errors).toEqual({ hostname: 'trace.form.error.hostname' });
     expect(parseTraceQuery({ hostname: 'app.homelab.example', client: 'vpn' }).query?.client).toBe('public');
   });
+
+  it('checks the port even without a hostname, and refuses anything but digits', () => {
+    expect(parseTraceQuery({ port: '0' })).toEqual({ query: null, errors: { port: 'trace.form.error.port' } });
+    expect(parseTraceQuery({ hostname: 'app.homelab.example', port: '4a3' }).errors)
+      .toEqual({ port: 'trace.form.error.port' });
+    expect(parseTraceQuery({ hostname: 'app.homelab.example', port: '443' }).query?.port).toBe(443);
+  });
 });

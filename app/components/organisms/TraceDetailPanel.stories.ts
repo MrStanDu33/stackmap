@@ -34,14 +34,19 @@ export const Step: Story = {
     await expect(details.getByText(t('trace.role.request'))).toBeVisible();
     await expect(details.getByText(t('traffic.origin.derived', { extension: 'nat', deriver: 'port-forwards' }))).toBeVisible();
     const lines = within(hops).getAllByRole('listitem').map(({ textContent }) => textContent.replace(/\s+/g, ' ').trim());
+    // "Network: Edge router forwards…": the stage and the sentence are told apart for screen readers too.
     await expect(lines).toEqual([
-      `${t('trace.stage.dns')} ${t('extensions.core.trace.address.public', {
-        name: 'app.homelab.example', address: '203.0.113.10',
-      })}`,
-      `${t('trace.stage.network')} ${t('extensions.nat.trace.forward', {
-        router: 'Edge router', external: '203.0.113.10:443/tcp', internal: '10.0.10.20:443',
-      })}`,
-    ]);
+      t('trace.hopWithStage', {
+        stage: t('trace.stage.dns'),
+        sentence: t('extensions.core.trace.address.public', { name: 'app.homelab.example', address: '203.0.113.10' }),
+      }),
+      t('trace.hopWithStage', {
+        stage: t('trace.stage.network'),
+        sentence: t('extensions.nat.trace.forward', {
+          router: 'Edge router', external: '203.0.113.10:443/tcp', internal: '10.0.10.20:443',
+        }),
+      }),
+    ].map((line) => line.replace(/\s+/g, ' ')));
   },
 };
 
