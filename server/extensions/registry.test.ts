@@ -497,3 +497,19 @@ describe('extension registry: entities', () => {
     expect(extensions[1]).toBe('vpn active');
   });
 });
+
+describe('extension registry: trace hop resolvers', () => {
+  it('given two active extensions resolving the same entity, fails the second with a conflict naming the entity and keeps the first one\'s resolver', () => {
+    const resolver = { entity: 'peer', resolve: () => Promise.resolve([]) };
+    const alpha = manifest('alpha', { code: { server: true } });
+    const beta = manifest('beta', { code: { server: true } });
+    const servers = [alpha, beta]
+      .map((extension) => defineExtensionServer(extension, { traceHopResolvers: [resolver] }));
+
+    const registry = createExtensionRegistry([alpha, beta], { servers });
+
+    expect(summary([alpha, beta], { servers }))
+      .toEqual(['alpha active', 'beta failed: resolves trace hops of "peer", which "alpha" already resolves']);
+    expect(registry.traceHopResolvers()).toEqual([{ extension: 'alpha', resolver }]);
+  });
+});

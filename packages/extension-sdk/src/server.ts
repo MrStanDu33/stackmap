@@ -11,6 +11,7 @@ import type { Migration } from 'kysely/migration';
 export type { Migration };
 
 export * from './flows';
+export * from './traces';
 
 /** Tells which kinds the active extensions provide. */
 export interface KindCatalog {

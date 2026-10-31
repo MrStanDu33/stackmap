@@ -47,6 +47,10 @@
     {
       "name": "System",
       "description": "The instance itself: whether it is up, and the description of this API."
+    },
+    {
+      "name": "Traces",
+      "description": "The path of a request to a hostname, hop by hop, computed from the workspace's flows."
     }
   ],
   "externalDocs": {
@@ -309,6 +313,199 @@
           }
         }
       }
+    },
+    "/api/workspaces/{workspaceId}/trace": {
+      "get": {
+        "operationId": "getTrace",
+        "summary": "Trace a hostname",
+        "description": "Follows the workspace's flows from a client to a hostname: DNS, port forwards and proxies to the app, then the app's dependencies. Without `port`, every entry the client can use is shown; with it, only those on that port. Computed on each call from the stored flows.\n\nRequires the viewer role.",
+        "tags": [
+          "Traces"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "query",
+            "name": "hostname",
+            "schema": {
+              "type": "string",
+              "maxLength": 253,
+              "pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$",
+              "description": "The name to trace; upper case is lowered",
+              "examples": [
+                "app.homelab.example"
+              ]
+            },
+            "required": true,
+            "description": "The name to trace; upper case is lowered",
+            "example": "app.homelab.example"
+          },
+          {
+            "in": "query",
+            "name": "port",
+            "schema": {
+              "description": "Only the entries on this port",
+              "examples": [
+                443
+              ],
+              "type": "number"
+            },
+            "description": "Only the entries on this port",
+            "example": 443
+          },
+          {
+            "in": "query",
+            "name": "client",
+            "schema": {
+              "default": "public",
+              "description": "Where the request comes from: the internet (`public`) or the local network (`internal`), as DNS views",
+              "examples": [
+                "public"
+              ],
+              "type": "string",
+              "enum": [
+                "public",
+                "internal"
+              ]
+            },
+            "description": "Where the request comes from: the internet (`public`) or the local network (`internal`), as DNS views",
+            "example": "public"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The trace; only the client node when nothing reaches the name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trace"
+                },
+                "examples": {
+                  "forward": {
+                    "summary": "Through the router to NPM",
+                    "value": {
+                      "hostname": "app.homelab.example",
+                      "port": 443,
+                      "client": "public",
+                      "truncated": false,
+                      "nodes": [
+                        {
+                          "id": "client",
+                          "type": "client"
+                        },
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000010",
+                          "type": "listener",
+                          "listener": {
+                            "id": "0199d6a0-0000-7000-8000-000000000010",
+                            "port": 443,
+                            "transport": "tcp",
+                            "protocol": "https",
+                            "publishedPort": 443,
+                            "serviceId": "0199d6a0-0000-7000-8000-000000000004",
+                            "serviceName": "Nginx Proxy Manager",
+                            "hostId": "0199d6a0-0000-7000-8000-000000000003",
+                            "hostName": "Home server"
+                          }
+                        }
+                      ],
+                      "steps": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000050:client",
+                          "source": "client",
+                          "target": "0199d6a0-0000-7000-8000-000000000010",
+                          "role": "request",
+                          "depth": 0,
+                          "cycle": false,
+                          "flow": {
+                            "id": "0199d6a0-0000-7000-8000-000000000050",
+                            "origin": "derived",
+                            "extension": "nat",
+                            "deriver": "port-forwards",
+                            "protocol": null,
+                            "encrypted": null,
+                            "purpose": null
+                          },
+                          "hops": [
+                            {
+                              "entity": "dns-record",
+                              "id": "0199d6a0-0000-7000-8000-000000000020",
+                              "stage": "dns",
+                              "label": "extensions.core.trace.address",
+                              "params": {
+                                "name": "app.homelab.example",
+                                "address": "203.0.113.10",
+                                "view": "public"
+                              }
+                            },
+                            {
+                              "entity": "port-forward",
+                              "id": "0199d6a0-0000-7000-8000-000000000030",
+                              "stage": "network",
+                              "label": "extensions.nat.trace.forward",
+                              "port": 443,
+                              "params": {
+                                "router": "Edge router",
+                                "external": "203.0.113.10:443/tcp",
+                                "internal": "10.0.10.20:443"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "404": {
+            "description": "No such workspace",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "workspace_not_found": {
+                    "summary": "Unknown workspace",
+                    "value": {
+                      "type": "urn:stackmap:problem:workspace_not_found",
+                      "title": "The workspace does not exist",
+                      "status": 404,
+                      "detail": "No workspace 0199d6a0-0000-7000-8000-000000000001.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/trace",
+                      "code": "workspace_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -419,10 +616,11 @@
               "validation_failed",
               "payload_too_large",
               "unsupported_media_type",
+              "workspace_not_found",
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `workspace_not_found` (404): No workspace has this id.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -3477,6 +3675,686 @@
             ]
           }
         ]
+      },
+      "Trace": {
+        "type": "object",
+        "properties": {
+          "hostname": {
+            "type": "string",
+            "maxLength": 253,
+            "pattern": "^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$",
+            "description": "The traced hostname",
+            "examples": [
+              "app.homelab.example"
+            ]
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The port it was narrowed to; null for every entry",
+            "examples": [
+              443
+            ]
+          },
+          "client": {
+            "type": "string",
+            "enum": [
+              "public",
+              "internal"
+            ],
+            "description": "Where the request comes from: the internet (`public`) or the local network (`internal`), as DNS views",
+            "examples": [
+              "public"
+            ]
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "The walk stopped at 500 nodes or 1000 steps",
+            "examples": [
+              false
+            ]
+          },
+          "nodes": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceNode"
+            },
+            "description": "The client first, then listeners in walk order"
+          },
+          "steps": {
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceStep"
+            },
+            "description": "In walk order"
+          }
+        },
+        "required": [
+          "hostname",
+          "port",
+          "client",
+          "truncated",
+          "nodes",
+          "steps"
+        ],
+        "additionalProperties": false,
+        "description": "The path of a request to a hostname, hop by hop, and its dependencies",
+        "examples": [
+          {
+            "hostname": "app.homelab.example",
+            "port": 443,
+            "client": "public",
+            "truncated": false,
+            "nodes": [
+              {
+                "id": "client",
+                "type": "client"
+              },
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000010",
+                "type": "listener",
+                "listener": {
+                  "id": "0199d6a0-0000-7000-8000-000000000010",
+                  "port": 443,
+                  "transport": "tcp",
+                  "protocol": "https",
+                  "publishedPort": 443,
+                  "serviceId": "0199d6a0-0000-7000-8000-000000000004",
+                  "serviceName": "Nginx Proxy Manager",
+                  "hostId": "0199d6a0-0000-7000-8000-000000000003",
+                  "hostName": "Home server"
+                }
+              }
+            ],
+            "steps": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000050:client",
+                "source": "client",
+                "target": "0199d6a0-0000-7000-8000-000000000010",
+                "role": "request",
+                "depth": 0,
+                "cycle": false,
+                "flow": {
+                  "id": "0199d6a0-0000-7000-8000-000000000050",
+                  "origin": "derived",
+                  "extension": "nat",
+                  "deriver": "port-forwards",
+                  "protocol": null,
+                  "encrypted": null,
+                  "purpose": null
+                },
+                "hops": [
+                  {
+                    "entity": "dns-record",
+                    "id": "0199d6a0-0000-7000-8000-000000000020",
+                    "stage": "dns",
+                    "label": "extensions.core.trace.address",
+                    "params": {
+                      "name": "app.homelab.example",
+                      "address": "203.0.113.10",
+                      "view": "public"
+                    }
+                  },
+                  {
+                    "entity": "port-forward",
+                    "id": "0199d6a0-0000-7000-8000-000000000030",
+                    "stage": "network",
+                    "label": "extensions.nat.trace.forward",
+                    "port": 443,
+                    "params": {
+                      "router": "Edge router",
+                      "external": "203.0.113.10:443/tcp",
+                      "internal": "10.0.10.20:443"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "TraceNode": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "enum": [
+                  "client"
+                ],
+                "description": "The client node",
+                "examples": [
+                  "client"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "client"
+                ],
+                "description": "Where the request starts",
+                "examples": [
+                  "client"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "description": "The listener's id",
+                "examples": [
+                  "0199d6a0-0000-7000-8000-000000000010"
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "listener"
+                ],
+                "description": "A listener the request or a dependency reaches",
+                "examples": [
+                  "listener"
+                ]
+              },
+              "listener": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "description": "Its id",
+                    "examples": [
+                      "0199d6a0-0000-7000-8000-000000000010"
+                    ]
+                  },
+                  "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "description": "Port it listens on",
+                    "examples": [
+                      443
+                    ]
+                  },
+                  "transport": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                    "description": "`tcp` or `udp`",
+                    "examples": [
+                      "tcp"
+                    ]
+                  },
+                  "protocol": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 40,
+                        "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Its protocol kind, when known",
+                    "examples": [
+                      "https"
+                    ]
+                  },
+                  "publishedPort": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 65535
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Port the host publishes it on",
+                    "examples": [
+                      443
+                    ]
+                  },
+                  "serviceId": {
+                    "type": "string",
+                    "maxLength": 36,
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "description": "Its service",
+                    "examples": [
+                      "0199d6a0-0000-7000-8000-000000000004"
+                    ]
+                  },
+                  "serviceName": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "Its service's name",
+                    "examples": [
+                      "Nginx Proxy Manager"
+                    ]
+                  },
+                  "hostId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 36,
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The service's host; null for an external service",
+                    "examples": [
+                      "0199d6a0-0000-7000-8000-000000000003"
+                    ]
+                  },
+                  "hostName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 100,
+                        "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The host's name",
+                    "examples": [
+                      "Home server"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "port",
+                  "transport",
+                  "protocol",
+                  "publishedPort",
+                  "serviceId",
+                  "serviceName",
+                  "hostId",
+                  "hostName"
+                ],
+                "additionalProperties": false,
+                "description": "The listener, with its service and host"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "listener"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "The client, or a listener",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000010",
+            "type": "listener",
+            "listener": {
+              "id": "0199d6a0-0000-7000-8000-000000000010",
+              "port": 443,
+              "transport": "tcp",
+              "protocol": "https",
+              "publishedPort": 443,
+              "serviceId": "0199d6a0-0000-7000-8000-000000000004",
+              "serviceName": "Nginx Proxy Manager",
+              "hostId": "0199d6a0-0000-7000-8000-000000000003",
+              "hostName": "Home server"
+            }
+          }
+        ],
+        "type": "object"
+      },
+      "TraceStep": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[0-9a-f-]{36}:(?:client|[0-9a-f-]{36})$",
+            "description": "`<flow id>:<source node id>`, unique in the trace",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000050:client"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^(?:client|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$",
+            "description": "Id of the node it leaves",
+            "examples": [
+              "client"
+            ]
+          },
+          "target": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Id of the listener node it reaches",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000010"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "request",
+              "dependency"
+            ],
+            "description": "`request`: carries the traced hostname; `dependency`: a call the services on the way make",
+            "examples": [
+              "request"
+            ]
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8,
+            "description": "Dependency level: 0 on the request path",
+            "examples": [
+              0
+            ]
+          },
+          "cycle": {
+            "type": "boolean",
+            "description": "It leads back to a listener already on its path, and is not followed",
+            "examples": [
+              false
+            ]
+          },
+          "flow": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "description": "The flow's id",
+                "examples": [
+                  "0199d6a0-0000-7000-8000-000000000050"
+                ]
+              },
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "derived",
+                  "manual"
+                ],
+                "description": "Derived from entities, or documented by hand",
+                "examples": [
+                  "derived"
+                ]
+              },
+              "extension": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Extension of its deriver; null for a manual flow",
+                "examples": [
+                  "nat"
+                ]
+              },
+              "deriver": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Its deriver; null for a manual flow",
+                "examples": [
+                  "port-forwards"
+                ]
+              },
+              "protocol": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 40,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Its protocol kind, when known",
+                "examples": [
+                  null
+                ]
+              },
+              "encrypted": {
+                "description": "Whether it is encrypted; null when unknown",
+                "examples": [
+                  null
+                ],
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "purpose": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Why it exists (manual flows)",
+                "examples": [
+                  null
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "origin",
+              "extension",
+              "deriver",
+              "protocol",
+              "encrypted",
+              "purpose"
+            ],
+            "additionalProperties": false,
+            "description": "The flow the step follows"
+          },
+          "hops": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TraceHop"
+            },
+            "description": "What it goes through, DNS first, then network, then proxies"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "target",
+          "role",
+          "depth",
+          "cycle",
+          "flow",
+          "hops"
+        ],
+        "additionalProperties": false,
+        "description": "A flow the trace follows, from one node to a listener",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000050:client",
+            "source": "client",
+            "target": "0199d6a0-0000-7000-8000-000000000010",
+            "role": "request",
+            "depth": 0,
+            "cycle": false,
+            "flow": {
+              "id": "0199d6a0-0000-7000-8000-000000000050",
+              "origin": "derived",
+              "extension": "nat",
+              "deriver": "port-forwards",
+              "protocol": null,
+              "encrypted": null,
+              "purpose": null
+            },
+            "hops": [
+              {
+                "entity": "dns-record",
+                "id": "0199d6a0-0000-7000-8000-000000000020",
+                "stage": "dns",
+                "label": "extensions.core.trace.address",
+                "params": {
+                  "name": "app.homelab.example",
+                  "address": "203.0.113.10",
+                  "view": "public"
+                }
+              },
+              {
+                "entity": "port-forward",
+                "id": "0199d6a0-0000-7000-8000-000000000030",
+                "stage": "network",
+                "label": "extensions.nat.trace.forward",
+                "port": 443,
+                "params": {
+                  "router": "Edge router",
+                  "external": "203.0.113.10:443/tcp",
+                  "internal": "10.0.10.20:443"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "TraceHop": {
+        "type": "object",
+        "properties": {
+          "entity": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "The entity the hop describes",
+            "examples": [
+              "port-forward"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000030"
+            ]
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "dns",
+              "network",
+              "proxy"
+            ],
+            "description": "Name resolution, network or proxy",
+            "examples": [
+              "network"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$",
+            "description": "i18n key of its description",
+            "examples": [
+              "extensions.nat.trace.forward"
+            ]
+          },
+          "params": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[A-Za-z][\\w-]*$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+            },
+            "description": "Values the label interpolates, at most 10"
+          },
+          "port": {
+            "description": "The port a client connects to at this hop",
+            "examples": [
+              443
+            ],
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "entity",
+          "id",
+          "stage",
+          "label",
+          "params"
+        ],
+        "additionalProperties": false,
+        "description": "One entity a step goes through, described by its extension",
+        "examples": [
+          {
+            "entity": "port-forward",
+            "id": "0199d6a0-0000-7000-8000-000000000030",
+            "stage": "network",
+            "label": "extensions.nat.trace.forward",
+            "port": 443,
+            "params": {
+              "router": "Edge router",
+              "external": "203.0.113.10:443/tcp",
+              "internal": "10.0.10.20:443"
+            }
+          }
+        ]
       }
     },
     "responses": {
@@ -3508,6 +4386,35 @@
                   "detail": "The response of getThing does not match its contract.",
                   "instance": "/api/things/42",
                   "code": "invalid_response"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ValidationFailed": {
+        "description": "A path parameter, query parameter or body is invalid or missing; `issues` says which.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "examples": {
+              "validation_failed": {
+                "summary": "The request does not match the API contract",
+                "value": {
+                  "type": "urn:stackmap:problem:validation_failed",
+                  "title": "The request does not match the API contract",
+                  "status": 400,
+                  "detail": "The request does not match the API contract.",
+                  "instance": "/api/things/42",
+                  "code": "validation_failed",
+                  "issues": [
+                    {
+                      "path": "body.name",
+                      "message": "Too small: expected string to have >=1 characters"
+                    }
+                  ]
                 }
               }
             }

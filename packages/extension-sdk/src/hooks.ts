@@ -1,6 +1,7 @@
 import type { FlowDeriver } from './flows';
 import type { ExtensionManifest } from './manifest';
 import type { EntityRepositoryDefinition, Migration } from './server';
+import type { TraceHopResolver } from './traces';
 
 /**
  * Hooks the app calls on the server. Extensions add theirs, named `<id>:<name>`, with
@@ -52,6 +53,8 @@ export interface ExtensionServer {
   repositories?: readonly EntityRepositoryDefinition[];
   /** Turn its entities into flows; run after every write, in registry order. */
   flowDerivers?: readonly FlowDeriver[];
+  /** Describe its entities as the hops of traces. */
+  traceHopResolvers?: readonly TraceHopResolver[];
 }
 
 export interface ExtensionClient {

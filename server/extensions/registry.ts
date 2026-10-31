@@ -2,7 +2,7 @@ import { EXTENSION_API_VERSION, isExtensionTable, KIND_ENTITIES, manifestProblem
 import { ENTITY_META_FIELDS } from '@stackmap/extension-sdk/entities';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
-import type { EntityRepositoryDefinition, FlowDeriver } from '@stackmap/extension-sdk/server';
+import type { EntityRepositoryDefinition, FlowDeriver, TraceHopResolver } from '@stackmap/extension-sdk/server';
 
 export interface RegisteredKind extends Kind {
   /** Id of the extension that contributes it. */
@@ -44,6 +44,14 @@ export interface ExtensionRegistry {
   repositories: () => readonly RegisteredRepository[];
   /** The flow derivers of the active extensions, in registry order. */
   flowDerivers: () => readonly RegisteredFlowDeriver[];
+  /** The trace hop resolvers of the active extensions, one per basis entity. */
+  traceHopResolvers: () => readonly RegisteredTraceHopResolver[];
+}
+
+/** A trace hop resolver, with the extension that contributes it. */
+export interface RegisteredTraceHopResolver {
+  extension: string;
+  resolver: TraceHopResolver;
 }
 
 /** A flow deriver, with the extension that contributes it. */
@@ -362,6 +370,7 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
+    traceHopResolvers: () => [],
     flowDerivers: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
       (server?.flowDerivers ?? []).map((deriver) => ({ extension: manifest.id, deriver }))),
     // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime, and the
