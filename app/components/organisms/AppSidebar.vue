@@ -37,6 +37,7 @@ const items = computed(() => [
       <UNavigationMenu
         :collapsed="collapsed"
         :items="items"
+        tooltip
         orientation="vertical"
         :aria-label="t('nav.label')"
       />
@@ -53,15 +54,20 @@ const items = computed(() => [
             v-if="!collapsed"
             class="truncate text-sm"
           >{{ user.name }}</span>
-          <UButton
+          <!-- An icon alone: the tooltip names it for sighted users, as the menu's do. -->
+          <UTooltip
             v-if="collapsed"
-            icon="i-lucide-log-out"
-            color="neutral"
-            variant="ghost"
-            class="mx-auto"
-            :aria-label="t('auth.signOutOf', { name: user.name })"
-            @click="emit('signOut')"
-          />
+            :text="t('auth.signOutOf', { name: user.name })"
+          >
+            <UButton
+              icon="i-lucide-log-out"
+              color="neutral"
+              variant="ghost"
+              class="mx-auto"
+              :aria-label="t('auth.signOutOf', { name: user.name })"
+              @click="emit('signOut')"
+            />
+          </UTooltip>
           <UButton
             v-else
             icon="i-lucide-log-out"

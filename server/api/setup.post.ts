@@ -5,7 +5,7 @@ import { problemOf } from '../../shared/contracts/errors';
 import { forwardCookies, throttle } from '../auth/requests';
 import { setupWindowOpen } from '../auth/setup-window';
 import { seedDemoWorkspace } from '../demo/seed-demo-workspace';
-import { claimSetup, hasAccounts, releaseSetup } from '../repositories/accounts';
+import { claimSetup, hasAccounts, releaseSetup, removeAccount } from '../repositories/accounts';
 import { useAuth } from '../utils/auth';
 import { defineContractHandler } from '../utils/contract-handler';
 import { useDatabase } from '../utils/database';
@@ -54,10 +54,11 @@ export default defineContractHandler(setUp, async ({ body }, event) => {
       headers: event.headers,
       returnHeaders: true,
     });
-    await (await auth.$context).internalAdapter.updateUser(response.user.id, { role: 'admin' });
     forwardCookies(event, headers);
     user = response.user;
   } catch (error) {
+    // All or nothing: an account created before the failure would leave setup done with nobody signed in.
+    await removeAccount(db, body.email);
     await releaseSetup(db);
     throw error;
   }

@@ -9,6 +9,7 @@ import {
   setResponseStatus,
 } from 'h3';
 
+import { authUrl } from './auth';
 import { getRequestSession } from './session';
 import { MAX_ISSUES, Problem, problemOf } from '../../shared/contracts/errors';
 
@@ -191,6 +192,17 @@ function responseBody(contract: Contract, { status, body }: { status: number; bo
   throw new ApiFailure('invalid_response', `The response of ${contract.operationId} does not match its contract.`, issues);
 }
 
+/**
+ * A change sent by a browser from a page of another origin than the instance's is refused (cross-site request
+ * forgery). Requests without Origin come from scripts and tools, which a page cannot forge.
+ */
+function checkOrigin(contract: Contract, event: H3Event): void {
+  const origin = getRequestHeader(event, 'origin');
+  if (contract.method !== 'get' && origin && origin !== new URL(authUrl()).origin) {
+    throw new ApiFailure('invalid_origin', 'Changes are only accepted from Stackmap\'s own pages.');
+  }
+}
+
 /** The caller's session, checked against the contract's role; null for public operations. */
 async function authorize(contract: Contract, event: H3Event): Promise<Session | null> {
   if (contract.requiredRole === 'public') {
@@ -216,6 +228,9 @@ export function defineContractHandler<C extends Contract, const R extends Contra
 ): ContractHandler<C> {
   const eventHandler = defineEventHandler(async (event) => {
     try {
+      // Responses hold the caller's data: never stored by the browser or a proxy.
+      setResponseHeader(event, 'cache-control', 'no-store');
+      checkOrigin(contract, event);
       // Who calls comes first: someone signed out cannot have a body read or an input checked.
       const session = await authorize(contract, event);
       const input = { ...await parseInput(contract, event), session } as ContractInput<C>;

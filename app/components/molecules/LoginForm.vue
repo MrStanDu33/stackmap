@@ -18,18 +18,32 @@ const message = computed(() => {
     return t('auth.login.invalid');
   }
   if (props.error === 'throttled') {
-    return t('auth.login.throttled', { seconds: props.retryAfter ?? 60 });
+    const seconds = props.retryAfter ?? 60;
+    return t('auth.login.throttled', { seconds }, seconds);
   }
   return props.error === 'network' ? t('auth.error.network') : '';
 });
 
+const form = useTemplateRef<HTMLFormElement>('form');
+// After a failure, focus goes where to try again: the password when it was wrong, the email otherwise.
+watch(() => props.error, async (error) => {
+  if (error) {
+    await nextTick();
+    form.value?.querySelector<HTMLInputElement>(`[name="${error === 'invalid' ? 'password' : 'email'}"]`)?.focus();
+  }
+});
+
 const submit = () => {
-  emit('submit', { email: email.value.trim(), password: password.value });
+  // Fields stay focusable while busy (read-only, not disabled): a second press must not send twice.
+  if (!props.busy) {
+    emit('submit', { email: email.value.trim(), password: password.value });
+  }
 };
 </script>
 
 <template>
   <form
+    ref="form"
     class="flex flex-col gap-4"
     @submit.prevent="submit"
   >
@@ -53,7 +67,7 @@ const submit = () => {
         autocomplete="username"
         spellcheck="false"
         required
-        :disabled="busy"
+        :readonly="busy"
         class="w-full"
       />
     </UFormField>
@@ -67,7 +81,7 @@ const submit = () => {
         :type="shown ? 'text' : 'password'"
         autocomplete="current-password"
         required
-        :disabled="busy"
+        :readonly="busy"
         class="w-full"
         :ui="{ trailing: 'pe-1' }"
       >
@@ -87,7 +101,8 @@ const submit = () => {
     <UButton
       type="submit"
       block
-      :loading="busy"
+      :icon="busy ? 'i-lucide-loader-circle' : undefined"
+      :ui="{ leadingIcon: 'motion-safe:animate-spin' }"
       :aria-busy="busy ? 'true' : undefined"
     >
       {{ t('auth.login.submit') }}

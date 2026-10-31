@@ -8,16 +8,34 @@ const { signedIn } = useAccount();
 
 useHead({ title: () => `${t('auth.setup.title')} · ${t('app.name')}` });
 
+const DEFAULT_MINUTES = 15;
+
 const { data: setup } = await useFetch<{ state: 'open' | 'closed' | 'done'; minutes: number }>('/api/setup');
 const busy = ref(false);
-const failed = ref(false);
+const failure = ref<{ kind: 'network' } | { kind: 'throttled'; seconds: number } | null>(null);
 const errors = ref<Partial<Record<'name' | 'email' | 'password', string>>>({});
 
 const FIELD_ERRORS = { name: 'auth.error.name', email: 'auth.error.email', password: 'auth.error.password' } as const;
 
+const message = computed(() => {
+  if (failure.value?.kind === 'throttled') {
+    return t('auth.login.throttled', { seconds: failure.value.seconds }, failure.value.seconds);
+  }
+  return failure.value ? t('auth.error.network') : '';
+});
+const minutes = computed(() => setup.value?.minutes ?? DEFAULT_MINUTES);
+
+// What replaces the form, or explains why it did not go through, gets the focus: the user is told, and not lost.
+const alert = useTemplateRef<HTMLElement>('alert');
+const closed = useTemplateRef<HTMLElement>('closed');
+const focus = async (target: () => HTMLElement | null | undefined) => {
+  await nextTick();
+  target()?.focus();
+};
+
 const submit = async (account: { name: string; email: string; password: string; demo: boolean }) => {
   busy.value = true;
-  failed.value = false;
+  failure.value = null;
   try {
     signedIn(await $fetch<Session>('/api/setup', { method: 'POST', body: account }));
     await navigateTo('/graph', { replace: true });
@@ -30,10 +48,14 @@ const submit = async (account: { name: string; email: string; password: string; 
         .filter(([field]) => issues.some(({ path }) => path === `body.${field}`)));
     } else if (status === 409) {
       await navigateTo('/login', { replace: true });
-    } else if (status === 403 && setup.value) {
-      setup.value = { ...setup.value, state: 'closed' };
+    } else if (status === 403) {
+      setup.value = { state: 'closed', minutes: minutes.value };
+      await focus(() => closed.value);
     } else {
-      failed.value = true;
+      failure.value = status === 429
+        ? { kind: 'throttled', seconds: Number((error as FetchError).response?.headers.get('retry-after')) || 60 }
+        : { kind: 'network' };
+      await focus(() => alert.value);
     }
   } finally {
     busy.value = false;
@@ -43,8 +65,13 @@ const submit = async (account: { name: string; email: string; password: string; 
 
 <template>
   <AuthTemplate :title="t('auth.setup.title')">
-    <p v-if="setup?.state === 'closed'">
-      {{ t('auth.setup.closed', { minutes: setup.minutes }) }}
+    <p
+      v-if="setup?.state === 'closed'"
+      ref="closed"
+      tabindex="-1"
+      class="outline-none focus-visible:outline-2 focus-visible:outline-primary"
+    >
+      {{ t('auth.setup.closed', { minutes }, minutes) }}
     </p>
     <div
       v-else
@@ -53,14 +80,21 @@ const submit = async (account: { name: string; email: string; password: string; 
       <p class="text-muted">
         {{ t('auth.setup.intro') }}
       </p>
-      <UAlert
-        v-if="failed"
+      <!-- A wrapper takes the focus: the alert component does not pass tabindex on. -->
+      <div
+        v-if="message"
+        ref="alert"
         role="alert"
-        color="error"
-        variant="outline"
-        icon="i-lucide-circle-alert"
-        :title="t('auth.error.network')"
-      />
+        tabindex="-1"
+        class="rounded-lg outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        <UAlert
+          color="error"
+          variant="outline"
+          icon="i-lucide-circle-alert"
+          :title="message"
+        />
+      </div>
       <SetupForm
         :busy="busy"
         :errors="errors"

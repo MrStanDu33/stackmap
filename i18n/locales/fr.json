@@ -193,25 +193,26 @@
       "title": "Configurer Stackmap",
       "intro": "Créez le compte administrateur. Il peut gérer toute l’instance.",
       "demo": "Ajouter l’espace de démonstration",
-      "demoHint": "Un home lab fictif à explorer ; vous pourrez le supprimer ensuite.",
+      "demoHint": "Un homelab fictif à explorer ; vous pourrez le supprimer ensuite.",
       "submit": "Créer le compte administrateur",
-      "closed": "La configuration est fermée. Redémarrez Stackmap pour la rouvrir pendant {minutes} minutes."
+      "closed": "La configuration est fermée. Redémarrez Stackmap pour la rouvrir pendant {minutes} minute. | La configuration est fermée. Redémarrez Stackmap pour la rouvrir pendant {minutes} minutes."
     },
     "login": {
       "title": "Connexion",
       "submit": "Se connecter",
       "invalid": "E-mail ou mot de passe incorrect.",
-      "throttled": "Trop de tentatives. Réessayez dans {seconds} secondes."
+      "throttled": "Trop de tentatives. Réessayez dans {seconds} seconde. | Trop de tentatives. Réessayez dans {seconds} secondes."
     },
     "field": {
       "name": "Nom",
       "email": "E-mail",
       "password": "Mot de passe",
       "passwordHint": "Au moins 12 caractères.",
-      "showPassword": "Afficher le mot de passe"
+      "showPassword": "Afficher le mot de passe",
+      "required": "Tous les champs sont obligatoires."
     },
     "error": {
-      "email": "Saisissez une adresse e-mail, telle que {example}.",
+      "email": "Saisissez une adresse e-mail, par exemple {example}.",
       "password": "Saisissez au moins 12 caractères.",
       "name": "Saisissez un nom.",
       "network": "Stackmap est injoignable. Réessayez."

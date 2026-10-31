@@ -28,8 +28,15 @@ export async function claimSetup(db: Kysely<Database>, at: Date): Promise<boolea
 }
 
 /** At start: a claim with no account was left by a crash during setup, and would block it for good. */
-export async function releaseUnusedSetupClaim(_db: Kysely<Database>): Promise<void> {
-  // Not implemented yet.
+export async function releaseUnusedSetupClaim(db: Kysely<Database>): Promise<void> {
+  if (!await hasAccounts(db)) {
+    await releaseSetup(db);
+  }
+}
+
+/** Removes an account Better Auth created before failing, so setup can be tried again (its sessions go with it). */
+export async function removeAccount(db: Kysely<Database>, email: string): Promise<void> {
+  await db.deleteFrom('user').where('email', '=', email.trim().toLowerCase()).execute();
 }
 
 /** Gives the claim back when the administrator could not be created, so setup can be tried again. */
@@ -47,6 +54,8 @@ export async function hitRateLimit(
   { windowMs, max, now }: { windowMs: number; max: number; now: number },
 ): Promise<{ allowed: boolean; retryAfter: number }> {
   const since = now - windowMs;
+  // Counts whose window has passed are no use: without this, every address ever seen would stay.
+  await db.deleteFrom('rateLimit').where('lastRequest', '<', since).execute();
   const row = await db.insertInto('rateLimit')
     .values({ id: key, key, count: 1, lastRequest: now })
     .onConflict((conflict) => conflict.column('key').doUpdateSet((eb) => ({

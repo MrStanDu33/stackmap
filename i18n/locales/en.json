@@ -195,20 +195,21 @@
       "demo": "Add the demo workspace",
       "demoHint": "A fictional home lab to explore; you can delete it later.",
       "submit": "Create the admin account",
-      "closed": "Setup is closed. Restart Stackmap to open it again for {minutes} minutes."
+      "closed": "Setup is closed. Restart Stackmap to open it again for {minutes} minute. | Setup is closed. Restart Stackmap to open it again for {minutes} minutes."
     },
     "login": {
       "title": "Sign in",
       "submit": "Sign in",
       "invalid": "Email or password is incorrect.",
-      "throttled": "Too many attempts. Try again in {seconds} seconds."
+      "throttled": "Too many attempts. Try again in {seconds} second. | Too many attempts. Try again in {seconds} seconds."
     },
     "field": {
       "name": "Name",
       "email": "Email",
       "password": "Password",
       "passwordHint": "At least 12 characters.",
-      "showPassword": "Show password"
+      "showPassword": "Show password",
+      "required": "All fields are required."
     },
     "error": {
       "email": "Enter an email address, such as {example}.",

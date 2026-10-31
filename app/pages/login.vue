@@ -17,6 +17,8 @@ const retryAfter = ref<number | null>(null);
 
 const submit = async (credentials: { email: string; password: string }) => {
   busy.value = true;
+  // The last error goes as a new attempt starts: if this one fails too, its alert appears again and is announced.
+  error.value = null;
   try {
     signedIn(await $fetch<Session>('/api/session', { method: 'POST', body: credentials }));
     error.value = null;

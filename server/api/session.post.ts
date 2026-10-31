@@ -25,7 +25,8 @@ export default defineContractHandler(signIn, async ({ body }, event) => {
     const { id, name, email, role } = response.user as typeof response.user & { role?: string | null };
     return { status: 200, body: { user: { id, name, email, role: role === 'admin' ? 'admin' : 'user' } } };
   } catch (error) {
-    if (error instanceof APIError && error.statusCode === 401) {
+    // Whatever Better Auth refuses (a wrong password, a banned account…) answers the same: nothing tells them apart.
+    if (error instanceof APIError && error.statusCode < 500 && error.statusCode !== 429) {
       return {
         status: 401,
         body: problemOf('invalid_credentials', {

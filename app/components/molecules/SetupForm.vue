@@ -20,11 +20,16 @@ const shown = ref(false);
 const fieldErrors = ref<Partial<Record<Field, string>>>({});
 const announcement = ref('');
 
-watch(() => props.errors, (errors) => {
+// The server's errors, on their fields, with focus on the first: when they come, and when the form appears with them.
+const showServerErrors = (errors?: Partial<Record<Field, string>>) => {
   if (errors && Object.keys(errors).length > 0) {
     fieldErrors.value = { ...errors };
     void focusFirstError();
   }
+};
+watch(() => props.errors, showServerErrors);
+onMounted(() => {
+  showServerErrors(props.errors);
 });
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,6 +51,10 @@ async function focusFirstError() {
 
 /** Checks the fields as the server does; sends them, or shows the errors and moves focus to the first. */
 const submit = async () => {
+  // Fields stay focusable while busy (read-only, not disabled): a second press must not send twice.
+  if (props.busy) {
+    return;
+  }
   fieldErrors.value = {
     ...(name.value.trim() ? {} : { name: 'auth.error.name' }),
     ...(EMAIL.test(email.value.trim()) ? {} : { email: 'auth.error.email' }),
@@ -66,16 +75,21 @@ const submit = async () => {
     novalidate
     @submit.prevent="submit"
   >
+    <p class="text-sm text-muted">
+      {{ t('auth.field.required') }}
+    </p>
     <UFormField
       :label="t('auth.field.name')"
       :error="fieldErrors.name && t(fieldErrors.name, EXAMPLE)"
       name="name"
+      required
     >
       <UInput
         v-model="name"
         name="name"
         autocomplete="name"
-        :disabled="busy"
+        required
+        :readonly="busy"
         class="w-full"
       />
     </UFormField>
@@ -83,14 +97,16 @@ const submit = async () => {
       :label="t('auth.field.email')"
       :error="fieldErrors.email && t(fieldErrors.email, EXAMPLE)"
       name="email"
+      required
     >
       <UInput
         v-model="email"
         name="email"
         type="email"
         autocomplete="email"
+        required
         spellcheck="false"
-        :disabled="busy"
+        :readonly="busy"
         class="w-full"
       />
     </UFormField>
@@ -99,13 +115,15 @@ const submit = async () => {
       :description="t('auth.field.passwordHint')"
       :error="fieldErrors.password && t(fieldErrors.password, EXAMPLE)"
       name="password"
+      required
     >
       <UInput
         v-model="password"
         name="password"
         :type="shown ? 'text' : 'password'"
         autocomplete="new-password"
-        :disabled="busy"
+        required
+        :readonly="busy"
         class="w-full"
         :ui="{ trailing: 'pe-1' }"
       >
@@ -137,7 +155,8 @@ const submit = async () => {
     <UButton
       type="submit"
       block
-      :loading="busy"
+      :icon="busy ? 'i-lucide-loader-circle' : undefined"
+      :ui="{ leadingIcon: 'motion-safe:animate-spin' }"
       :aria-busy="busy ? 'true' : undefined"
     >
       {{ t('auth.setup.submit') }}

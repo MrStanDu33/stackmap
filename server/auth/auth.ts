@@ -2,8 +2,10 @@ import { betterAuth } from 'better-auth';
 import { admin } from 'better-auth/plugins/admin';
 import { PostgresAdapter } from 'kysely';
 
+import { clientIp } from './requests';
 import { MAX_PASSWORD, MIN_PASSWORD } from '../../shared/contracts/auth';
 import { newId } from '../database/ids';
+import { hasAccounts } from '../repositories/accounts';
 
 import type { Database } from '../database/types/schema';
 import type { Kysely } from 'kysely';
@@ -31,6 +33,18 @@ export function createAuth(db: Kysely<Database>, { secret, baseURL }: AuthOption
       autoSignIn: true,
     },
     plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
+    databaseHooks: {
+      // The first account is the instance administrator from its creation: no second step that could fail.
+      user: { create: { before: async (user) => ({ data: { ...user, role: await hasAccounts(db) ? 'user' : 'admin' } }) } },
+      // The address the attempts are counted under, not Better Auth's (the first X-Forwarded-For, which anyone sets).
+      session: {
+        create: {
+          before: (session, context) => Promise.resolve({
+            data: { ...session, ipAddress: context?.headers ? clientIp(context.headers) ?? null : null },
+          }),
+        },
+      },
+    },
     rateLimit: { enabled: false },
     telemetry: { enabled: false },
     advanced: {

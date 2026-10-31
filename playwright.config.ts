@@ -17,7 +17,7 @@ const server = (port: number, env: Record<string, string> = {}) => ({
     STACKMAP_DEMO: 'true',
     HOST: '127.0.0.1',
     PORT: String(port),
-    // Where the browser reaches it: Better Auth refuses requests from another origin.
+    // Where the browser reaches it: changes sent from another origin are refused.
     BETTER_AUTH_URL: `http://127.0.0.1:${String(port)}`,
     DATA_DIR: mkdtempSync(join(tmpdir(), 'stackmap-e2e-')),
     ...env,

@@ -1,6 +1,6 @@
 import { createApp, createRouter, toWebHandler } from 'h3';
 import { sql } from 'kysely';
-import { beforeEach } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 import { BUILTIN_REGISTRY, useTestWorkspaces } from './workspaces';
 import sessionDelete from '../../server/api/session.delete';
@@ -50,9 +50,14 @@ export function useTestAccounts(dialect: Dialect) {
   const db = () => workspaces.db as unknown as Kysely<Database>;
 
   beforeEach(() => {
+    // The defaults, whatever a developer's .env (loaded by another test file of the same worker) says.
+    vi.stubEnv('SETUP_TIMEOUT_MINUTES', undefined);
     setDatabase(Promise.resolve(db()));
     setExtensionRegistry(BUILTIN_REGISTRY);
     markServerStart(new Date());
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   const call = async (method: string, path: string, { body, cookie, ip = CLIENT_IP }: Call = {}) => {

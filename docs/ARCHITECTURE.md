@@ -137,15 +137,19 @@ under `/api/auth`, and every account operation is in the API document:
   workspace. It is open while no account exists, for `SETUP_TIMEOUT_MINUTES` (15) after each server start; creating
   the administrator claims an app setting first, so of two concurrent requests one wins and the other gets `409`.
 - `/login` signs in (`POST /api/session`); a wrong email and a wrong password get the same `401`. Setup and sign-in
-  are limited to 5 attempts a minute per client address (`429` with `Retry-After`), counted in the `rateLimit` table;
-  the address comes from `X-Forwarded-For` only with `TRUST_PROXY=true`.
+  are limited to 5 attempts a minute per client address (`429` with `Retry-After`), counted in the `rateLimit` table
+  (counts whose minute has passed are removed); an IPv6 client counts as its /64. The address is the socket's, or with
+  `TRUST_PROXY=true` the last `X-Forwarded-For` entry, the one the proxy added, when it is an IP address; sessions
+  record the same address. Whatever Better Auth refuses on sign-in (a banned account too) answers the same `401`.
 - The session is the `better-auth.session_token` cookie (`__Secure-` prefixed and Secure when `BETTER_AUTH_URL` is
-  HTTPS), HTTP-only and `SameSite=Lax`, valid 7 days and renewed daily while used. Better Auth refuses requests from
-  another origin than `BETTER_AUTH_URL`. `GET /api/session` says who is signed in; `DELETE /api/session` signs out.
-- The secret that signs sessions is `BETTER_AUTH_SECRET`, or one generated once into `DATA_DIR/auth-secret`, readable
-  by its owner only.
-- `defineContractHandler` checks the session before reading or checking the input: `401` without one, `403` below the
-  required role (until memberships exist, `admin` and `owner` need the instance administrator, the workspace roles
+  HTTPS), HTTP-only and `SameSite=Lax`, valid 7 days and renewed daily while used (an expired one is cleared).
+  `GET /api/session` says who is signed in; `DELETE /api/session` signs out.
+- The secret that signs sessions is `BETTER_AUTH_SECRET`, or one generated once into `DATA_DIR/.auth-secret`, readable
+  by its owner only (an empty file is written again); it must be at least 32 characters.
+- `defineContractHandler` refuses a change sent by a browser from another origin than `BETTER_AUTH_URL`
+  (`403 invalid_origin`; Better Auth's own check belongs to its router, which is not mounted), answers every operation
+  with `Cache-Control: no-store`, and checks the session before reading or checking the input: `401` without one, `403`
+  below the required role (until memberships exist, `admin` and `owner` need the instance administrator, the workspace roles
   any session). `server/api/routes.test.ts` checks every route.
 - In the app, a global route middleware sends visitors to `/setup` until an account exists, then to `/login` (with the
   page asked for, kept only when it is a path on this site) until they sign in. Rendered pages are sent with
