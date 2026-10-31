@@ -12,7 +12,7 @@ const loop = (steps: number) => () => {
 };
 
 const linear = (size: number) => loop(size * 100_000);
-const quadratic = (size: number) => loop((size * 300) ** 2);
+const quadratic = (size: number) => loop((size * 100) ** 2);
 
 /** Busy-waits, as a runner busy with other work would make a run take longer. */
 const stall = (ms: number) => {
@@ -22,7 +22,8 @@ const stall = (ms: number) => {
   }
 };
 
-describe('growthRatio', () => {
+// Real work, timed many times: coverage instrumentation makes it several times slower.
+describe('growthRatio', { timeout: 30_000 }, () => {
   it('measures about 4 for linear work and about 16 for quadratic work', () => {
     expect(growthRatio(linear, 10)).toBeLessThan(8);
     expect(growthRatio(quadratic, 10)).toBeGreaterThan(8);
