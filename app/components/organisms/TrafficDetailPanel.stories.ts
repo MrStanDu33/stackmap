@@ -212,6 +212,50 @@ export const PortNamesReaching: Story = {
       traceLink('internal', 'npm.homelab.example'),
       traceLink('public', 'www.homelab.example'),
     ]);
+    // Standalone links: in strict mode they get the 44 px targets buttons have.
+    if (document.documentElement.getAttribute('data-contrast') === 'strict') {
+      for (const link of reaching(canvasElement).getAllByRole('link')) {
+        await expect(link.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+      }
+    }
+  },
+};
+
+/** A port many names reach: the first 20 links, then how many more. */
+export const ManyNamesReaching: Story = {
+  args: {
+    selection: { type: 'listener', id: listeners.website },
+    traffic: {
+      ...DEMO_TRAFFIC,
+      flows: [...DEMO_TRAFFIC.flows, ...[0, 1, 2].map((batch) => {
+        const hostnames = Array.from({ length: 10 }, (_, item) => `n${String(batch * 10 + item).padStart(2, '0')}.homelab.example`);
+        return { ...DEMO_TRAFFIC.flows.find(({ id }) => id === flows.routeWebsite)!, id: `many-${String(batch)}`, hostnames, hostnameCount: 10 };
+      })],
+    } satisfies Traffic,
+  },
+  play: async ({ canvasElement }) => {
+    const names = reaching(canvasElement);
+
+    // 33 names reach the website: its own 3 and the 30 added.
+    await expect(names.getAllByRole('link')).toHaveLength(20);
+    await expect(names.getByText(t('detail.moreNames', { count: 13 }))).toBeVisible();
+  },
+};
+
+/** Two panels on one page (the docs page): each section keeps its own name. */
+export const TwoPanels: Story = {
+  render: (args) => ({
+    components: { TrafficDetailPanel },
+    setup: () => ({ args }),
+    template: '<div><TrafficDetailPanel :traffic="args.traffic" :selection="args.selection" />'
+      + '<TrafficDetailPanel :traffic="args.traffic" :selection="{ type: \'service\', id: args.selection.id }" /></div>',
+  }),
+  play: async ({ canvasElement }) => {
+    const ids = [...canvasElement.querySelectorAll('[id]')].map(({ id }) => id);
+
+    await expect(new Set(ids).size).toBe(ids.length);
+    await expect(within(canvasElement).getAllByRole('region', { name: t('detail.namesReaching') })).toHaveLength(2);
+    await expect(within(canvasElement).getAllByRole('complementary', { name: 'Nginx Proxy Manager' })).toHaveLength(2);
   },
 };
 

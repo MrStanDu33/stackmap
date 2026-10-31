@@ -266,4 +266,44 @@ test.describe('trace view', () => {
     await page.keyboard.press('Escape');
     await expect(page).not.toHaveURL(/selected=/);
   });
+
+  test('given a linked step, the live region says what was traced as well as the step', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    const link = page.url();
+
+    await page.goto('/graph');
+    await page.goto(link);
+
+    const status = page.getByRole('status').filter({ hasText: 'app.homelab.example from the Internet: 2 entries' });
+    await expect(status).toHaveCount(1);
+    await expect(status).toContainText('Step 1 of 6: From Internet to Nginx Proxy Manager, port 80/tcp');
+  });
+
+  for (const { name, size } of [
+    { name: 'a phone', size: { width: 375, height: 700 } },
+    { name: 'a wide screen', size: { width: 1280, height: 700 } },
+  ]) {
+    test(`given ${name}, walking the whole list keeps the focused button in view`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+      await firstStep(page).click();
+      const next = page.getByRole('button', { name: 'Next step' });
+      await next.click();
+
+      for (let step = 3; step <= 6; step += 1) {
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('complementary').getByText(`Step ${String(step)} of 6`)).toBeVisible();
+        await expect(page.locator(':focus')).toBeInViewport();
+      }
+      // Back up through the request: the list scrolls the other way.
+      for (let step = 5; step >= 1; step -= 1) {
+        await page.getByRole('button', { name: 'Previous step' }).focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('complementary').getByText(`Step ${String(step)} of 6`)).toBeVisible();
+        await expect(page.locator(':focus')).toBeInViewport();
+      }
+    });
+  }
 });

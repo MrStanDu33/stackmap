@@ -16,6 +16,14 @@ describe('parseSelected', () => {
     expect(parseSelected('client', index)).toEqual({ type: 'client', id: 'client' });
   });
 
+  it('given a value without a colon, gives nothing, even when its end matches an id', () => {
+    const [node] = DEMO_TRACE.nodes.filter(({ type }) => type === 'listener');
+    // "listenerX" was read as type "listener" and id "listenerX".
+    const odd = indexTrace({ ...DEMO_TRACE, nodes: [...DEMO_TRACE.nodes, { ...node, id: 'listenerX' }] } as typeof DEMO_TRACE);
+
+    expect(parseSelected('listenerX', odd)).toBeNull();
+  });
+
   it('given an unknown id, a bad type or garbage, gives nothing', () => {
     for (const raw of ['step:gone', `listener:${step}`, `host:${listeners.website}`, 'step:', ':', '', 'nonsense', undefined, ['client'], 42]) {
       expect(parseSelected(raw, index), String(raw)).toBeNull();
