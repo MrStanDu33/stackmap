@@ -4,10 +4,12 @@ import manifest from './manifest';
 import { routeFlowDeriver } from './server/flows/routes';
 import { MIGRATIONS } from './server/migrations';
 import { REPOSITORIES } from './server/repositories';
+import { routeHopResolver } from './server/traces/routes';
 
-/** The extension's server code: the migrations and repository of proxy routes, and the flows they give. */
+/** The extension's server code: the migrations and repository of proxy routes, their flows and their trace hops. */
 export default defineExtensionServer(manifest, {
   migrations: MIGRATIONS,
   repositories: REPOSITORIES,
   flowDerivers: [routeFlowDeriver],
+  traceHopResolvers: [routeHopResolver],
 });

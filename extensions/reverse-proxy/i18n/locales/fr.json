@@ -10,6 +10,9 @@
         "service": {
           "reverse-proxy": "Proxy inverse"
         }
+      },
+      "trace": {
+        "route": "{proxy} route {hostname}"
       }
     }
   }

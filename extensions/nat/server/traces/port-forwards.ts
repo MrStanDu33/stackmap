@@ -11,8 +11,26 @@ export interface PortForwardHopEntities {
 }
 
 /** One network hop per forward, with the external port a client connects to. */
-export function resolvePortForwardHops(_entities: PortForwardHopEntities, _ids: readonly string[]): TraceHop[] {
-  return [];
+export function resolvePortForwardHops(
+  { portForwards, hosts }: PortForwardHopEntities,
+  ids: readonly string[],
+): TraceHop[] {
+  const given = new Set(ids);
+  const hostNames = new Map(hosts.map(({ id, name }) => [id, name]));
+  const endpoint = (address: string, port: number) =>
+    (address.includes(':') ? `[${address}]:${String(port)}` : `${address}:${String(port)}`);
+  return portForwards.filter(({ id }) => given.has(id)).map((forward) => ({
+    entity: 'port-forward',
+    id: forward.id,
+    stage: 'network',
+    label: 'extensions.nat.trace.forward',
+    params: {
+      router: hostNames.get(forward.hostId) ?? '',
+      external: `${endpoint(forward.externalAddress, forward.externalPort)}/${forward.transport}`,
+      internal: endpoint(forward.internalAddress, forward.internalPort),
+    },
+    port: forward.externalPort,
+  }));
 }
 
 export const portForwardHopResolver: TraceHopResolver = {

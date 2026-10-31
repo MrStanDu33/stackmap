@@ -42,6 +42,10 @@
         "domain": "Domain",
         "dns-record": "DNS record",
         "flow": "Flow"
+      },
+      "trace": {
+        "address": "{name} resolves to {address} ({view})",
+        "alias": "{name} is an alias of {target} ({view})"
       }
     }
   }

@@ -1,3 +1,5 @@
+import { servesHostname } from '@stackmap/extension-sdk/server';
+
 import type { ProxyRoute } from '../../entities';
 import type { Service } from '@stackmap/extension-core/entities';
 import type { TraceHop, TraceHopResolver } from '@stackmap/extension-sdk/server';
@@ -9,8 +11,25 @@ export interface RouteHopEntities {
 }
 
 /** One proxy hop per route, naming the route hostname that serves the traced name. */
-export function resolveRouteHops(_entities: RouteHopEntities, _hostname: string, _ids: readonly string[]): TraceHop[] {
-  return [];
+export function resolveRouteHops(
+  { routes, services }: RouteHopEntities,
+  hostname: string,
+  ids: readonly string[],
+): TraceHop[] {
+  const given = new Set(ids);
+  const serviceNames = new Map(services.map(({ id, name }) => [id, name]));
+  return routes.filter(({ id }) => given.has(id)).map((route) => ({
+    entity: 'route',
+    id: route.id,
+    stage: 'proxy',
+    label: 'extensions.reverse-proxy.trace.route',
+    params: {
+      proxy: serviceNames.get(route.proxyServiceId) ?? '',
+      hostname: route.hostnames.includes(hostname)
+        ? hostname
+        : route.hostnames.find((name) => servesHostname(name, hostname)) ?? hostname,
+    },
+  }));
 }
 
 export const routeHopResolver: TraceHopResolver = {

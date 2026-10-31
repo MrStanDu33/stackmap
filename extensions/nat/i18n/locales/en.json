@@ -5,6 +5,9 @@
       "description": "Document which ports your routers forward and where they send them.",
       "entities": {
         "port-forward": "Port forward"
+      },
+      "trace": {
+        "forward": "{router} forwards {external} to {internal}"
       }
     }
   }

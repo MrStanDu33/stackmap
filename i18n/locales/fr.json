@@ -6,5 +6,10 @@
   },
   "a11y": {
     "skipToContent": "Aller au contenu principal"
+  },
+  "trace": {
+    "hop": {
+      "unknown": "{entity} (aucun détail disponible)"
+    }
   }
 }
