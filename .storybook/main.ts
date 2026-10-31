@@ -47,7 +47,7 @@ const config: StorybookConfig = {
         router: true,
         autoImport: {
           // Vue's APIs (ref, computed…) are auto-imported in Nuxt too.
-          imports: ['vue', { from: shims, imports: ['useI18n', 'useState', 'clearNuxtState', 'useRuntimeConfig', 'useNuxtApp'] }],
+          imports: ['vue', { from: shims, imports: ['useI18n', 'useState', 'clearNuxtState', 'useRuntimeConfig', 'useNuxtApp', 'useColorMode', 'useCookie'] }],
         },
         components: {
           dirs: [path('../app/components')],

@@ -108,7 +108,8 @@ export const RemoteImage: Story = {
 export const BrokenImage: Story = {
   args: { icon: '/extensions/missing/icon.svg' },
   play: async ({ canvasElement }) => {
-    await waitFor(() => expect(shownIcon(canvasElement)).toHaveAttribute('data-icon', FALLBACK));
+    // The 404 comes from Storybook's dev server, slow while it serves the other projects' stories.
+    await waitFor(() => expect(shownIcon(canvasElement)).toHaveAttribute('data-icon', FALLBACK), { timeout: 5000 });
     await expectDecorative(shownIcon(canvasElement));
   },
 };

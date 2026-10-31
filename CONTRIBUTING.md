@@ -41,6 +41,7 @@ Behind a TLS-inspecting proxy, downloads made by Node (such as `playwright insta
 | `pnpm db:test:up`      | Start the Postgres used by the integration tests (port 55432)       |
 | `pnpm test:stories`    | Stories as tests in Chromium                                         |
 | `pnpm test:coverage`   | Unit and integration tests with coverage thresholds                  |
+| `pnpm test:e2e`        | End-to-end tests with axe against the built app (`pnpm build` first) |
 | `pnpm test:smoke`      | Docker image smoke tests (needs Docker and a built `stackmap:local`) |
 | `pnpm test:mutation`   | Mutation testing of the domain logic (slow, runs nightly in CI)     |
 | `pnpm storybook`       | Storybook on http://localhost:6006                                   |
@@ -69,7 +70,7 @@ skip or delete a test to make it pass without explaining why in the pull request
 | ----------- | ------------------------------ | ------------------------------------------------- |
 | Unit        | Vitest                         | `*.test.ts` next to the code, `tests/unit/`       |
 | Component   | Storybook stories, run by Vitest in Chromium | `*.stories.ts` next to each component |
-| End to end  | Playwright + axe (with the first pages) | `tests/e2e/`                             |
+| End to end  | Playwright + axe, on the built app | `tests/e2e/`                                  |
 
 Domain code needs at least 90% coverage, the rest 80%. A nightly mutation run checks that the tests actually catch
 bugs.

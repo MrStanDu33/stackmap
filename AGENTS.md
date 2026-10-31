@@ -14,6 +14,7 @@ pnpm typecheck
 pnpm test:unit          # Node-side unit tests, fast
 pnpm test:integration   # against SQLite, and Postgres when TEST_POSTGRES_URL is set (pnpm db:test:up starts one)
 pnpm test:stories       # stories as tests in Chromium, every theme × contrast × locale
+pnpm test:e2e           # Playwright + axe against the built app (pnpm build first), with and without the demo
 pnpm test               # everything
 pnpm test:coverage      # unit + integration, with thresholds (80%, 90% for domain and database code)
 pnpm storybook          # :6006
