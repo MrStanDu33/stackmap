@@ -12,12 +12,22 @@ export interface TraceSelection {
   id: string;
 }
 
+/** Where a step is in the walk: 1-based, with the steps before and after it. */
+export interface StepPosition {
+  position: number;
+  total: number;
+  previous?: string;
+  next?: string;
+}
+
 /** Lookups over a trace: request steps, dependencies by depth, steps into and out of a listener. */
 export function indexTrace(trace: Trace) {
   const listeners = new Map(trace.nodes.flatMap((node) => (node.type === 'listener' ? [[node.id, node.listener]] : [])));
   const request = trace.steps.filter(({ role }) => role === 'request');
   const byDepth = Map.groupBy(trace.steps.filter(({ role }) => role === 'dependency'), ({ depth }) => depth);
   return {
+    walk: [] as TraceStep[],
+    position: (_stepId: string): StepPosition | undefined => undefined,
     request,
     dependencies: [...byDepth.entries()].toSorted(([a], [b]) => a - b),
     entries: request.filter(({ source }) => source === 'client').length,

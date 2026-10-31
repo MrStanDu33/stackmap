@@ -46,3 +46,28 @@ describe('indexTrace', () => {
     expect(hopSentence(hop('extensions.firewall.trace.rule', {}), t, te)).toBe('firewall-rule: no description');
   });
 });
+
+describe('walk', () => {
+  it('given the demo trace, walks the request steps in order, then the dependency steps by level', () => {
+    const deeper = { ...DEMO_TRACE.steps[4], id: 'deeper', depth: 2 };
+    const trace = { ...DEMO_TRACE, steps: [deeper, ...DEMO_TRACE.steps] } as typeof DEMO_TRACE;
+
+    expect(ids(indexTrace(trace).walk)).toEqual([
+      `${flows.publicHttp}:client`, `${flows.publicHttps}:client`,
+      `${flows.routeWebsite}:${listeners.npmHttp}`, `${flows.routeWebsite}:${listeners.npmHttps}`,
+      `${flows.database}:${listeners.website}`, `${flows.weatherApi}:${listeners.website}`,
+      'deeper',
+    ]);
+  });
+
+  it('gives a step its position, total, previous and next; none before the first or after the last', () => {
+    const index = indexTrace(DEMO_TRACE);
+    const [first, second, third] = ids(index.walk);
+    const last = ids(index.walk).at(-1) ?? '';
+
+    expect(index.position(second ?? '')).toEqual({ position: 2, total: 6, previous: first, next: third });
+    expect(index.position(first ?? '')).toEqual({ position: 1, total: 6, next: second });
+    expect(index.position(last)).toMatchObject({ position: 6, total: 6, next: undefined });
+    expect(index.position('gone')).toBeUndefined();
+  });
+});

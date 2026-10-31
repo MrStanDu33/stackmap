@@ -18,6 +18,15 @@ export const sourceOf = ({ source }: TrafficFlow): Selection => (source.type ===
   : { type: 'service', id: source.serviceId });
 
 /** Lookups over a traffic response, in its order: services by name, ports by port, flows as sent. */
+/** A name to trace, and the client to trace it from. */
+export interface TraceLink {
+  hostname: string;
+  client: 'public' | 'internal';
+}
+
+/** The names the flows serve, each with the client to trace it from. */
+export const traceLinks = (_flows: readonly TrafficFlow[]): TraceLink[] => [];
+
 export function indexTraffic(traffic: Traffic) {
   const hosts = new Map(traffic.hosts.map((host) => [host.id, host]));
   const services = new Map(traffic.services.map((service) => [service.id, service]));
@@ -41,6 +50,7 @@ export function indexTraffic(traffic: Traffic) {
     flowsFrom: ({ type, id }: Pick<Selection, 'type' | 'id'>) => traffic.flows.filter(({ source }) => (type === 'client'
       ? source.type === 'client' && source.client === id
       : source.type === 'service' && source.serviceId === id)),
+    namesReaching: (_selection: Pick<Selection, 'type' | 'id'>): TraceLink[] => [],
     sourceName: (flow: TrafficFlow, t: Translate) => (flow.source.type === 'client'
       ? t(`traffic.client.${flow.source.client}`)
       : services.get(flow.source.serviceId)?.name ?? ''),

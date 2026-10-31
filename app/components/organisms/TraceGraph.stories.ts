@@ -1,4 +1,5 @@
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { ref } from 'vue';
 
 import TraceGraph from './TraceGraph.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
@@ -7,6 +8,7 @@ import { DEMO_TRACE, NOTHING_TRACE } from '../../../tests/support/demo-trace';
 import { DEMO_IDS } from '../../../tests/support/demo-traffic';
 
 import type { Trace } from '../../../shared/contracts/traces';
+import type { TraceSelection } from '../../utils/trace-index';
 import type { TrafficLayout } from '../../utils/traffic-graph';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
@@ -174,5 +176,56 @@ export const LayoutError: Story = {
     await expect(canvas.getByRole('alert')).toHaveTextContent(t('traffic.layoutError'));
     await userEvent.click(canvas.getByRole('button', { name: t('common.retry') }));
     await expect(args.onRetry).toHaveBeenCalledOnce();
+  },
+};
+
+/** A selected step outside the canvas is panned into view, keeping the zoom. (16) */
+export const PansToStep: Story = {
+  render: (args, { loaded }) => ({
+    components: { TraceGraph },
+    setup: () => {
+      const { layout } = loaded as { layout?: TrafficLayout };
+      const selection = ref<TraceSelection | null>(null);
+      const far = () => {
+        selection.value = { type: 'step', id: `${flows.weatherApi}:${listeners.website}` };
+      };
+      return { args, layout, selection, far };
+    },
+    template: '<div><button type="button" @click="far">Select the last step</button>'
+      // Narrow: the fitted graph is small, so zooming in puts its far end out of view.
+      + '<div style="height: 560px; width: 640px"><TraceGraph v-bind="args" :layout="layout" :selection="selection" />'
+      + '</div></div>',
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await ready(canvasElement, DEMO_TRACE.steps.length);
+    const region = canvas.getByRole('region', { name: t('trace.canvas') });
+    const zoomIn = canvas.getByRole('button', { name: t('traffic.zoomIn') });
+    const zoom = () => (canvasElement.querySelector<HTMLElement>('[style*="--graph-zoom"]')?.style
+      .getPropertyValue('--graph-zoom'));
+    // The canvas fits again 100 ms after its size settles: zoom only after that.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Each press once the last has landed: Vue Flow zooms from where it is, with a short animation.
+    for (let press = 0; press < 5; press += 1) {
+      const before = Number(zoom());
+      await userEvent.click(zoomIn);
+      // A press zooms by 1.2: wait for the end of its animation.
+      await waitFor(() => expect(Number(zoom())).toBeGreaterThan(before * 1.19));
+    }
+    const zoomed = zoom();
+    const inside = () => {
+      const edge = edgeOf(canvasElement, `${flows.weatherApi}:${listeners.website}`)?.getBoundingClientRect();
+      const room = region.getBoundingClientRect();
+      // Its middle: Vue Flow zooms to 2× at most, so an end of a long edge may still show.
+      const x = edge && edge.left + edge.width / 2;
+      const y = edge && edge.top + edge.height / 2;
+      return x !== undefined && y !== undefined && x > room.left && x < room.right && y > room.top && y < room.bottom;
+    };
+    await waitFor(() => expect(inside()).toBe(false));
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Select the last step' }));
+
+    await waitFor(() => expect(inside()).toBe(true));
+    await expect(zoom()).toBe(zoomed);
   },
 };

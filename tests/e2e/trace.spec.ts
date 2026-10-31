@@ -11,6 +11,8 @@ const expectNoAxeViolation = async (page: Page) => {
 
 const steps = (page: Page, count: number) => expect(page.locator('.vue-flow__edge')).toHaveCount(count);
 const hostname = (page: Page) => page.getByRole('combobox', { name: 'Hostname' });
+const firstStep = (page: Page) => page.getByRole('region', { name: 'Request' }).getByRole('button').first();
+const SELECTED_STEP = /[?&]selected=step(:|%3A)/;
 
 test.describe('trace view', () => {
   test('given the sidebar, Trace opens /trace with the form focused on the hostname and a hint, with no axe violation', async ({ page }) => {
@@ -179,5 +181,86 @@ test.describe('trace view', () => {
     await page.getByRole('button', { name: 'Try again' }).click();
     await steps(page, 6);
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+  });
+
+  test('given a step selected, Next selects the following one and the live region says "Step 3 of 6: …"', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    const walk = page.getByRole('complementary').getByRole('navigation', { name: 'Steps' });
+
+    await walk.getByRole('button', { name: 'Next step' }).click();
+    await walk.getByRole('button', { name: 'Next step' }).click();
+
+    await expect(walk.getByText('Step 3 of 6')).toBeVisible();
+    await expect(page.getByRole('status')
+      .filter({ hasText: 'Step 3 of 6: From Nginx Proxy Manager to Website, port 3000/tcp' })).toHaveCount(1);
+    await expect(walk.getByRole('button', { name: 'Next step' })).toBeFocused();
+    await expectNoAxeViolation(page);
+  });
+
+  test('given a step selected, the URL has selected=step:<id>, replaced rather than pushed', async ({ page }) => {
+    await page.goto('/graph');
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    await page.getByRole('button', { name: 'Next step' }).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+
+    // One entry for the trace, whatever was selected on it.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/graph$/);
+  });
+
+  test('given a URL with selected=step:<id>, the page opens with that step\'s panel', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    await page.getByRole('button', { name: 'Next step' }).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    const link = page.url();
+
+    await page.goto('/graph');
+    await page.goto(link);
+
+    const panel = page.getByRole('complementary');
+    await expect(panel.getByText('Step 2 of 6')).toBeVisible();
+    await expect(panel.getByRole('heading', { level: 2 })).toHaveText('From Internet to Nginx Proxy Manager, port 443/tcp');
+  });
+
+  test('given a selected value not in the trace, no panel opens and the parameter is removed', async ({ page }) => {
+    for (const selected of ['step:gone', 'host:anything', 'nonsense']) {
+      await page.goto(`/trace?hostname=app.homelab.example&client=public&selected=${selected}`);
+
+      await expect(page.getByRole('status').filter({ hasText: 'app.homelab.example from the Internet' })).toHaveCount(1);
+      await expect(page).not.toHaveURL(/selected=/);
+      await expect(page.getByRole('complementary')).toBeHidden();
+    }
+  });
+
+  test('given a new trace asked for, the selection is removed from the URL', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+
+    await hostname(page).fill('homelab.example');
+    await page.getByRole('button', { name: 'Trace', exact: true }).click();
+
+    await expect(page).toHaveURL(/hostname=homelab\.example/);
+    await expect(page).not.toHaveURL(/selected=/);
+    await expect(page.getByRole('complementary')).toBeHidden();
+  });
+
+  test('given the panel closed by its button or Escape, selected is removed from the URL', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    await page.getByRole('complementary').getByRole('button', { name: 'Close details' }).click();
+    await expect(page).not.toHaveURL(/selected=/);
+
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    await page.keyboard.press('Escape');
+    await expect(page).not.toHaveURL(/selected=/);
   });
 });
