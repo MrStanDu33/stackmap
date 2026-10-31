@@ -20,7 +20,7 @@ const emit = defineEmits<{ select: [selection: TraceSelection | null]; retry: []
 
 const { t } = useI18n();
 const flowId = useId();
-const { zoomIn, zoomOut, fitView, viewport, setCenter, findNode } = useVueFlow(flowId);
+const { zoomIn, zoomOut, fitView, viewport, setCenter, findNode, dimensions } = useVueFlow(flowId);
 
 const TYPES: Record<string, TraceSelection['type']> = { client: 'client', listener: 'listener', step: 'step' };
 
@@ -119,6 +119,31 @@ const onFocusin = (event: FocusEvent) => {
     duration: duration(),
   });
 };
+
+const nodeIdOf = (end: string) => (end === 'client' ? 'client' : `listener:${end}`);
+
+// A step selected from the panel or the list may be out of view: pan to its middle, keeping the zoom.
+watch(() => props.selection, (selected) => {
+  const step = selected?.type === 'step' ? props.trace.steps.find(({ id }) => id === selected.id) : undefined;
+  const ends = step ? [findNode(nodeIdOf(step.source)), findNode(nodeIdOf(step.target))] : [];
+  if (ends.length === 0 || ends.some((node) => !node)) {
+    return;
+  }
+  const centres = ends.map((node) => ({
+    x: node!.computedPosition.x + node!.dimensions.width / 2,
+    y: node!.computedPosition.y + node!.dimensions.height / 2,
+  }));
+  const x = (centres[0]!.x + centres[1]!.x) / 2;
+  const y = (centres[0]!.y + centres[1]!.y) / 2;
+  const { zoom } = viewport.value;
+  const shownX = x * zoom + viewport.value.x;
+  const shownY = y * zoom + viewport.value.y;
+  if (shownX >= 0 && shownX <= dimensions.value.width && shownY >= 0 && shownY <= dimensions.value.height) {
+    return;
+  }
+  // Linear: the default smooth path zooms out and back in on the way, which a pan keeping the zoom should not.
+  void setCenter(x, y, { zoom, duration: duration(), interpolate: 'linear' });
+});
 
 const onKeydown = (event: KeyboardEvent) => {
   const element = event.target instanceof HTMLElement ? event.target : null;

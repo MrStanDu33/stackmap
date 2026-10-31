@@ -77,7 +77,14 @@
       "dependency": "Tirets : une dépendance",
       "cycle": "Pointillés : retour vers un port d’écoute déjà sur le chemin"
     },
-    "hopWithStage": "{stage} : {sentence}"
+    "hopWithStage": "{stage} : {sentence}",
+    "walk": {
+      "label": "Étapes",
+      "position": "Étape {position} sur {total}",
+      "previous": "Étape précédente",
+      "next": "Étape suivante",
+      "announce": "Étape {position} sur {total} : {name}"
+    }
   },
   "common": {
     "retry": "Réessayer"
@@ -174,6 +181,11 @@
     "yes": "Oui",
     "no": "Non",
     "unknown": "Inconnu",
-    "moreNames": "et {count} de plus"
+    "moreNames": "et {count} de plus",
+    "trace": {
+      "public": "Tracer {hostname} depuis Internet",
+      "internal": "Tracer {hostname} depuis le réseau local"
+    },
+    "namesReaching": "Noms d’hôte qui y mènent"
   }
 }

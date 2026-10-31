@@ -77,7 +77,14 @@
       "dependency": "Dashed: a dependency",
       "cycle": "Dotted: back to a listener already on the path"
     },
-    "hopWithStage": "{stage}: {sentence}"
+    "hopWithStage": "{stage}: {sentence}",
+    "walk": {
+      "label": "Steps",
+      "position": "Step {position} of {total}",
+      "previous": "Previous step",
+      "next": "Next step",
+      "announce": "Step {position} of {total}: {name}"
+    }
   },
   "common": {
     "retry": "Try again"
@@ -174,6 +181,11 @@
     "yes": "Yes",
     "no": "No",
     "unknown": "Unknown",
-    "moreNames": "and {count} more"
+    "moreNames": "and {count} more",
+    "trace": {
+      "public": "Trace {hostname} from the Internet",
+      "internal": "Trace {hostname} from the local network"
+    },
+    "namesReaching": "Hostnames that reach it"
   }
 }

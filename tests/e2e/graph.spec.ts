@@ -188,6 +188,24 @@ test.describe('traffic view', () => {
     // The button is gone: focus moves to the page's heading rather than being lost.
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   });
+
+  test('given Nginx Proxy Manager 443/tcp, following "Trace app.homelab.example from the Internet" shows that trace with the form filled in', async ({ page }) => {
+    await page.goto('/graph?view=list');
+    await page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Nginx Proxy Manager' }).first()
+      .click();
+    const panel = page.getByRole('complementary');
+    await panel.getByRole('button', { name: /443\/tcp/ }).first().click();
+    await expect(panel.getByRole('heading', { level: 2 })).toContainText('443/tcp');
+    await expectNoAxeViolation(page);
+
+    await panel.getByRole('link', { name: 'Trace app.homelab.example from the Internet' }).click();
+
+    await expect(page).toHaveURL(/\/trace\?hostname=app\.homelab\.example&client=public/);
+    await expect(page.getByRole('combobox', { name: 'Hostname' })).toHaveValue('app.homelab.example');
+    await expect(page.getByRole('radio', { name: 'Internet' })).toBeChecked();
+    await expect(page.getByRole('status').filter({ hasText: 'app.homelab.example from the Internet: 2 entries' }))
+      .toHaveCount(1);
+  });
 });
 
 test.describe('without a workspace', () => {

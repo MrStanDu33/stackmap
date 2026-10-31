@@ -11,6 +11,8 @@ const expectNoAxeViolation = async (page: Page) => {
 
 const steps = (page: Page, count: number) => expect(page.locator('.vue-flow__edge')).toHaveCount(count);
 const hostname = (page: Page) => page.getByRole('combobox', { name: 'Hostname' });
+const firstStep = (page: Page) => page.getByRole('region', { name: 'Request' }).getByRole('button').first();
+const SELECTED_STEP = /[?&]selected=step(:|%3A)/;
 
 test.describe('trace view', () => {
   test('given the sidebar, Trace opens /trace with the form focused on the hostname and a hint, with no axe violation', async ({ page }) => {
@@ -180,4 +182,128 @@ test.describe('trace view', () => {
     await steps(page, 6);
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   });
+
+  test('given a step selected, Next selects the following one and the live region says "Step 3 of 6: …"', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    const walk = page.getByRole('complementary').getByRole('navigation', { name: 'Steps' });
+
+    await walk.getByRole('button', { name: 'Next step' }).click();
+    await walk.getByRole('button', { name: 'Next step' }).click();
+
+    await expect(walk.getByText('Step 3 of 6')).toBeVisible();
+    await expect(page.getByRole('status')
+      .filter({ hasText: 'Step 3 of 6: From Nginx Proxy Manager to Website, port 3000/tcp' })).toHaveCount(1);
+    await expect(walk.getByRole('button', { name: 'Next step' })).toBeFocused();
+    await expectNoAxeViolation(page);
+  });
+
+  test('given a step selected, the URL has selected=step:<id>, replaced rather than pushed', async ({ page }) => {
+    await page.goto('/graph');
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    await page.getByRole('button', { name: 'Next step' }).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+
+    // One entry for the trace, whatever was selected on it.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/graph$/);
+  });
+
+  test('given a URL with selected=step:<id>, the page opens with that step\'s panel', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    const first = page.url();
+    await page.getByRole('button', { name: 'Next step' }).click();
+    // The URL is replaced after the panel changes: wait for the second step's.
+    await expect(page).not.toHaveURL(first);
+    const link = page.url();
+
+    await page.goto('/graph');
+    await page.goto(link);
+
+    const panel = page.getByRole('complementary');
+    await expect(panel.getByText('Step 2 of 6')).toBeVisible();
+    await expect(panel.getByRole('heading', { level: 2 })).toHaveText('From Internet to Nginx Proxy Manager, port 443/tcp');
+  });
+
+  test('given a selected value not in the trace, no panel opens and the parameter is removed', async ({ page }) => {
+    for (const selected of ['step:gone', 'host:anything', 'nonsense']) {
+      await page.goto(`/trace?hostname=app.homelab.example&client=public&selected=${selected}`);
+
+      await expect(page.getByRole('status').filter({ hasText: 'app.homelab.example from the Internet' })).toHaveCount(1);
+      await expect(page).not.toHaveURL(/selected=/);
+      await expect(page.getByRole('complementary')).toBeHidden();
+    }
+  });
+
+  test('given a new trace asked for, the selection is removed from the URL', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+
+    await hostname(page).fill('homelab.example');
+    await page.getByRole('button', { name: 'Trace', exact: true }).click();
+
+    await expect(page).toHaveURL(/hostname=homelab\.example/);
+    await expect(page).not.toHaveURL(/selected=/);
+    await expect(page.getByRole('complementary')).toBeHidden();
+  });
+
+  test('given the panel closed by its button or Escape, selected is removed from the URL', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    await page.getByRole('complementary').getByRole('button', { name: 'Close details' }).click();
+    await expect(page).not.toHaveURL(/selected=/);
+
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    await page.keyboard.press('Escape');
+    await expect(page).not.toHaveURL(/selected=/);
+  });
+
+  test('given a linked step, the live region says what was traced as well as the step', async ({ page }) => {
+    await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+    await firstStep(page).click();
+    await expect(page).toHaveURL(SELECTED_STEP);
+    const link = page.url();
+
+    await page.goto('/graph');
+    await page.goto(link);
+
+    const status = page.getByRole('status').filter({ hasText: 'app.homelab.example from the Internet: 2 entries' });
+    await expect(status).toHaveCount(1);
+    await expect(status).toContainText('Step 1 of 6: From Internet to Nginx Proxy Manager, port 80/tcp');
+  });
+
+  for (const { name, size } of [
+    { name: 'a phone', size: { width: 375, height: 700 } },
+    { name: 'a wide screen', size: { width: 1280, height: 700 } },
+  ]) {
+    test(`given ${name}, walking the whole list keeps the focused button in view`, async ({ page }) => {
+      await page.setViewportSize(size);
+      await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
+      await firstStep(page).click();
+      const next = page.getByRole('button', { name: 'Next step' });
+      await next.click();
+
+      for (let step = 3; step <= 6; step += 1) {
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('complementary').getByText(`Step ${String(step)} of 6`)).toBeVisible();
+        await expect(page.locator(':focus')).toBeInViewport();
+      }
+      // Back up through the request: the list scrolls the other way.
+      for (let step = 5; step >= 1; step -= 1) {
+        await page.getByRole('button', { name: 'Previous step' }).focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('complementary').getByText(`Step ${String(step)} of 6`)).toBeVisible();
+        await expect(page.locator(':focus')).toBeInViewport();
+      }
+    });
+  }
 });

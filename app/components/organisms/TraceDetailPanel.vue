@@ -62,16 +62,37 @@ const yesNo = (value: boolean | null) => {
   return value ? t('detail.yes') : t('detail.no');
 };
 
+const position = computed(() => (step.value ? index.value.position(step.value.id) : undefined));
+
 const root = useTemplateRef<HTMLElement>('root');
 const heading = useTemplateRef<HTMLElement>('heading');
+let walking = false;
 // Following a link inside the panel replaces what holds the focus: move it to the new title rather than lose it.
+// Previous and Next stay where they are, so they can be pressed again.
 watch(() => props.selection, async () => {
   const inside = root.value?.contains(document.activeElement) ?? false;
   await nextTick();
-  if (inside) {
+  if (inside && !walking) {
     heading.value?.focus();
   }
+  walking = false;
 });
+
+const walk = async (direction: 'previous' | 'next') => {
+  const id = position.value?.[direction];
+  if (!id) {
+    return;
+  }
+  walking = true;
+  emit('select', { type: 'step', id });
+  await nextTick();
+  // At either end the pressed button is disabled, which drops the focus: hand it to the other one.
+  const buttons = root.value?.querySelectorAll<HTMLButtonElement>('[data-walk]') ?? [];
+  const pressed = [...buttons].find((button) => button.dataset.walk === direction);
+  if (pressed?.disabled) {
+    [...buttons].find((button) => button !== pressed)?.focus();
+  }
+};
 
 const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary';
 </script>
@@ -101,6 +122,43 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
     </div>
 
     <template v-if="step">
+      <nav
+        v-if="position && position.total > 1"
+        :aria-label="t('trace.walk.label')"
+        class="flex flex-wrap items-center justify-between gap-2"
+      >
+        <p class="text-sm text-muted">
+          {{ t('trace.walk.position', { position: position.position, total: position.total }) }}
+        </p>
+        <div class="flex gap-2">
+          <UButton
+            data-walk="previous"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="outline"
+            :disabled="!position.previous"
+            @click="walk('previous')"
+          >
+            {{ t('trace.walk.previous') }}
+          </UButton>
+          <UButton
+            data-walk="next"
+            trailing-icon="i-lucide-arrow-right"
+            color="neutral"
+            variant="outline"
+            :disabled="!position.next"
+            @click="walk('next')"
+          >
+            {{ t('trace.walk.next') }}
+          </UButton>
+        </div>
+      </nav>
+      <p
+        v-else-if="position"
+        class="text-sm text-muted"
+      >
+        {{ t('trace.walk.position', { position: position.position, total: position.total }) }}
+      </p>
       <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt class="text-muted">
           {{ t('detail.from') }}

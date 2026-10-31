@@ -32,12 +32,41 @@ const targetName = (step: TraceStep) => {
   return target ? listenerName(target) : '';
 };
 
+const root = useTemplateRef<HTMLElement>('root');
+// A step selected from the panel may be out of view: bring it in, without moving the page more than needed.
+watch(() => props.selection, async (selected) => {
+  if (selected?.type !== 'step') {
+    return;
+  }
+  await nextTick();
+  const current = root.value?.querySelector('[aria-current="true"]');
+  if (!current) {
+    return;
+  }
+  // Not at the cost of the focus: on a narrow screen the panel's Next button sits below the list, and both may not
+  // fit. What scrolls is the dashboard panel, not the page: every scrolled ancestor is put back.
+  const scrolled: [Element, number][] = [];
+  for (let box = current.parentElement; box; box = box.parentElement) {
+    scrolled.push([box, box.scrollTop]);
+  }
+  current.scrollIntoView({ block: 'nearest' });
+  const focused = document.activeElement?.getBoundingClientRect();
+  if (focused && (focused.bottom <= 0 || focused.top >= window.innerHeight)) {
+    for (const [box, top] of scrolled) {
+      box.scrollTop = top;
+    }
+  }
+});
+
 const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-visible:outline-2 '
   + 'focus-visible:outline-primary aria-[current=true]:font-semibold aria-[current=true]:text-primary';
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div
+    ref="root"
+    class="flex flex-col gap-6"
+  >
     <section
       v-for="group in groups"
       :key="group.key"

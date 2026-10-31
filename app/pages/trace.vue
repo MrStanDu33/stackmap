@@ -10,6 +10,7 @@ import { DEMO_WORKSPACE_SLUG } from '#shared/contracts/workspaces';
 import { traceElkToVueFlow, traceToElk } from '~/utils/trace-graph';
 import { indexTrace, listenerName, stepName } from '~/utils/trace-index';
 import { parseTraceQuery } from '~/utils/trace-query';
+import { parseSelected, selectedParam } from '~/utils/trace-selection';
 
 const { t, n, locale } = useI18n();
 const route = useRoute();
@@ -206,8 +207,35 @@ watch(trace, (loaded) => {
     dependencies: t('trace.count.dependencies', { count: dependencyCount }, dependencyCount),
   });
 });
+// The selection is kept in the URL so a step can be linked; replaced, so Back leaves the page.
+const writeSelected = (value: string | undefined) => {
+  if (route.query.selected !== value) {
+    void router.replace({ query: { ...route.query, selected: value } });
+  }
+};
+// A linked selection is checked once its trace has arrived; one that is not in it is dropped.
+let restored = false;
+watch(index, (loaded) => {
+  if (loaded && route.query.selected !== undefined) {
+    restored = true;
+    selection.value = parseSelected(route.query.selected, loaded);
+    writeSelected(selectedParam(selection.value));
+  }
+});
 watch(selection, (selected) => {
+  if (index.value) {
+    writeSelected(selectedParam(selected));
+  }
   const name = selected ? selectionName(selected) : undefined;
+  const position = selected?.type === 'step' ? index.value?.position(selected.id) : undefined;
+  if (name && position) {
+    const step = t('trace.walk.announce', { ...position, name });
+    // Restored from a link: the result's summary, set in the same tick, is said first rather than replaced.
+    announcement.value = restored ? `${announcement.value} ${step}` : step;
+    restored = false;
+    return;
+  }
+  restored = false;
   announcement.value = name ? t('trace.selected', { name }) : '';
 });
 </script>

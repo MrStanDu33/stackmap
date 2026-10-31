@@ -1,4 +1,5 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { ref } from 'vue';
 
 import TraceSteps from './TraceSteps.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
@@ -6,6 +7,7 @@ import { DEMO_TRACE } from '../../../tests/support/demo-trace';
 import { DEMO_IDS } from '../../../tests/support/demo-traffic';
 
 import type { Trace } from '../../../shared/contracts/traces';
+import type { TraceSelection } from '../../utils/trace-index';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
 const { listeners, flows } = DEMO_IDS;
@@ -74,5 +76,35 @@ export const Selected: Story = {
     await expect(within(canvasElement).getByRole('button', {
       name: t('trace.step', { source: t('traffic.client.public'), service: 'Nginx Proxy Manager', port: '443/tcp' }),
     })).toHaveAttribute('aria-current', 'true');
+  },
+};
+
+/** A newly selected step is scrolled into view and marked aria-current. (17) */
+export const ScrollsToStep: Story = {
+  render: (args) => ({
+    components: { TraceSteps },
+    setup: () => {
+      const selection = ref<TraceSelection | null>(null);
+      const last = () => {
+        selection.value = { type: 'step', id: `${flows.weatherApi}:${listeners.website}` };
+      };
+      return { args, selection, last };
+    },
+    template: '<div><button type="button" @click="last">Select the last step</button>'
+      + '<div data-testid="room" style="height: 160px; overflow: auto"><TraceSteps :trace="args.trace" :selection="selection" /></div></div>',
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const room = canvas.getByTestId('room');
+    const step = within(canvas.getByRole('region', { name: t('trace.level', { depth: 1 }) })).getAllByRole('button').at(-1);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Select the last step' }));
+
+    await expect(step).toHaveAttribute('aria-current', 'true');
+    await waitFor(async () => {
+      const shown = step?.getBoundingClientRect();
+      const box = room.getBoundingClientRect();
+      await expect(shown && shown.top >= box.top - 1 && shown.bottom <= box.bottom + 1).toBe(true);
+    });
   },
 };

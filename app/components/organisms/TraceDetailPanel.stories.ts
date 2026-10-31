@@ -23,6 +23,21 @@ type Story = StoryObj<typeof meta>;
 
 const { t } = i18n.global;
 const panel = (canvasElement: HTMLElement) => within(within(canvasElement).getByRole('complementary'));
+const steps = (canvasElement: HTMLElement) => panel(canvasElement)
+  .getByRole('navigation', { name: t('trace.walk.label') });
+const position = (step: number, total = 6) => t('trace.walk.position', { position: step, total });
+// The demo trace's walk: the request in order, then the dependencies.
+const WALK = [
+  `${flows.publicHttp}:client`, `${flows.publicHttps}:client`,
+  `${flows.routeWebsite}:${listeners.npmHttp}`, `${flows.routeWebsite}:${listeners.npmHttps}`,
+  `${flows.database}:${listeners.website}`, `${flows.weatherApi}:${listeners.website}`,
+];
+/** The panel with its selection held, as the page does. */
+const held = (args: Record<string, unknown>) => ({
+  components: { TraceDetailPanel },
+  setup: () => ({ args, selection: ref(args.selection as TraceSelection) }),
+  template: '<TraceDetailPanel :trace="args.trace" :selection="selection" @select="selection = $event" @close="args.onClose" />',
+});
 
 /** A step: from, to, role and flow, then its hops in order, each with its stage and sentence. */
 export const Step: Story = {
@@ -102,5 +117,83 @@ export const FollowingALink: Story = {
     await waitFor(() => expect(details.getByRole('heading', { level: 2 })).toHaveFocus());
     await userEvent.click(details.getByRole('button', { name: t('detail.close') }));
     await expect(args.onClose).toHaveBeenCalledOnce();
+  },
+};
+
+/** "Step 2 of 6" with Previous and Next in a "Steps" navigation; Next selects step 3 and keeps the focus. (11, 12) */
+export const Walk: Story = {
+  render: held,
+  play: async ({ canvasElement }) => {
+    const nav = within(steps(canvasElement));
+
+    await expect(nav.getByText(position(2))).toBeVisible();
+    const next = nav.getByRole('button', { name: t('trace.walk.next') });
+    await userEvent.click(next);
+
+    await expect(nav.getByText(position(3))).toBeVisible();
+    await expect(next).toHaveFocus();
+  },
+};
+
+/** Previous disabled on the first step, Next on the last; reaching the last moves focus to Previous. (13) */
+export const WalkEnds: Story = {
+  args: { selection: { type: 'step', id: WALK[0] ?? '' } },
+  render: held,
+  play: async ({ canvasElement }) => {
+    const nav = within(steps(canvasElement));
+    const previous = nav.getByRole('button', { name: t('trace.walk.previous') });
+    const next = nav.getByRole('button', { name: t('trace.walk.next') });
+
+    await expect(previous).toBeDisabled();
+    for (let step = 2; step <= 6; step += 1) {
+      await userEvent.click(next);
+      await expect(nav.getByText(position(step))).toBeVisible();
+    }
+    await expect(next).toBeDisabled();
+    // The pressed button went disabled: focus moves to the other one rather than being lost.
+    await expect(previous).toHaveFocus();
+  },
+};
+
+/** A trace of one step: the position, no navigation. (14) */
+export const WalkOneStep: Story = {
+  args: {
+    trace: { ...DEMO_TRACE, steps: DEMO_TRACE.steps.filter(({ id }) => id === WALK[0]) } satisfies Trace,
+    selection: { type: 'step', id: WALK[0] ?? '' },
+  },
+  play: async ({ canvasElement }) => {
+    const details = panel(canvasElement);
+
+    await expect(details.getByText(position(1, 1))).toBeVisible();
+    await expect(details.queryByRole('navigation')).toBeNull();
+  },
+};
+
+/** A listener or the client selected: no step navigation. (15) */
+export const NoWalkOnListener: Story = {
+  args: { selection: { type: 'listener', id: listeners.website } },
+  play: async ({ canvasElement }) => {
+    await expect(panel(canvasElement).queryByRole('navigation')).toBeNull();
+    await expect(panel(canvasElement).queryByText(/6/)).toBeNull();
+  },
+};
+
+/** Previous and Next keep the focus; following a listener link still moves it to the title. (18) */
+export const WalkKeepsFocus: Story = {
+  args: { selection: { type: 'step', id: WALK[3] ?? '' } },
+  render: held,
+  play: async ({ canvasElement }) => {
+    const details = panel(canvasElement);
+    const nav = within(steps(canvasElement));
+
+    nav.getByRole('button', { name: t('trace.walk.previous') }).focus();
+    await userEvent.keyboard('{Enter}');
+    await expect(nav.getByText(position(3))).toBeVisible();
+    await expect(nav.getByRole('button', { name: t('trace.walk.previous') })).toHaveFocus();
+
+    // A link to a listener still moves focus to the new title.
+    details.getByRole('button', { name: /3000\/tcp/ }).focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(details.getByRole('heading', { level: 2 })).toHaveFocus());
   },
 };
