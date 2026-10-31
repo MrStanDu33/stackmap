@@ -5,6 +5,9 @@
       "description": "Documentez les ports que vos routeurs redirigent et vers où.",
       "entities": {
         "port-forward": "Redirection de port"
+      },
+      "trace": {
+        "forward": "{router} redirige {external} vers {internal}"
       }
     }
   }

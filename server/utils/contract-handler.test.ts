@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { defineContractHandler, MAX_BODY_BYTES } from './contract-handler';
 import { defineContract } from '../../shared/contracts/contract';
+import { Problem, problemOf } from '../../shared/contracts/errors';
 
 import type { EventHandler } from 'h3';
 
@@ -298,5 +299,22 @@ describe('defineContractHandler: Problem Details', () => {
       code: 'validation_failed',
       issues: [{ path: 'params.id', message: expect.any(String) as string }],
     });
+  });
+
+  it('answers an expected error the contract declares as Problem Details as application/problem+json too', async () => {
+    const gone = { ...thing, responses: { ...thing.responses, 404: { ...thing.responses[409], schema: Problem } } };
+    const problem = problemOf('workspace_not_found', { detail: 'No workspace 42.', instance: '/api/things/42' });
+    const app = createApp().use(createRouter().post('/api/things/:id', defineContractHandler(gone, () => ({
+      status: 404, body: problem,
+    }))));
+    const response = await toWebHandler(app)(new Request('http://localhost/api/things/42', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: 'Proxy' }),
+    }));
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('content-type')).toBe('application/problem+json');
+    expect(await response.json()).toEqual(problem);
   });
 });

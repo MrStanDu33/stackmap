@@ -6,5 +6,11 @@
   },
   "a11y": {
     "skipToContent": "Aller au contenu principal"
+  },
+  "trace": {
+    "hop": {
+      "unknown": "Aucun détail disponible | Aucun détail disponible pour {count} éléments",
+      "more": "{count} étape de plus | {count} étapes de plus"
+    }
   }
 }

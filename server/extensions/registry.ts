@@ -2,7 +2,7 @@ import { EXTENSION_API_VERSION, isExtensionTable, KIND_ENTITIES, manifestProblem
 import { ENTITY_META_FIELDS } from '@stackmap/extension-sdk/entities';
 
 import type { ExtensionManifest, ExtensionServer, Kind, KindEntity, LocaleDeclaration } from '@stackmap/extension-sdk';
-import type { EntityRepositoryDefinition, FlowDeriver } from '@stackmap/extension-sdk/server';
+import type { EntityRepositoryDefinition, FlowDeriver, TraceHopResolver } from '@stackmap/extension-sdk/server';
 
 export interface RegisteredKind extends Kind {
   /** Id of the extension that contributes it. */
@@ -44,6 +44,14 @@ export interface ExtensionRegistry {
   repositories: () => readonly RegisteredRepository[];
   /** The flow derivers of the active extensions, in registry order. */
   flowDerivers: () => readonly RegisteredFlowDeriver[];
+  /** The trace hop resolvers of the active extensions, one per basis entity. */
+  traceHopResolvers: () => readonly RegisteredTraceHopResolver[];
+}
+
+/** A trace hop resolver, with the extension that contributes it. */
+export interface RegisteredTraceHopResolver {
+  extension: string;
+  resolver: TraceHopResolver;
 }
 
 /** A flow deriver, with the extension that contributes it. */
@@ -233,6 +241,8 @@ function contributionErrors(ordered: readonly Entry[], appLocales: readonly Loca
   const kinds = new Map(KIND_ENTITIES.map((entity) => [entity, new Map<string, string>()]));
   const tables = new Map<string, string>();
   const repositoryKeys = new Map<string, string>();
+  const resolvedEntities = new Map<string, string>();
+  const manifests = new Map(ordered.map(({ manifest }) => [manifest.id, manifest]));
   for (const entry of ordered.filter((candidate) => !isFailed(candidate))) {
     const errors: string[] = [];
     for (const { table } of entry.manifest.contributes.entities ?? []) {
@@ -249,6 +259,19 @@ function contributionErrors(ordered: readonly Entry[], appLocales: readonly Loca
         repositoryKeys.set(key, entry.manifest.id);
       } else {
         errors.push(`defines repository "${key}", which "${owner}" already defines`);
+      }
+    }
+    // An extension describes its own entities, or those of what it builds on.
+    const declared = new Set([entry.manifest.id, ...entry.manifest.dependsOn].flatMap((id) =>
+      (manifests.get(id)?.contributes.entities ?? []).map((item) => item.id)));
+    for (const { entity } of entry.server?.traceHopResolvers ?? []) {
+      const owner = resolvedEntities.get(entity);
+      if (!declared.has(entity)) {
+        errors.push(`resolves trace hops of "${entity}", which neither it nor its dependencies declare`);
+      } else if (owner === undefined) {
+        resolvedEntities.set(entity, entry.manifest.id);
+      } else {
+        errors.push(`resolves trace hops of "${entity}", which "${owner}" already resolves`);
       }
     }
     for (const entity of KIND_ENTITIES) {
@@ -362,6 +385,8 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
+    traceHopResolvers: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
+      (server?.traceHopResolvers ?? []).map((resolver) => ({ extension: manifest.id, resolver }))),
     flowDerivers: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
       (server?.flowDerivers ?? []).map((deriver) => ({ extension: manifest.id, deriver }))),
     // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime, and the

@@ -94,8 +94,14 @@ const json = (schema: z.ZodType, examples?: ContractResponse['examples']) =>
   ({ content: { 'application/json': { schema, ...(examples ? { examples } : {}) } } });
 
 function toOperation(contract: Contract): ZodOpenApiOperationObject {
+  // An expected error (404, 409…) is Problem Details, like the shared ones.
   const responses = Object.fromEntries(Object.entries(contract.responses)
-    .map(([status, { description, schema, examples }]) => [status, { description, ...json(schema, examples) }]));
+    .map(([status, { description, schema, examples }]) => [status, {
+      description,
+      ...(schema === Problem
+        ? { content: { 'application/problem+json': { schema, examples } } }
+        : json(schema, examples)),
+    }]));
   const requestParams = {
     ...(contract.params === undefined ? {} : { path: contract.params }),
     ...(contract.query === undefined ? {} : { query: contract.query }),

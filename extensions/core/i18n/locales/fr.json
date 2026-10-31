@@ -42,6 +42,16 @@
         "domain": "Domaine",
         "dns-record": "Enregistrement DNS",
         "flow": "Flux"
+      },
+      "trace": {
+        "address": {
+          "public": "{name} pointe vers {address} dans le DNS public",
+          "internal": "{name} pointe vers {address} dans le DNS interne"
+        },
+        "alias": {
+          "public": "{name} est un alias de {target} dans le DNS public",
+          "internal": "{name} est un alias de {target} dans le DNS interne"
+        }
       }
     }
   }

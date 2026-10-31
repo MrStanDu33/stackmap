@@ -19,6 +19,11 @@ export const PROBLEMS = {
     title: 'The request body must be JSON',
     description: 'The body is not `application/json`.',
   },
+  workspace_not_found: {
+    status: 404,
+    title: 'The workspace does not exist',
+    description: 'No workspace has this id.',
+  },
   internal_error: {
     status: 500,
     title: 'Something went wrong',

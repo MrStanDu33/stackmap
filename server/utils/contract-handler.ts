@@ -9,10 +9,10 @@ import {
   setResponseStatus,
 } from 'h3';
 
-import { MAX_ISSUES, problemOf } from '../../shared/contracts/errors';
+import { MAX_ISSUES, Problem, problemOf } from '../../shared/contracts/errors';
 
 import type { Contract } from '../../shared/contracts/contract';
-import type { Problem, ProblemCode } from '../../shared/contracts/errors';
+import type { ProblemCode } from '../../shared/contracts/errors';
 import type { EventHandler, H3Event } from 'h3';
 import type { z } from 'zod';
 
@@ -199,6 +199,10 @@ export function defineContractHandler<C extends Contract, const R extends Contra
       const result: { status: number; body: unknown } = await handler(await parseInput(contract, event), event);
       const body = responseBody(contract, result);
       setResponseStatus(event, result.status);
+      // An expected error the contract declares (404, 409…) is Problem Details, like the ones thrown here.
+      if (contract.responses[result.status]?.schema === Problem) {
+        setResponseHeader(event, 'content-type', 'application/problem+json');
+      }
       return body;
     } catch (error) {
       const failure = error instanceof ApiFailure

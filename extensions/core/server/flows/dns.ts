@@ -21,7 +21,7 @@ export interface AddressNames {
 }
 
 /** How many CNAMEs a name may go through before it reaches an address, as resolvers cap it. */
-const MAX_CNAME_STEPS = 8;
+export const MAX_CNAME_STEPS = 8;
 
 const groupBy = <T, K>(items: readonly T[], keyOf: (item: T) => K): Map<K, T[]> => {
   const groups = new Map<K, T[]>();
