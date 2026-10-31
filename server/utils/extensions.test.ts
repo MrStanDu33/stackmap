@@ -32,3 +32,23 @@ describe('useExtensionHooks', () => {
     expect(callHook).toHaveBeenCalledWith('app:ready', { version: '1.0.0' });
   });
 });
+
+describe('whenExtensionsStarted', () => {
+  it('resolves once the extensions have started, and fails clearly before the plugin ran', async () => {
+    const { setExtensionRuntime, whenExtensionsStarted } = await loadModule();
+    expect(() => whenExtensionsStarted()).toThrow(/not ready.*plugin/i);
+    const { promise, resolve } = Promise.withResolvers<ExtensionRuntime>();
+    setExtensionRuntime(promise);
+
+    let started = false;
+    const waiting = whenExtensionsStarted().then(() => {
+      started = true;
+    });
+    await Promise.resolve();
+    expect(started).toBe(false);
+    resolve({ callHook: () => Promise.resolve(), handlersOf: () => [] });
+    await waiting;
+
+    expect(started).toBe(true);
+  });
+});

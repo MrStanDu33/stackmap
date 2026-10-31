@@ -40,6 +40,11 @@ export async function getWorkspace(db: Kysely<Database>, id: string): Promise<Wo
   return row && fromRow(row);
 }
 
+export async function getWorkspaceBySlug(db: Kysely<Database>, slug: string): Promise<Workspace | undefined> {
+  const row = await db.selectFrom('workspace').select(COLUMNS).where('slug', '=', slug).executeTakeFirst();
+  return row && fromRow(row);
+}
+
 /** Deletes the workspace and all of its data. */
 export async function deleteWorkspace(db: Kysely<Database>, id: string): Promise<boolean> {
   const { numDeletedRows } = await db.deleteFrom('workspace').where('id', '=', id).executeTakeFirstOrThrow();

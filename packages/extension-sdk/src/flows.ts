@@ -53,7 +53,8 @@ export interface FlowDeriver {
 }
 
 /** A lowercase DNS name as derivers give it, `*` allowed as the first label. */
-const hostname = () => z.string().max(255).refine((text) => {
+// 253 in all, the wildcard included: responses that carry hostnames bound them so.
+const hostname = () => z.string().max(253).refine((text) => {
   const name = text.startsWith('*.') ? text.slice(2) : text;
   return normalizeDnsName(name) === name;
 }, 'Expected a lowercase hostname, such as app.homelab.example or *.homelab.example');

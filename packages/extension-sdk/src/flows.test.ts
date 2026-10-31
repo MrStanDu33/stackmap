@@ -85,6 +85,14 @@ describe('flow draft schema', () => {
       .toEqual(['basis.0.entity']);
   });
 
+  it('refuses a hostname longer than 253 characters, its wildcard included', () => {
+    const labels = Array.from({ length: 3 }, () => 'a'.repeat(63)).join('.');
+
+    expect(flowDraftSchema.safeParse(draft({ hostnames: [`*.${labels}.${'b'.repeat(59)}`] })).success).toBe(true);
+    expect(issuePaths(flowDraftSchema.safeParse(draft({ hostnames: [`*.${labels}.${'b'.repeat(60)}`] }))))
+      .toEqual(['hostnames.0']);
+  });
+
   it('refuses a result with more than 5,000 drafts or the same key twice', () => {
     const drafts = Array.from({ length: MAX_FLOW_DRAFTS + 1 }, (_, index) => draft({ key: `peer-${String(index)}` }));
 

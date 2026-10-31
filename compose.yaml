@@ -16,6 +16,8 @@ services:
       # Owner of the files in /data. Set them to your user (`id -u`, `id -g`) when you bind-mount a host directory.
       PUID: 1000
       PGID: 1000
+      # Seeds a fictional demo workspace at start until accounts exist; false turns it off.
+      # STACKMAP_DEMO: "false"
     volumes:
       - stackmap-data:/data
 
