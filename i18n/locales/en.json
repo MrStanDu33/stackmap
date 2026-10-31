@@ -8,8 +8,60 @@
   "trace": {
     "hop": {
       "unknown": "No details available | No details available for {count} entries",
-      "more": "{count} more step | {count} more steps"
-    }
+      "more": "{count} more step | {count} more steps",
+      "missing": "{entity}: no description"
+    },
+    "title": "Trace",
+    "form": {
+      "label": "Trace a hostname",
+      "hostname": "Hostname",
+      "hostnameHint": "For example app.homelab.example",
+      "client": "Client",
+      "port": "Port (optional)",
+      "portHint": "Only the entries on this port",
+      "submit": "Trace",
+      "error": {
+        "hostname": "Enter a hostname such as app.homelab.example",
+        "wildcard": "A wildcard cannot be traced: enter one name",
+        "port": "Enter a port from 1 to 65535"
+      }
+    },
+    "start": "Enter a hostname to see how a request reaches it.",
+    "loading": "Tracing {hostname}…",
+    "nothing": "Nothing reaches {hostname} from {client}.",
+    "tryOther": "Try from {client}",
+    "error": "The trace could not be computed.",
+    "truncated": "Only part of this trace is shown: it stops at {nodes} services or {steps} steps.",
+    "summary": "{entries}, {steps}, {dependencies}",
+    "count": {
+      "entries": "{count} entry | {count} entries",
+      "steps": "{count} step | {count} steps",
+      "dependencies": "{count} dependency | {count} dependencies"
+    },
+    "request": "Request",
+    "dependencies": "Dependencies",
+    "level": "Dependencies, level {depth}",
+    "step": "From {source} to {service}, port {port}",
+    "dependencyStep": "{step}, dependency, level {depth}",
+    "cycle": "{step}, back to {target}: not followed again",
+    "cycleNote": "Returns to {target}: not followed again.",
+    "listener": "{service}, {port}, {where}",
+    "onHost": "on {host}",
+    "stage": {
+      "dns": "DNS",
+      "network": "Network",
+      "proxy": "Proxy"
+    },
+    "hops": "Hops",
+    "noHop": "No hop: a direct flow",
+    "role": {
+      "request": "Request",
+      "dependency": "Dependency, level {depth}",
+      "listener": "listener",
+      "step": "step"
+    },
+    "selected": "Selected: {name}",
+    "external": "external"
   },
   "common": {
     "retry": "Try again"

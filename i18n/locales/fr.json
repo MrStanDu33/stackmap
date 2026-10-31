@@ -8,8 +8,60 @@
   "trace": {
     "hop": {
       "unknown": "Aucun détail disponible | Aucun détail disponible pour {count} éléments",
-      "more": "{count} étape de plus | {count} étapes de plus"
-    }
+      "more": "{count} étape de plus | {count} étapes de plus",
+      "missing": "{entity} : aucune description"
+    },
+    "title": "Trace",
+    "form": {
+      "label": "Tracer un nom d’hôte",
+      "hostname": "Nom d’hôte",
+      "hostnameHint": "Par exemple app.homelab.example",
+      "client": "Client",
+      "port": "Port (facultatif)",
+      "portHint": "Seulement les entrées sur ce port",
+      "submit": "Tracer",
+      "error": {
+        "hostname": "Saisissez un nom d’hôte comme app.homelab.example",
+        "wildcard": "Un joker ne peut pas être tracé : saisissez un seul nom",
+        "port": "Saisissez un port de 1 à 65535"
+      }
+    },
+    "start": "Saisissez un nom d’hôte pour voir comment une requête l’atteint.",
+    "loading": "Traçage de {hostname}…",
+    "nothing": "Rien n’atteint {hostname} depuis {client}.",
+    "tryOther": "Essayer depuis {client}",
+    "error": "La trace n’a pas pu être calculée.",
+    "truncated": "Seule une partie de cette trace est affichée : elle s’arrête à {nodes} services ou {steps} étapes.",
+    "summary": "{entries}, {steps}, {dependencies}",
+    "count": {
+      "entries": "{count} entrée | {count} entrées",
+      "steps": "{count} étape | {count} étapes",
+      "dependencies": "{count} dépendance | {count} dépendances"
+    },
+    "request": "Requête",
+    "dependencies": "Dépendances",
+    "level": "Dépendances, niveau {depth}",
+    "step": "Depuis {source} vers {service}, port {port}",
+    "dependencyStep": "{step}, dépendance, niveau {depth}",
+    "cycle": "{step}, retour vers {target} : pas suivi à nouveau",
+    "cycleNote": "Retour vers {target} : pas suivi à nouveau.",
+    "listener": "{service}, {port}, {where}",
+    "onHost": "sur {host}",
+    "stage": {
+      "dns": "DNS",
+      "network": "Réseau",
+      "proxy": "Proxy"
+    },
+    "hops": "Étapes du passage",
+    "noHop": "Aucune étape : un flux direct",
+    "role": {
+      "request": "Requête",
+      "dependency": "Dépendance, niveau {depth}",
+      "listener": "port d’écoute",
+      "step": "étape"
+    },
+    "selected": "Sélection : {name}",
+    "external": "externe"
   },
   "common": {
     "retry": "Réessayer"
