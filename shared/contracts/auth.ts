@@ -141,7 +141,7 @@ export const signOut = defineContract({
   summary: 'Sign out',
   description: 'Ends the session on the server and clears its cookie; the answer is the session now: none.',
   tags: ['Accounts'],
-  requiredRole: 'viewer',
+  requiredRole: 'signedIn',
   responses: {
     200: { description: 'Signed out', schema: z.null(), examples: { signedOut: { summary: 'Signed out', value: null } } },
   },

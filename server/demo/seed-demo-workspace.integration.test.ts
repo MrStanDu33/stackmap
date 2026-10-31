@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { DEMO_STACK } from './demo-stack';
 import { DEMO_WORKSPACE, seedDemoWorkspace } from './seed-demo-workspace';
+import { createAccount, membersOf } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 import { BUILTIN_REGISTRY, countRows, createWorkspace, useTestWorkspaces } from '../../tests/support/workspaces';
 import { listDerivedFlows } from '../repositories/derived-flows';
@@ -133,5 +134,23 @@ describe.each(DIALECTS)('demo workspace seed on %s', (dialect: Dialect) => {
     expect(seeded.info).toHaveBeenCalledExactlyOnceWith('Seeded the demo workspace');
     expect(skipped.info).not.toHaveBeenCalled();
     expect(skipped.error).not.toHaveBeenCalled();
+  });
+});
+
+describe.each(DIALECTS)('demo ownership on %s', (dialect: Dialect) => {
+  const workspaces = useTestWorkspaces(dialect);
+  const db = () => workspaces.db as unknown as Kysely<Database>;
+
+  it('given accounts and STACKMAP_DEMO=true, every instance administrator owns the seeded demo (6)', async () => {
+    const ada = await createAccount(db(), { name: 'Ada', email: 'ada@homelab.example', admin: true });
+    const alan = await createAccount(db(), { name: 'Alan', email: 'alan@homelab.example', admin: true });
+    await createAccount(db(), { name: 'Grace', email: 'grace@homelab.example' });
+
+    await seedDemoWorkspace(db(), {
+      env: { STACKMAP_DEMO: 'true' }, registry: BUILTIN_REGISTRY, logger: { info: vi.fn(), error: vi.fn() },
+    });
+
+    const demo = await db().selectFrom('workspace').select('id').where('slug', '=', 'demo').executeTakeFirstOrThrow();
+    expect(await membersOf(db(), demo.id)).toEqual({ [ada.user.id]: 'owner', [alan.user.id]: 'owner' });
   });
 });

@@ -16,7 +16,7 @@ const thing = defineContract({
   summary: 'Update a thing',
   description: 'Renames a thing.',
   tags: ['Things'],
-  requiredRole: 'editor',
+  requiredRole: 'signedIn',
   params: z.object({ id: z.string().regex(/^\d+$/) }),
   query: z.object({ dryRun: z.enum(['yes', 'no']).optional() }),
   body: z.object({ name: z.string().min(1) }),
@@ -42,7 +42,7 @@ const account = defineContract({
   summary: 'Get an account',
   description: 'Returns an account.',
   tags: ['Things'],
-  requiredRole: 'viewer',
+  requiredRole: 'signedIn',
   responses: {
     200: {
       description: 'The account',
@@ -274,7 +274,7 @@ describe('defineContractHandler: bounded problems', () => {
       summary: 'Tag things',
       description: 'Tags many things.',
       tags: ['Things'],
-      requiredRole: 'editor',
+      requiredRole: 'signedIn',
       body: z.object({ tags: z.array(z.string().min(1)) }),
       responses: { 204: { description: 'Tagged', schema: z.null(), examples: { done: { summary: 'Done', value: null } } } },
     });
@@ -348,10 +348,10 @@ describe('defineContractHandler: Problem Details', () => {
     expect((await call('/api/things/1', undefined, { cookie: 'better-auth.session_token=forged' })).status).toBe(401);
   });
 
-  it('given an admin contract and a session whose instance role is user, answers 403 forbidden (18)', async () => {
+  it('given an instanceAdmin contract and a session whose instance role is user, answers 403 forbidden (18)', async () => {
     setSessionResolver(() => Promise.resolve({ user: { ...ADA.user, role: 'user' } }));
     const run = vi.fn(() => ({ status: 200 as const, body: ACCOUNT_BODY }));
-    const call = serve(defineContractHandler({ ...account, requiredRole: 'admin' }, run));
+    const call = serve(defineContractHandler({ ...account, requiredRole: 'instanceAdmin' }, run));
 
     const { status, json } = await call('/api/things/1');
 

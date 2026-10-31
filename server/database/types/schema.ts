@@ -1,3 +1,5 @@
+import type { WorkspaceRole } from '../../../shared/contracts/contract';
+
 /**
  * Tables of the Stackmap database, as stored: camelCase names, IDs, JSON and timestamps as text, booleans as 0/1
  * integers, identical on SQLite and Postgres. Convert values with server/database/serialize.ts.
@@ -5,6 +7,7 @@
 export interface Database {
   appSetting: AppSettingTable;
   workspace: WorkspaceTable;
+  member: MemberTable;
   derived_flow: DerivedFlowTable;
   user: UserTable;
   rateLimit: RateLimitTable;
@@ -17,6 +20,16 @@ export interface Database {
 export interface UserTable {
   id: string;
   email: string;
+  /** The instance role, from Better Auth's admin plugin: `admin` or `user`. */
+  role: string | null;
+}
+
+/** Who belongs to a workspace, and with which role. */
+export interface MemberTable {
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+  createdAt: string;
 }
 
 /** Attempts per key and window, for the sign-in and setup limits. */

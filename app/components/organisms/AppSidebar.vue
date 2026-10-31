@@ -1,6 +1,13 @@
 <script setup lang="ts">
+import type { WorkspaceRole } from '#shared/contracts/contract';
+
 /** The app's navigation: only the sections that exist, and the display preferences in its footer. */
-defineProps<{ user?: { name: string } | null }>();
+defineProps<{
+  user?: { name: string } | null;
+  workspaces?: { name: string; slug: string; role: WorkspaceRole }[] | null;
+  current?: string;
+  canCreate?: boolean;
+}>();
 const emit = defineEmits<{ signOut: [] }>();
 
 const { t } = useI18n();

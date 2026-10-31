@@ -14,7 +14,7 @@ import { getRequestSession } from './session';
 import { MAX_ISSUES, Problem, problemOf } from '../../shared/contracts/errors';
 
 import type { Session } from '../../shared/contracts/auth';
-import type { Contract } from '../../shared/contracts/contract';
+import type { Contract, WorkspaceRole } from '../../shared/contracts/contract';
 import type { ProblemCode } from '../../shared/contracts/errors';
 import type { EventHandler, H3Event } from 'h3';
 import type { z } from 'zod';
@@ -26,12 +26,22 @@ export const MAX_BODY_BYTES = 1024 * 1024;
 
 type Parsed<S> = S extends z.ZodType ? z.output<S> : undefined;
 
-/** The validated input of a contract's operation, and who calls it: always someone, unless the operation is public. */
+declare const authorized: unique symbol;
+
+/** A workspace the caller may open, with their role in it: only the membership check creates one. */
+export type AuthorizedWorkspace
+  = { readonly id: string; readonly role: WorkspaceRole } & { readonly [authorized]: true };
+
+/**
+ * The validated input of a contract's operation, and who calls it: always someone, unless the operation is public;
+ * for a workspace role, the workspace of the path once the caller's membership is checked.
+ */
 export interface ContractInput<C extends Contract> {
   params: Parsed<C['params']>;
   query: Parsed<C['query']>;
   body: Parsed<C['body']>;
   session: C['requiredRole'] extends 'public' ? null : Session;
+  workspace: C['requiredRole'] extends WorkspaceRole ? AuthorizedWorkspace : null;
 }
 
 /** One of the responses the contract declares: its status and a body matching that status's schema. */

@@ -1,10 +1,12 @@
 import { globSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 import { createApp, createRouter, toWebHandler } from 'h3';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { CONTRACTS } from '../../shared/contracts';
+import { WORKSPACE_ROLES } from '../../shared/contracts/contract';
 import { setSessionResolver } from '../utils/session';
 
 import type { Contract } from '../../shared/contracts/contract';
@@ -51,7 +53,7 @@ describe('API routes and contracts', () => {
     setSessionResolver(() => Promise.resolve(null));
   });
 
-  it('every route enforces its contract\'s role: 401 without a session, 403 for admin ones below admin (20)', async () => {
+  it('every route enforces its contract\'s role: 401 without a session, 403 for instanceAdmin ones below it (20)', async () => {
     const wrong = [];
     for (const file of routeFiles) {
       const handler = (await import(file) as { default: Parameters<ReturnType<typeof createRouter>['use']>[1] }).default;
@@ -70,7 +72,8 @@ describe('API routes and contracts', () => {
       setSessionResolver(() => Promise.resolve({
         user: { id: '0199d6a0-0000-7000-8000-000000000102', name: 'Grace', email: 'grace@homelab.example', role: 'user' },
       }));
-      const asUser = contract.requiredRole === 'admin' ? await call() : 403;
+      // Workspace roles need a membership, in the database: server/utils/contract-handler.integration.test.ts.
+      const asUser = contract.requiredRole === 'instanceAdmin' ? await call() : 403;
       if (signedOut !== 401 || asUser !== 403) {
         wrong.push(`${contract.operationId}: ${String(signedOut)} signed out, ${String(asUser)} as a user`);
       }
@@ -81,5 +84,25 @@ describe('API routes and contracts', () => {
   it('no route answers under /api/auth: Better Auth\'s own router is not mounted (21)', () => {
     expect(routeFiles.map(routeOf).filter(({ path }) => path.startsWith('/api/auth'))).toEqual([]);
     expect(globSync(join(API_DIR, '../routes/**/*.ts'))).toEqual([]);
+  });
+});
+
+describe('workspace roles', () => {
+  it('declares a workspace role only with a workspaceId path parameter, and no route reads params.workspaceId (11)', async () => {
+    const workspaceRoles: readonly string[] = WORKSPACE_ROLES;
+    const withoutWorkspace = CONTRACTS
+      .filter(({ requiredRole, path }) => workspaceRoles.includes(requiredRole) && !path.includes('/:workspaceId'))
+      .map(({ operationId }) => operationId);
+    expect(withoutWorkspace).toEqual([]);
+
+    // Routes reach the workspace through input.workspace, which only the membership check creates.
+    const readers = [];
+    for (const file of routeFiles) {
+      const source = await readFile(file, 'utf8');
+      if (/params\.workspaceId|params:\s*\{[^}]*\bworkspaceId\b/.test(source)) {
+        readers.push(relative(API_DIR, file));
+      }
+    }
+    expect(readers).toEqual([]);
   });
 });

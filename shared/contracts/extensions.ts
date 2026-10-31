@@ -83,7 +83,7 @@ export const listExtensions = defineContract({
   description: 'Every installed extension, dependencies first, with what it adds. Strings are i18n keys: the '
     + 'interface translates them. The interface builds its kinds, icons and languages from this list.',
   tags: ['Extensions'],
-  requiredRole: 'viewer',
+  requiredRole: 'signedIn',
   responses: {
     200: {
       description: 'The installed extensions',
@@ -150,7 +150,7 @@ export const getExtensionDiagnostics = defineContract({
   description: 'For admins, extension authors and maintainers: each extension\'s state and errors, the code it runs, '
     + 'its hooks, and every language\'s translation coverage, missing keys and conflicts.',
   tags: ['Extensions'],
-  requiredRole: 'admin',
+  requiredRole: 'instanceAdmin',
   responses: {
     200: {
       description: 'The extensions and languages, with their diagnostics',

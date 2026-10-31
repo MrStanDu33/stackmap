@@ -1,66 +1,63 @@
 import { createApp, createRouter, toWebHandler } from 'h3';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import handler from './index.get';
+import { createAccount } from '../../../tests/support/accounts';
 import { DIALECTS } from '../../../tests/support/databases';
-import { useSignedIn } from '../../../tests/support/sessions';
 import { createWorkspace, useTestWorkspaces } from '../../../tests/support/workspaces';
-import { setDatabase } from '../../utils/database';
+import { addMember } from '../../repositories/members';
+import { setSessionResolver } from '../../utils/session';
 
 import type { Dialect } from '../../../tests/support/databases';
 import type { Database } from '../../database/types/schema';
 import type { Kysely } from 'kysely';
 
-useSignedIn();
-
-const get = async (query: string) => {
+const get = async () => {
   const app = createApp().use(createRouter().get('/api/workspaces', handler));
-  const response = await toWebHandler(app)(new Request(`http://localhost/api/workspaces?${query}`));
-  return { status: response.status, json: await response.json() as unknown };
+  const response = await toWebHandler(app)(new Request('http://localhost/api/workspaces'));
+  return { status: response.status, json: await response.json() as { workspaces: { slug: string; role: string }[] } };
 };
 
-describe.each(DIALECTS)('GET /api/workspaces?slug= on %s', (dialect: Dialect) => {
+afterEach(() => {
+  setSessionResolver();
+  vi.unstubAllEnvs();
+});
+
+describe.each(DIALECTS)('GET /api/workspaces on %s', (dialect: Dialect) => {
   const workspaces = useTestWorkspaces(dialect);
+  const db = () => workspaces.db as unknown as Kysely<Database>;
 
-  const use = () => {
-    const db = workspaces.db as unknown as Kysely<Database>;
-    setDatabase(Promise.resolve(db));
-    return db;
-  };
+  it('lists the caller\'s workspaces by name with their role; every workspace as owner for the administrator with the setting on; none without membership (13)', async () => {
+    const grace = await createAccount(db(), { name: 'Grace', email: 'grace@homelab.example' });
+    const ada = await createAccount(db(), { name: 'Ada', email: 'ada@homelab.example', admin: true });
+    const lab = await createWorkspace(db(), { name: 'Lab', slug: 'lab' });
+    const home = await createWorkspace(db(), { name: 'Home', slug: 'home' });
+    await addMember(db(), { workspaceId: lab.id, userId: grace.user.id, role: 'editor' });
+    await addMember(db(), { workspaceId: home.id, userId: grace.user.id, role: 'viewer' });
 
-  it('answers 200 with the workspace alone: its id, name, slug and timestamps', async () => {
-    const demo = await createWorkspace(use(), { name: 'Demo', slug: 'demo' });
-
-    const { status, json } = await get('slug=demo');
-
+    setSessionResolver(() => Promise.resolve(grace));
+    const { status, json } = await get();
     expect(status).toBe(200);
-    expect(json).toEqual({
-      workspaces: [{
-        id: demo.id, name: 'Demo', slug: 'demo',
-        createdAt: demo.createdAt.toISOString(), updatedAt: demo.updatedAt.toISOString(),
-      }],
-    });
-  });
+    expect(json.workspaces).toEqual([
+      {
+        id: home.id, name: 'Home', slug: 'home', role: 'viewer',
+        createdAt: home.createdAt.toISOString(), updatedAt: home.updatedAt.toISOString(),
+      },
+      {
+        id: lab.id, name: 'Lab', slug: 'lab', role: 'editor',
+        createdAt: lab.createdAt.toISOString(), updatedAt: lab.updatedAt.toISOString(),
+      },
+    ]);
 
-  it('answers 200 with no workspace before the demo workspace exists', async () => {
-    use();
+    setSessionResolver(() => Promise.resolve(ada));
+    expect(await get()).toEqual({ status: 200, json: { workspaces: [] } });
 
-    expect(await get('slug=demo')).toEqual({ status: 200, json: { workspaces: [] } });
-  });
-
-  it('answers 400 for any slug but demo until accounts exist, so it cannot reveal another workspace\'s id', async () => {
-    await createWorkspace(use(), { name: 'Home', slug: 'home' });
-
-    expect(await get('slug=home'))
-      .toMatchObject({ status: 400, json: { code: 'validation_failed', issues: [{ path: 'query.slug' }] } });
-  });
-
-  it('answers 400 validation_failed for a missing or malformed slug (upper case, too long, invisible characters)', async () => {
-    use();
-
-    for (const query of ['', 'slug=Demo', `slug=${'a'.repeat(49)}`, 'slug=de%E2%80%8Bmo']) {
-      expect(await get(query), query)
-        .toMatchObject({ status: 400, json: { code: 'validation_failed', issues: [{ path: 'query.slug' }] } });
-    }
+    vi.stubEnv('INSTANCE_ADMIN_ALL_WORKSPACES', 'true');
+    const all = (await get()).json.workspaces;
+    // A and B are named "Workspace <n>": after Home and Lab, in either order.
+    expect(all.map(({ slug }) => slug).slice(0, 2)).toEqual(['home', 'lab']);
+    expect(all.map(({ slug }) => slug).slice(2).sort())
+      .toEqual([workspaces.a.workspace.slug, workspaces.b.workspace.slug].sort());
+    expect(new Set(all.map(({ role }) => role))).toEqual(new Set(['owner']));
   });
 });

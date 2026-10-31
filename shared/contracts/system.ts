@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { defineContract } from './contract';
+import { defineContract, WORKSPACE_ROLES } from './contract';
 import { httpUrl, name, semver, text } from './formats';
 
 export { SEMVER } from './formats';
@@ -97,7 +97,7 @@ const operation = z.object({
   }).optional().meta({ description: 'Its request body' }),
   responses: z.record(z.string().max(3).regex(/^[1-5]\d\d$/), response)
     .meta({ description: 'Its responses, by status' }),
-  'x-required-role': z.enum(['public', 'viewer', 'editor', 'admin', 'owner'])
+  'x-required-role': z.enum(['public', 'signedIn', 'instanceAdmin', ...WORKSPACE_ROLES])
     .meta({ description: 'The role it needs', examples: ['viewer'] }),
 }).meta({ description: 'An operation' });
 

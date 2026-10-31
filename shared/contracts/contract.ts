@@ -1,7 +1,15 @@
 import type { z } from 'zod';
 
-/** Who may call an operation, checked before its input (server/utils/contract-handler.ts). */
-export type Role = 'public' | 'viewer' | 'editor' | 'admin' | 'owner';
+/** A member's roles in a workspace, by rank: each one can do what the ones before it can. */
+export const WORKSPACE_ROLES = ['viewer', 'editor', 'admin', 'owner'] as const;
+
+export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
+
+/**
+ * Who may call an operation, checked before its input (server/utils/contract-handler.ts): anyone, any account, the
+ * instance administrator, or a member of the workspace in the path (`:workspaceId`) with at least that role.
+ */
+export type Role = 'public' | 'signedIn' | 'instanceAdmin' | WorkspaceRole;
 
 export type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 

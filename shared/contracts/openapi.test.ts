@@ -6,6 +6,7 @@ import { PROBLEMS } from './errors';
 import { API_VERSION, createOpenApiDocument } from './openapi';
 import { SESSION_COOKIE } from './security';
 
+import type { Role } from './contract';
 import type { oas31 } from 'zod-openapi';
 
 const Thing = z.object({
@@ -103,14 +104,30 @@ describe('OpenAPI document', () => {
   });
 
   it('documents 401 unauthenticated on operations that need a session, 403 forbidden on those that need a role, none on public ones', () => {
-    const operation = (contract: typeof getThing | typeof createThing, requiredRole: 'public' | 'viewer' | 'admin') => {
+    const operation = (contract: typeof getThing | typeof createThing, requiredRole: Role) => {
       const built = createOpenApiDocument([{ ...contract, requiredRole }], TEST_TAGS);
-      return Object.values(built.paths ?? {})[0]?.[contract.method];
+      return Object.keys(Object.values(built.paths ?? {})[0]?.[contract.method]?.responses ?? {});
     };
 
-    expect(Object.keys(operation(getThing, 'viewer')?.responses ?? {})).toContain('401');
-    expect(Object.keys(operation(getThing, 'admin')?.responses ?? {})).toEqual(expect.arrayContaining(['401', '403']));
-    expect(Object.keys(operation(getThing, 'public')?.responses ?? {})).not.toContain('401');
+    expect(operation(getThing, 'public')).not.toEqual(expect.arrayContaining(['401']));
+    expect(operation(getThing, 'signedIn')).toContain('401');
+    expect(operation(getThing, 'signedIn')).not.toContain('403');
+    expect(operation(getThing, 'instanceAdmin')).toEqual(expect.arrayContaining(['401', '403']));
+  });
+
+  it('documents 404 workspace_not_found on every workspace operation, and 403 forbidden above viewer', () => {
+    const operation = (requiredRole: Role) => {
+      const built = createOpenApiDocument([{ ...getThing, requiredRole }], TEST_TAGS);
+      return Object.keys(Object.values(built.paths ?? {})[0]?.get?.responses ?? {});
+    };
+
+    expect(operation('viewer')).toContain('404');
+    expect(operation('viewer')).not.toContain('403');
+    for (const role of ['editor', 'admin', 'owner'] as const) {
+      expect(operation(role), role).toEqual(expect.arrayContaining(['401', '403', '404']));
+    }
+    expect(operation('signedIn')).not.toContain('404');
+    expect(operation('instanceAdmin')).not.toContain('404');
   });
 
   it('emits schemas shared by several operations once, under components.schemas', () => {
