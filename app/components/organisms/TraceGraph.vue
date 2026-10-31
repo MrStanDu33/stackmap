@@ -163,8 +163,11 @@ const edgePath = (edge: EdgeProps) => getSmoothStepPath(edge)[0];
 const listenerClass = 'flex h-full flex-col justify-center overflow-hidden rounded-md border border-default bg-default px-3 '
   + 'text-sm shadow-sm';
 
-// Line styles tell the steps apart, never color alone: dependencies dashed, cycles dotted.
-const DASHES: Record<string, string | undefined> = { request: undefined, dependency: '6 4', cycle: '1 4' };
+// Line styles tell the steps apart, never color alone: dependencies dashed, cycles round dots.
+const DASHES: Record<string, string | undefined> = { request: undefined, dependency: '6 4', cycle: '0 5' };
+const LEGEND = ['request', 'dependency', 'cycle'] as const;
+const legendClass = 'absolute start-2 bottom-2 z-10 flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-default '
+  + 'bg-default px-3 py-1.5 text-xs';
 </script>
 
 <template>
@@ -213,7 +216,7 @@ const DASHES: Record<string, string | undefined> = { request: undefined, depende
       class="m-auto flex flex-col items-center gap-1 p-6 text-center"
     >
       <p class="font-medium">
-        {{ t('trace.nothing', { hostname: trace.hostname, client: t(`traffic.client.${trace.client}`) }) }}
+        {{ t(`trace.nothing.${trace.client}`, { hostname: trace.hostname }) }}
       </p>
     </div>
 
@@ -244,7 +247,7 @@ const DASHES: Record<string, string | undefined> = { request: undefined, depende
       <div
         class="min-h-0 flex-1"
         role="region"
-        :aria-label="t('traffic.canvas')"
+        :aria-label="t('trace.canvas')"
       >
         <VueFlow
           :id="flowId"
@@ -318,6 +321,7 @@ const DASHES: Record<string, string | undefined> = { request: undefined, depende
                 fill="none"
                 vector-effect="non-scaling-stroke"
                 :stroke-dasharray="DASHES[edge.data.kind]"
+                :stroke-linecap="edge.data.kind === 'cycle' ? 'round' : undefined"
                 class="trace-edge"
                 :class="`is-${stepState(edge.data.step)}`"
               />
@@ -325,6 +329,33 @@ const DASHES: Record<string, string | undefined> = { request: undefined, depende
           </template>
         </VueFlow>
       </div>
+      <ul
+        :class="legendClass"
+        :aria-label="t('trace.legend.title')"
+      >
+        <li
+          v-for="kind in LEGEND"
+          :key="kind"
+          class="flex items-center gap-2"
+        >
+          <svg
+            width="24"
+            height="6"
+            aria-hidden="true"
+          >
+            <line
+              x1="2"
+              y1="3"
+              x2="22"
+              y2="3"
+              class="trace-edge"
+              :stroke-dasharray="DASHES[kind]"
+              :stroke-linecap="kind === 'cycle' ? 'round' : undefined"
+            />
+          </svg>
+          {{ t(`trace.legend.${kind}`) }}
+        </li>
+      </ul>
     </template>
   </div>
 </template>

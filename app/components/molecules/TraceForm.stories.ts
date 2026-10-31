@@ -50,7 +50,9 @@ export const Invalid: Story = {
 
     await userEvent.type(hostname, '*.homelab.example');
     await userEvent.click(submit);
-    await expect(canvas.getByText(spaced(t('trace.form.error.wildcard')))).toBeVisible();
+    // The field's error; the form's live region says the same words.
+    await expect(canvas.getAllByText(spaced(t('trace.form.error.wildcard')))
+      .find((element) => !element.closest('[role="status"]'))).toBeVisible();
 
     await userEvent.clear(hostname);
     await userEvent.type(hostname, 'app.homelab.example');
@@ -85,7 +87,7 @@ export const UrlErrors: Story = {
 
     await expect(hostname).toHaveValue('*.homelab.example');
     await expect(hostname).toHaveFocus();
-    await expect(hostname).toHaveAccessibleDescription(expect.stringContaining(spaced(t('trace.form.error.wildcard'))) as unknown);
+    await expect(hostname).toHaveAccessibleDescription(expect.stringContaining(t('trace.form.error.wildcard')) as unknown);
   },
 };
 

@@ -19,17 +19,21 @@ const client = ref<'public' | 'internal'>('public');
 const port = ref('');
 const fieldErrors = ref<TraceQueryErrors>({});
 
-// The query shown so far (the URL's) fills the form.
-watch(() => props.query, (query) => {
-  if (query) {
-    hostname.value = query.hostname ?? '';
-    client.value = query.client === 'internal' ? 'internal' : 'public';
-    port.value = query.port ?? '';
+// The query shown so far (the URL's) fills the form; by value, so the same query passed again (the view changed)
+// leaves what the user is typing alone.
+watch([() => props.query?.hostname, () => props.query?.client, () => props.query?.port], ([name, from, only]) => {
+  if (props.query) {
+    hostname.value = name ?? '';
+    client.value = from === 'internal' ? 'internal' : 'public';
+    port.value = only ?? '';
   }
 }, { immediate: true });
-watch(() => props.errors, (found) => {
-  fieldErrors.value = found ?? {};
+watch([() => props.errors?.hostname, () => props.errors?.port], ([onHostname, onPort]) => {
+  fieldErrors.value = { ...(onHostname && { hostname: onHostname }), ...(onPort && { port: onPort }) };
 }, { immediate: true });
+
+/** Said to screen readers: an error on a field that already has focus would otherwise go unheard. */
+const announcement = ref('');
 
 const clients = computed(() => [
   { label: t('traffic.client.public'), value: 'public' },
@@ -42,15 +46,34 @@ const submit = async () => {
   const { query, errors: found } = parseTraceQuery({
     hostname: hostname.value, client: client.value, port: port.value,
   });
-  fieldErrors.value = query || Object.keys(found).length > 0 ? found : { hostname: 'trace.form.error.hostname' };
+  // The URL may leave the hostname out; the form needs one.
+  fieldErrors.value = { ...(hostname.value.trim() ? {} : { hostname: 'trace.form.error.hostname' }), ...found };
   if (query) {
     emit('submit', query);
     return;
   }
-  await nextTick();
-  const first = fieldErrors.value.hostname ? 'hostname' : 'port';
-  form.value?.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus();
+  await focusFirstError();
 };
+
+async function focusFirstError({ announce = true } = {}) {
+  const first = fieldErrors.value.hostname ? 'hostname' : 'port';
+  const key = fieldErrors.value[first];
+  if (!key) {
+    return;
+  }
+  // Emptied first, so the same error said twice is still announced.
+  announcement.value = '';
+  await nextTick();
+  if (announce) {
+    announcement.value = t(key);
+  }
+  form.value?.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus();
+}
+
+// Errors the URL brought: shown and focused, not announced: the focused field's description already says them.
+onMounted(() => {
+  void focusFirstError({ announce: false });
+});
 
 const listId = useId();
 </script>
@@ -102,12 +125,18 @@ const listId = useId();
       <UInput
         v-model="port"
         name="port"
-        type="number"
-        min="1"
-        max="65535"
+        type="text"
+        inputmode="numeric"
+        autocomplete="off"
         class="w-32"
       />
     </UFormField>
+    <p
+      role="status"
+      class="sr-only"
+    >
+      {{ announcement }}
+    </p>
     <UButton
       type="submit"
       icon="i-lucide-route"

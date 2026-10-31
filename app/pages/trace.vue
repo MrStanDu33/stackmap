@@ -5,12 +5,13 @@ import type { WorkspaceSummary } from '#shared/contracts/workspaces';
 import type { TraceSelection } from '~/utils/trace-index';
 import type { TraceQuery } from '~/utils/trace-query';
 
+import { MAX_TRACE_NODES, MAX_TRACE_STEPS } from '#shared/contracts/traces';
 import { DEMO_WORKSPACE_SLUG } from '#shared/contracts/workspaces';
 import { traceElkToVueFlow, traceToElk } from '~/utils/trace-graph';
 import { indexTrace, listenerName, stepName } from '~/utils/trace-index';
 import { parseTraceQuery } from '~/utils/trace-query';
 
-const { t, locale } = useI18n();
+const { t, n, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -24,6 +25,7 @@ const raw = computed(() => ({
 }));
 const parsed = computed(() => parseTraceQuery(raw.value));
 const query = computed(() => parsed.value.query);
+const invalid = computed(() => Object.keys(parsed.value.errors).length > 0);
 
 const view = computed({
   get: () => (route.query.view === 'list' ? 'list' : 'graph'),
@@ -67,6 +69,8 @@ const suggestions = computed(() => [...new Set((traffic.value?.flows ?? []).flat
   .toSorted());
 
 const selection = ref<TraceSelection | null>(null);
+// Events only: the result when it arrives, then each selection.
+const announcement = ref('');
 
 const traceUrl = computed(() => {
   if (!workspace.value || !query.value) {
@@ -81,12 +85,13 @@ const traceUrl = computed(() => {
 const { data: trace, error: traceError, refresh: refreshTrace, clear: clearTrace } = useFetch<Trace>(traceUrl, {
   server: false, immediate: false, watch: false,
 });
+// The old result goes as soon as another is asked for: it would otherwise pass for the new one while loading.
 watch(traceUrl, (url) => {
   selection.value = null;
+  announcement.value = '';
+  clearTrace();
   if (url) {
     void refreshTrace();
-  } else {
-    clearTrace();
   }
 }, { immediate: true });
 
@@ -112,6 +117,13 @@ const retry = async () => {
   }
   await focusHeading();
 };
+const tryOther = async () => {
+  if (query.value) {
+    submit({ ...query.value, client: otherClient.value });
+  }
+  // The button goes with the old result: focus would be lost.
+  await focusHeading();
+};
 const retryLayout = async () => {
   relayout();
   await focusHeading();
@@ -119,7 +131,8 @@ const retryLayout = async () => {
 
 // With nothing traced yet, the form is where to start.
 onMounted(() => {
-  if (!raw.value.hostname) {
+  // With errors, the form focuses the first one itself.
+  if (!raw.value.hostname && !invalid.value) {
     document.querySelector<HTMLInputElement>('form[role="search"] [name="hostname"]')?.focus();
   }
 });
@@ -147,7 +160,7 @@ const close = () => {
 const onKeydown = (event: KeyboardEvent) => {
   const target = event.target instanceof Element ? event.target : null;
   const elsewhere = event.defaultPrevented
-    || target?.closest('[role="combobox"], [role="listbox"], [role="menu"], [role="dialog"]');
+    || target?.closest('form[role="search"], [role="combobox"], [role="listbox"], [role="menu"], [role="dialog"]');
   if (event.key === 'Escape' && selection.value && !elsewhere) {
     close();
   }
@@ -175,19 +188,19 @@ const selectionName = (selected: TraceSelection) => {
   return step && stepName(index.value, trace.value, step, t);
 };
 
-// Events only: the result when it arrives, then each selection.
-const announcement = ref('');
 watch(trace, (loaded) => {
   if (!loaded || !index.value) {
     return;
   }
   if (loaded.steps.length === 0) {
-    announcement.value = t('trace.nothing', { hostname: loaded.hostname, client: clientName(loaded.client) });
+    announcement.value = t(`trace.nothing.${loaded.client}`, { hostname: loaded.hostname });
     return;
   }
   const { entries, request, dependencies } = index.value;
   const dependencyCount = dependencies.reduce((sum, [, steps]) => sum + steps.length, 0);
-  announcement.value = t('trace.summary', {
+  // Named: a new result with the same counts is still told apart from the last one.
+  announcement.value = t(`trace.summary.${loaded.client}`, {
+    hostname: loaded.hostname,
     entries: t('trace.count.entries', { count: entries }, entries),
     steps: t('trace.count.steps', { count: request.length }, request.length),
     dependencies: t('trace.count.dependencies', { count: dependencyCount }, dependencyCount),
@@ -209,10 +222,6 @@ watch(selection, (selected) => {
       >
         {{ t('trace.title') }}
       </h1>
-      <ViewToggle
-        v-if="trace && trace.steps.length > 0"
-        v-model="view"
-      />
     </div>
 
     <TraceForm
@@ -256,64 +265,78 @@ watch(selection, (selected) => {
     </div>
 
     <p
-      v-else-if="!query"
+      v-else-if="!query && !invalid"
       class="text-muted"
     >
       {{ t('trace.start') }}
     </p>
 
     <p
-      v-else-if="!trace"
+      v-else-if="query && !trace"
       class="p-6 text-center text-muted"
     >
       {{ t('trace.loading', { hostname: query.hostname }) }}
     </p>
 
     <div
-      v-else-if="trace.steps.length === 0"
+      v-else-if="trace && trace.steps.length === 0"
       class="flex flex-col items-start gap-3 rounded-md border border-default p-6"
     >
-      <p>{{ t('trace.nothing', { hostname: trace.hostname, client: clientName(trace.client) }) }}</p>
+      <p>{{ t(`trace.nothing.${trace.client}`, { hostname: trace.hostname }) }}</p>
       <UButton
         variant="outline"
-        @click="submit({ ...query, client: otherClient })"
+        @click="tryOther"
       >
-        {{ t('trace.tryOther', { client: clientName(otherClient) }) }}
+        {{ t(`trace.tryOther.${otherClient}`) }}
       </UButton>
     </div>
 
-    <div
-      v-else
-      class="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row"
-    >
-      <div class="min-w-0 flex-1">
-        <TraceSteps
-          v-if="view === 'list'"
+    <template v-else-if="trace">
+      <!-- Above the results, after the form: in reading order, before what it switches. -->
+      <ViewToggle
+        v-model="view"
+        class="self-start"
+      />
+      <!-- For the whole page, either view: the status says it once when the result arrives. -->
+      <UAlert
+        v-if="trace.truncated"
+        role="status"
+        color="warning"
+        variant="outline"
+        :title="t('trace.truncated', { nodes: n(MAX_TRACE_NODES), steps: n(MAX_TRACE_STEPS) })"
+      />
+      <div
+        class="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row"
+      >
+        <div class="min-w-0 flex-1">
+          <TraceSteps
+            v-if="view === 'list'"
+            :trace="trace"
+            :selection="selection"
+            @select="select"
+          />
+          <ClientOnly v-else>
+            <div class="h-[calc(100dvh-16rem)] min-h-96 max-lg:max-h-[70dvh]">
+              <TraceGraph
+                :trace="trace"
+                :layout="layout"
+                :error="layoutError"
+                :selection="selection"
+                @select="select"
+                @retry="retryLayout"
+              />
+            </div>
+          </ClientOnly>
+        </div>
+        <TraceDetailPanel
+          v-if="selection && selectionName(selection)"
+          class="w-full shrink-0 rounded-lg border border-default p-4 lg:w-96"
           :trace="trace"
           :selection="selection"
           @select="select"
+          @close="close"
         />
-        <ClientOnly v-else>
-          <div class="h-[calc(100dvh-16rem)] min-h-96 max-lg:max-h-[70dvh]">
-            <TraceGraph
-              :trace="trace"
-              :layout="layout"
-              :error="layoutError"
-              :selection="selection"
-              @select="select"
-              @retry="retryLayout"
-            />
-          </div>
-        </ClientOnly>
       </div>
-      <TraceDetailPanel
-        v-if="selection && selectionName(selection)"
-        class="w-full shrink-0 rounded-lg border border-default p-4 lg:w-96"
-        :trace="trace"
-        :selection="selection"
-        @select="select"
-        @close="close"
-      />
-    </div>
+    </template>
   </AppShell>
 </template>

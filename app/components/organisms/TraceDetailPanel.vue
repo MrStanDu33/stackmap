@@ -164,13 +164,20 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
           :aria-label="t('trace.hops')"
           class="flex flex-col gap-1 text-sm"
         >
-          <li
+          <i18n-t
             v-for="hop in step.hops"
             :key="`${hop.entity}:${hop.id}`"
+            keypath="trace.hopWithStage"
+            tag="li"
+            scope="global"
           >
-            <span class="me-2 font-medium">{{ t(`trace.stage.${hop.stage}`) }}</span>
-            {{ ' ' }}{{ hopSentence(hop, t, exists) }}
-          </li>
+            <template #stage>
+              <span class="font-medium">{{ t(`trace.stage.${hop.stage}`) }}</span>
+            </template>
+            <template #sentence>
+              <span>{{ hopSentence(hop, t, exists) }}</span>
+            </template>
+          </i18n-t>
         </ol>
         <p
           v-else

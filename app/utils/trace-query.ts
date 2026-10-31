@@ -10,13 +10,22 @@ export interface TraceQuery {
 /** The i18n key of each invalid field's error. */
 export type TraceQueryErrors = Partial<Record<'hostname' | 'port', string>>;
 
+const inRange = (port: string) => Number(port) >= 1 && Number(port) <= 65535;
+
 /** Reads a trace query from the URL or the form, with the trace route's own rules. */
 export function parseTraceQuery(raw: Record<string, unknown>): { query: TraceQuery | null; errors: TraceQueryErrors } {
   const hostname = typeof raw.hostname === 'string' ? raw.hostname.trim() : '';
+  const typed = typeof raw.port === 'number' ? String(raw.port) : raw.port;
+  const port = typeof typed === 'string' && typed.trim() !== '' ? typed.trim() : undefined;
+  // Digits only: the contract would read "4a3" as no number, and "1e3" as 1000.
+  const portError = port !== undefined && !/^\d{1,5}$/.test(port);
   if (!hostname) {
-    return { query: null, errors: {} };
+    return { query: null, errors: portError || (port !== undefined && !inRange(port)) ? { port: 'trace.form.error.port' } : {} };
   }
-  const port = raw.port === undefined || raw.port === null || raw.port === '' ? undefined : raw.port;
+  if (portError) {
+    const { errors } = parseTraceQuery({ ...raw, port: undefined });
+    return { query: null, errors: { ...errors, port: 'trace.form.error.port' } };
+  }
   // An unknown client falls back to the Internet, as the route does.
   const client = raw.client === 'internal' ? 'internal' : 'public';
   const parsed = getTrace.query.safeParse({ hostname, client, port });

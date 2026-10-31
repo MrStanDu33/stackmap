@@ -62,7 +62,7 @@ describe('traceElkToVueFlow', () => {
       data: { kind: 'dependency' },
     });
     expect(edge('cycle')).toMatchObject({
-      ariaLabel: 'From Nginx Proxy Manager to Nginx Proxy Manager, port 80/tcp, back to Nginx Proxy Manager 80/tcp: not followed again',
+      ariaLabel: 'From Nginx Proxy Manager to Nginx Proxy Manager, port 80/tcp, back to Nginx Proxy Manager 80/tcp: already followed, the trace stops here',
       data: { kind: 'cycle' },
     });
   });

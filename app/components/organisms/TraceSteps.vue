@@ -5,8 +5,6 @@ import { portLabel } from '../../utils/traffic-index';
 import type { Trace, TraceStep } from '#shared/contracts/traces';
 import type { TraceSelection } from '../../utils/trace-index';
 
-import { MAX_TRACE_NODES, MAX_TRACE_STEPS } from '#shared/contracts/traces';
-
 /** A trace as an ordered list of steps with their hops: the accessible equivalent of the graph. */
 const props = defineProps<{ trace: Trace; selection?: TraceSelection | null }>();
 const emit = defineEmits<{ select: [selection: TraceSelection] }>();
@@ -40,12 +38,6 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
 
 <template>
   <div class="flex flex-col gap-6">
-    <UAlert
-      v-if="trace.truncated"
-      color="warning"
-      variant="outline"
-      :title="t('trace.truncated', { nodes: MAX_TRACE_NODES, steps: MAX_TRACE_STEPS })"
-    />
     <section
       v-for="group in groups"
       :key="group.key"

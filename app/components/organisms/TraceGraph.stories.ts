@@ -154,8 +154,8 @@ export const Loading: Story = {
 export const Empty: Story = {
   args: { trace: NOTHING_TRACE },
   play: async ({ canvasElement }) => {
-    await expect(await within(canvasElement).findByText(t('trace.nothing', {
-      hostname: 'nowhere.homelab.example', client: t('traffic.client.public'),
+    await expect(await within(canvasElement).findByText(t('trace.nothing.public', {
+      hostname: 'nowhere.homelab.example',
     }))).toBeVisible();
   },
 };

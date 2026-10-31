@@ -28,23 +28,31 @@
     },
     "start": "Enter a hostname to see how a request reaches it.",
     "loading": "Tracing {hostname}…",
-    "nothing": "Nothing reaches {hostname} from {client}.",
-    "tryOther": "Try from {client}",
+    "nothing": {
+      "public": "Nothing reaches {hostname} from the Internet.",
+      "internal": "Nothing reaches {hostname} from the local network."
+    },
+    "tryOther": {
+      "public": "Try from the Internet",
+      "internal": "Try from the local network"
+    },
     "error": "The trace could not be computed.",
     "truncated": "Only part of this trace is shown: it stops at {nodes} services or {steps} steps.",
-    "summary": "{entries}, {steps}, {dependencies}",
+    "summary": {
+      "public": "{hostname} from the Internet: {entries}, {steps}, {dependencies}",
+      "internal": "{hostname} from the local network: {entries}, {steps}, {dependencies}"
+    },
     "count": {
       "entries": "{count} entry | {count} entries",
       "steps": "{count} step | {count} steps",
       "dependencies": "{count} dependency | {count} dependencies"
     },
     "request": "Request",
-    "dependencies": "Dependencies",
     "level": "Dependencies, level {depth}",
     "step": "From {source} to {service}, port {port}",
     "dependencyStep": "{step}, dependency, level {depth}",
-    "cycle": "{step}, back to {target}: not followed again",
-    "cycleNote": "Returns to {target}: not followed again.",
+    "cycle": "{step}, back to {target}: already followed, the trace stops here",
+    "cycleNote": "Returns to {target}: already followed, the trace stops here.",
     "listener": "{service}, {port}, {where}",
     "onHost": "on {host}",
     "stage": {
@@ -61,7 +69,15 @@
       "step": "step"
     },
     "selected": "Selected: {name}",
-    "external": "external"
+    "external": "external",
+    "canvas": "Trace graph",
+    "legend": {
+      "title": "Line styles",
+      "request": "Solid: the request",
+      "dependency": "Dashed: a dependency",
+      "cycle": "Dotted: back to a listener already on the path"
+    },
+    "hopWithStage": "{stage}: {sentence}"
   },
   "common": {
     "retry": "Try again"
