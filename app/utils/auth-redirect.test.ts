@@ -28,6 +28,17 @@ describe('authRedirect', () => {
   });
 });
 
+describe('authRedirect, public pages', () => {
+  it('lets the API reference (/api/docs) through in every state: it documents the public API description', () => {
+    for (const state of [fresh, signedOut, signedIn]) {
+      expect(authRedirect('/api/docs', state)).toBeNull();
+      expect(authRedirect('/api/docs/operations/getHealth', state)).toBeNull();
+    }
+    // Not a prefix match on anything that merely starts the same way.
+    expect(authRedirect('/api/docsearch', signedOut)).toBe(`/login?redirect=${encodeURIComponent('/api/docsearch')}`);
+  });
+});
+
 describe('safeRedirect', () => {
   it('keeps a same-origin path with its query (9)', () => {
     expect(safeRedirect('/graph')).toBe('/graph');
