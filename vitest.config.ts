@@ -22,6 +22,9 @@ const storybookProjects = THEMES.flatMap((theme) => CONTRASTS.flatMap((contrast)
     },
     test: {
       name: `storybook:${theme}-${contrast}-${locale}`,
+      // A file's first story also pays for loading the file in the browser: 9–12 s on CI's runners, too close to the
+      // default 15 s once eight projects share them.
+      testTimeout: 30_000,
       browser: {
         enabled: true,
         headless: true,
