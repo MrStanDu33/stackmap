@@ -4,7 +4,7 @@
   "info": {
     "title": "Stackmap API",
     "summary": "Document your infrastructure: hosts, services, DNS, proxies and the flows between them.",
-    "description": "Stackmap documents your infrastructure (hosts, services, DNS, proxies, VPNs) and the flows between\nthem. Every route is generated from its contract, so this reference is always the API itself.\n\n## Errors\n\nErrors follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457), as `application/problem+json`:\n`type`, `title`, `status`, `detail` and `instance`, plus a stable `code` and, for invalid input, `issues`.\nTranslate errors with `code`, not with `title` or `detail`.\n\n## Authentication\n\nOperations need the session cookie (`better-auth.session_token`) that signing in sets, except public ones. Accounts arrive in\na later version of Stackmap: until then, every operation is open.\n\n## Roles\n\nEach operation states the role it needs (`x-required-role`): `viewer`, `editor`, `admin` or `owner` in a\nworkspace, or `public`. It is checked before the input: `401` without a session, `403` below the role.\n\n## Strings\n\nNames and labels in responses are i18n keys, such as `extensions.core.name`: the interface translates them.\n\n## Versioning\n\n`info.version` is the version of the API, raised on breaking changes, not with every release of Stackmap.",
+    "description": "Stackmap documents your infrastructure (hosts, services, DNS, proxies, VPNs) and the flows between\nthem. Every route is generated from its contract, so this reference is always the API itself.\n\n## Errors\n\nErrors follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457), as `application/problem+json`:\n`type`, `title`, `status`, `detail` and `instance`, plus a stable `code` and, for invalid input, `issues`.\nTranslate errors with `code`, not with `title` or `detail`.\n\n## Authentication\n\nOperations need the session cookie (`better-auth.session_token`) that signing in sets, except public ones.\n\n## Roles\n\nEach operation states the role it needs (`x-required-role`): `public`, `signedIn` (any session),\n`instanceAdmin`, or a role in the workspace of its path, `viewer` < `editor` < `admin` < `owner`. It is\nchecked before the input: `401` without a session, `403` below the role, and `404` for a workspace the caller is\nnot a member of, the same answer as for one that does not exist.\n\n## Strings\n\nNames and labels in responses are i18n keys, such as `extensions.core.name`: the interface translates them.\n\n## Versioning\n\n`info.version` is the version of the API, raised on breaking changes, not with every release of Stackmap.",
     "version": "1",
     "contact": {
       "name": "Stackmap",
@@ -572,11 +572,11 @@
       "delete": {
         "operationId": "signOut",
         "summary": "Sign out",
-        "description": "Ends the session on the server and clears its cookie; the answer is the session now: none.\n\nRequires the viewer role.",
+        "description": "Ends the session on the server and clears its cookie; the answer is the session now: none.\n\nRequires a session.",
         "tags": [
           "Accounts"
         ],
-        "x-required-role": "viewer",
+        "x-required-role": "signedIn",
         "responses": {
           "200": {
             "description": "Signed out",
@@ -607,11 +607,11 @@
       "get": {
         "operationId": "listExtensions",
         "summary": "List the installed extensions",
-        "description": "Every installed extension, dependencies first, with what it adds. Strings are i18n keys: the interface translates them. The interface builds its kinds, icons and languages from this list.\n\nRequires the viewer role.",
+        "description": "Every installed extension, dependencies first, with what it adds. Strings are i18n keys: the interface translates them. The interface builds its kinds, icons and languages from this list.\n\nRequires a session.",
         "tags": [
           "Extensions"
         ],
-        "x-required-role": "viewer",
+        "x-required-role": "signedIn",
         "responses": {
           "200": {
             "description": "The installed extensions",
@@ -689,11 +689,11 @@
       "get": {
         "operationId": "getExtensionDiagnostics",
         "summary": "Diagnose the installed extensions",
-        "description": "For admins, extension authors and maintainers: each extension's state and errors, the code it runs, its hooks, and every language's translation coverage, missing keys and conflicts.\n\nRequires the admin role.",
+        "description": "For admins, extension authors and maintainers: each extension's state and errors, the code it runs, its hooks, and every language's translation coverage, missing keys and conflicts.\n\nRequires the instance administrator.",
         "tags": [
           "Extensions"
         ],
-        "x-required-role": "admin",
+        "x-required-role": "instanceAdmin",
         "responses": {
           "200": {
             "description": "The extensions and languages, with their diagnostics",
@@ -769,34 +769,15 @@
     "/api/workspaces": {
       "get": {
         "operationId": "listWorkspaces",
-        "summary": "Find workspaces",
-        "description": "Gives the demo workspace, the one the app seeds with the demo stack, or none when it does not exist. Until workspace memberships exist, only the `demo` slug is accepted.\n\nRequires the viewer role.",
+        "summary": "List your workspaces",
+        "description": "The workspaces the caller is a member of, by name, each with their role. With `INSTANCE_ADMIN_ALL_WORKSPACES` on, the instance administrator gets every workspace, as owner.\n\nRequires a session.",
         "tags": [
           "Workspaces"
         ],
-        "x-required-role": "viewer",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "slug",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "demo"
-              ],
-              "description": "The workspace's slug: only `demo` until workspace memberships exist",
-              "examples": [
-                "demo"
-              ]
-            },
-            "required": true,
-            "description": "The workspace's slug: only `demo` until workspace memberships exist",
-            "example": "demo"
-          }
-        ],
+        "x-required-role": "signedIn",
         "responses": {
           "200": {
-            "description": "The matching workspaces: one, or none for an unknown slug",
+            "description": "The caller's workspaces, possibly none",
             "content": {
               "application/json": {
                 "schema": {
@@ -812,15 +793,94 @@
                           "name": "Demo",
                           "slug": "demo",
                           "createdAt": "2026-10-31T09:00:00.000Z",
-                          "updatedAt": "2026-10-31T09:00:00.000Z"
+                          "updatedAt": "2026-10-31T09:00:00.000Z",
+                          "role": "owner"
                         }
                       ]
                     }
                   },
                   "none": {
-                    "summary": "An unknown slug",
+                    "summary": "Not a member of any workspace",
                     "value": {
                       "workspaces": []
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createWorkspace",
+        "summary": "Create a workspace",
+        "description": "Creates an empty workspace, with the caller as its owner.\n\nRequires the instance administrator.",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-required-role": "instanceAdmin",
+        "requestBody": {
+          "description": "The new workspace",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "Its name",
+                    "examples": [
+                      "Homelab"
+                    ]
+                  },
+                  "slug": {
+                    "type": "string",
+                    "maxLength": 48,
+                    "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                    "description": "Its short name, used in links: unique on the instance",
+                    "examples": [
+                      "homelab"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "slug"
+                ],
+                "additionalProperties": false,
+                "description": "The new workspace"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The workspace, with the caller as owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberWorkspace"
+                },
+                "examples": {
+                  "created": {
+                    "summary": "A new workspace",
+                    "value": {
+                      "id": "0199d6a0-0000-7000-8000-000000000001",
+                      "name": "Homelab",
+                      "slug": "homelab",
+                      "createdAt": "2026-10-31T09:00:00.000Z",
+                      "updatedAt": "2026-10-31T09:00:00.000Z",
+                      "role": "owner"
                     }
                   }
                 }
@@ -832,6 +892,38 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Another workspace already uses this slug",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "taken": {
+                    "summary": "A taken slug",
+                    "value": {
+                      "type": "urn:stackmap:problem:workspace_slug_taken",
+                      "title": "The slug is taken",
+                      "status": 409,
+                      "detail": "A workspace already uses the slug demo.",
+                      "instance": "/api/workspaces",
+                      "code": "workspace_slug_taken"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -1280,10 +1372,11 @@
               "setup_closed",
               "too_many_requests",
               "workspace_not_found",
+              "workspace_slug_taken",
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -1983,6 +2076,8 @@
                       "type": "string",
                       "enum": [
                         "public",
+                        "signedIn",
+                        "instanceAdmin",
                         "viewer",
                         "editor",
                         "admin",
@@ -2339,6 +2434,8 @@
                       "type": "string",
                       "enum": [
                         "public",
+                        "signedIn",
+                        "instanceAdmin",
                         "viewer",
                         "editor",
                         "admin",
@@ -2695,6 +2792,8 @@
                       "type": "string",
                       "enum": [
                         "public",
+                        "signedIn",
+                        "instanceAdmin",
                         "viewer",
                         "editor",
                         "admin",
@@ -3051,6 +3150,8 @@
                       "type": "string",
                       "enum": [
                         "public",
+                        "signedIn",
+                        "instanceAdmin",
                         "viewer",
                         "editor",
                         "admin",
@@ -3407,6 +3508,8 @@
                       "type": "string",
                       "enum": [
                         "public",
+                        "signedIn",
+                        "instanceAdmin",
                         "viewer",
                         "editor",
                         "admin",
@@ -4456,7 +4559,7 @@
             "maxItems": 100,
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Workspace"
+              "$ref": "#/components/schemas/MemberWorkspace"
             },
             "description": "By name"
           }
@@ -4474,13 +4577,14 @@
                 "name": "Demo",
                 "slug": "demo",
                 "createdAt": "2026-10-31T09:00:00.000Z",
-                "updatedAt": "2026-10-31T09:00:00.000Z"
+                "updatedAt": "2026-10-31T09:00:00.000Z",
+                "role": "owner"
               }
             ]
           }
         ]
       },
-      "Workspace": {
+      "MemberWorkspace": {
         "type": "object",
         "properties": {
           "id": {
@@ -4529,6 +4633,19 @@
             "examples": [
               "2026-10-31T09:00:00.000Z"
             ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin",
+              "owner"
+            ],
+            "description": "The caller's role in it",
+            "examples": [
+              "owner"
+            ]
           }
         },
         "required": [
@@ -4536,17 +4653,19 @@
           "name",
           "slug",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "role"
         ],
         "additionalProperties": false,
-        "description": "An isolated set of infrastructure data",
+        "description": "A workspace the caller can open, with their role in it",
         "examples": [
           {
             "id": "0199d6a0-0000-7000-8000-000000000001",
             "name": "Demo",
             "slug": "demo",
             "createdAt": "2026-10-31T09:00:00.000Z",
-            "updatedAt": "2026-10-31T09:00:00.000Z"
+            "updatedAt": "2026-10-31T09:00:00.000Z",
+            "role": "owner"
           }
         ]
       },
@@ -5929,7 +6048,7 @@
                   "type": "urn:stackmap:problem:forbidden",
                   "title": "You may not do this",
                   "status": 403,
-                  "detail": "This operation needs the admin role.",
+                  "detail": "This operation needs the editor role in the workspace.",
                   "instance": "/api/things/42",
                   "code": "forbidden"
                 }

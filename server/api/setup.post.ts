@@ -6,6 +6,7 @@ import { forwardCookies, throttle } from '../auth/requests';
 import { setupWindowOpen } from '../auth/setup-window';
 import { seedDemoWorkspace } from '../demo/seed-demo-workspace';
 import { claimSetup, hasAccounts, releaseSetup, removeAccount } from '../repositories/accounts';
+import { makeAdminsOwners } from '../repositories/members';
 import { useAuth } from '../utils/auth';
 import { defineContractHandler } from '../utils/contract-handler';
 import { useDatabase } from '../utils/database';
@@ -54,8 +55,10 @@ export default defineContractHandler(setUp, async ({ body }, event) => {
       headers: event.headers,
       returnHeaders: true,
     });
-    forwardCookies(event, headers);
     user = response.user;
+    // Workspaces seeded before setup (STACKMAP_DEMO) are theirs.
+    await makeAdminsOwners(db);
+    forwardCookies(event, headers);
   } catch (error) {
     // All or nothing: an account created before the failure would leave setup done with nobody signed in.
     await removeAccount(db, body.email);

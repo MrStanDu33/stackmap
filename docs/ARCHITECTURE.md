@@ -122,9 +122,8 @@ the extensions' entities, so it belongs to the app; tests use it, and the app se
 `server/plugins/demo.ts` seeds it when the server starts and no workspace has the slug `demo`, before the first request
 is served. The workspace and its data are written in one transaction: a seed that fails or is interrupted leaves
 nothing, the next start tries again, and the app runs on (at setup, the administrator is created and signed in all the
-same). An existing `demo` workspace is never touched, but with `STACKMAP_DEMO` a deleted one comes back on the next
-start. The UI finds it with `GET /api/workspaces?slug=demo`, which accepts no other slug until memberships exist (phase
-4b), so a guessed slug reveals no workspace id.
+same). Every instance administrator becomes its owner; seeded at boot before setup, it gets its owner at setup. An
+existing `demo` workspace is never touched, but with `STACKMAP_DEMO` a deleted one comes back on the next start.
 
 ## Accounts
 
@@ -148,9 +147,9 @@ under `/api/auth`, and every account operation is in the API document:
   by its owner only (an empty file is written again); it must be at least 32 characters.
 - `defineContractHandler` refuses a change sent by a browser from another origin than `BETTER_AUTH_URL`
   (`403 invalid_origin`; Better Auth's own check belongs to its router, which is not mounted), answers every operation
-  with `Cache-Control: no-store`, and checks the session before reading or checking the input: `401` without one, `403`
-  below the required role (until memberships exist, `admin` and `owner` need the instance administrator, the workspace roles
-  any session). `server/api/routes.test.ts` checks every route.
+  with `Cache-Control: no-store`, and checks the caller before reading or checking the input (see Workspaces and
+  isolation for the roles): `401` without a session, `403` below the required role. `server/api/routes.test.ts`
+  checks every route.
 - In the app, a global route middleware sends visitors to `/setup` until an account exists, then to `/login` (with the
   page asked for, kept only when it is a path on this site) until they sign in. Rendered pages are sent with
   `Cache-Control: no-store`, so Back after signing out asks the server again.
@@ -158,7 +157,7 @@ under `/api/auth`, and every account operation is in the API document:
 ## Workspaces and isolation
 
 Every entity belongs to a **workspace** (`workspace` table: name, unique kebab-case slug), created, read and deleted
-with `server/repositories/workspaces.ts`. All entity data goes through the repositories of one workspace, which the
+with `server/repositories/workspaces.ts`; `GET /api/workspaces` lists the caller's. All entity data goes through the repositories of one workspace, which the
 server builds from the active extensions' definitions:
 `createWorkspaceRepositories(registry.repositories())(db, { workspaceId, actorId, kinds })` (`server/repositories/`):
 
@@ -178,8 +177,19 @@ A shared test suite (`tests/support/scoped-repository-suite.ts`) runs every repo
 checks on both databases, and a test fails when code outside `server/database/`, `server/repositories/` and an
 extension's server code queries the database, or when anything selects every column.
 
-Members, roles (`owner`, `admin`, `editor`, `viewer`) and invitations come from Better Auth's organization plugin,
-mapped onto the `workspace` table _(planned, phase 4b)_. An entitlements service, `can(workspace, feature)`, allows
+A workspace is reachable only by its **members** (`member` table, `server/repositories/members.ts`), each with a role:
+`viewer` < `editor` < `admin` < `owner`. The memberships are our own table rather than Better Auth's organization
+plugin, which would write the `workspace` table itself, with its own column types; ours go through our repositories,
+the same way on both databases. Each contract states who may call it (`requiredRole`): `public`, `signedIn`,
+`instanceAdmin`, or a workspace role, which needs a `:workspaceId` in its path. For a workspace role,
+`defineContractHandler` looks up the caller's membership before reading the input and hands the route
+`input.workspace`, an `AuthorizedWorkspace` only that check can create; routes build the repositories from it and
+never from the path (`server/api/routes.test.ts` fails on `params.workspaceId`). A workspace that does not exist and
+one the caller is not a member of give the same `404 workspace_not_found`, so ids cannot be probed; a member below
+the role gets `403`. The instance administrator creates workspaces (`POST /api/workspaces`) and owns the ones they
+create; setup makes them owner of every workspace that exists then, and the migration that added memberships did the
+same for existing instances. They read other workspaces only with `INSTANCE_ADMIN_ALL_WORKSPACES=true`, as owner.
+Invitations and role changes come in phase 4c _(planned)_. An entitlements service, `can(workspace, feature)`, allows
 everything in v1 and prepares paid plans _(planned)_.
 
 ## Extensions

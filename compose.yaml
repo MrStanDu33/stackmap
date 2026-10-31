@@ -20,6 +20,8 @@ services:
       # TRUST_PROXY: "true"
       # Seeds a fictional demo workspace at start; /setup offers it otherwise.
       # STACKMAP_DEMO: "true"
+      # Lets the instance administrator open every workspace as owner, member or not.
+      # INSTANCE_ADMIN_ALL_WORKSPACES: "true"
     volumes:
       - stackmap-data:/data
 

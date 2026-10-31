@@ -9,12 +9,13 @@ import type { Database, WorkspaceTable } from '../database/types/schema';
 import type { Kysely } from 'kysely';
 
 /*
- * Workspaces are instance-level: they are not scoped, and are managed by the instance (accounts arrive in phase 4).
+ * Workspaces are instance-level: they are not scoped. Who may open one is decided by its memberships (members.ts),
+ * which defineContractHandler checks before a route runs: routes never look a workspace up by an id from the request.
  */
 
-const COLUMNS = ['id', 'name', 'slug', 'createdAt', 'updatedAt'] as const;
+export const WORKSPACE_COLUMNS = ['id', 'name', 'slug', 'createdAt', 'updatedAt'] as const;
 
-const fromRow = (row: WorkspaceTable): Workspace => ({
+export const toWorkspace = (row: WorkspaceTable): Workspace => ({
   ...row,
   createdAt: fromTimestamp(row.createdAt, 'workspace.createdAt'),
   updatedAt: fromTimestamp(row.updatedAt, 'workspace.updatedAt'),
@@ -32,17 +33,17 @@ export async function createWorkspace(db: Kysely<Database>, input: WorkspaceInpu
     }
     throw error;
   }
-  return fromRow(row);
+  return toWorkspace(row);
 }
 
 export async function getWorkspace(db: Kysely<Database>, id: string): Promise<Workspace | undefined> {
-  const row = await db.selectFrom('workspace').select(COLUMNS).where('id', '=', id).executeTakeFirst();
-  return row && fromRow(row);
+  const row = await db.selectFrom('workspace').select(WORKSPACE_COLUMNS).where('id', '=', id).executeTakeFirst();
+  return row && toWorkspace(row);
 }
 
 export async function getWorkspaceBySlug(db: Kysely<Database>, slug: string): Promise<Workspace | undefined> {
-  const row = await db.selectFrom('workspace').select(COLUMNS).where('slug', '=', slug).executeTakeFirst();
-  return row && fromRow(row);
+  const row = await db.selectFrom('workspace').select(WORKSPACE_COLUMNS).where('slug', '=', slug).executeTakeFirst();
+  return row && toWorkspace(row);
 }
 
 /** Deletes the workspace and all of its data. */
