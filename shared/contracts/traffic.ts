@@ -11,7 +11,7 @@ export const MAX_TRAFFIC_SERVICES = 1000;
 export const MAX_TRAFFIC_LISTENERS = 2000;
 export const MAX_TRAFFIC_FLOWS = 5000;
 /** Hostnames sent per flow: a wildcard route can serve thousands; `hostnameCount` gives the total. */
-export const MAX_TRAFFIC_FLOW_HOSTNAMES = 50;
+export const MAX_TRAFFIC_FLOW_HOSTNAMES = 10;
 
 const id = (n: number) => `0199d6a0-0000-7000-8000-${String(n).padStart(12, '0')}`;
 

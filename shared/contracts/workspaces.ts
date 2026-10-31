@@ -8,6 +8,9 @@ const id = (n: number) => `0199d6a0-0000-7000-8000-${String(n).padStart(12, '0')
 
 const slug = () => z.string().max(48).regex(KEBAB_CASE);
 
+/** The workspace the app seeds with the demo stack. */
+export const DEMO_WORKSPACE_SLUG = 'demo';
+
 /** An ISO 8601 UTC timestamp, such as 2026-10-31T09:00:00.000Z. */
 const timestamp = () => z.iso.datetime().max(30);
 
@@ -36,12 +39,17 @@ export const listWorkspaces = defineContract({
   path: '/api/workspaces',
   operationId: 'listWorkspaces',
   summary: 'Find workspaces',
-  description: 'Gives the workspace with this slug, such as `demo`, the workspace the app seeds with the demo stack, '
-    + 'or none. The slug is required until accounts exist.',
+  description: 'Gives the demo workspace, the one the app seeds with the demo stack, or none when it does not '
+    + 'exist. Until accounts exist, only the `demo` slug is accepted.',
   tags: ['Workspaces'],
   requiredRole: 'viewer',
   query: z.object({
-    slug: slug().meta({ description: 'The workspace\'s slug', examples: ['demo'] }),
+    // shortcut: only the demo workspace can be looked up, so a guessed slug reveals no other workspace's id; phase 4
+    // replaces this with the workspaces the caller is a member of.
+    slug: z.enum([DEMO_WORKSPACE_SLUG]).meta({
+      description: 'The workspace\'s slug: only `demo` until accounts exist',
+      examples: [DEMO_WORKSPACE_SLUG],
+    }),
   }),
   responses: {
     200: {

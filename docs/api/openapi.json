@@ -326,7 +326,7 @@
       "get": {
         "operationId": "listWorkspaces",
         "summary": "Find workspaces",
-        "description": "Gives the workspace with this slug, such as `demo`, the workspace the app seeds with the demo stack, or none. The slug is required until accounts exist.\n\nRequires the viewer role.",
+        "description": "Gives the demo workspace, the one the app seeds with the demo stack, or none when it does not exist. Until accounts exist, only the `demo` slug is accepted.\n\nRequires the viewer role.",
         "tags": [
           "Workspaces"
         ],
@@ -337,15 +337,16 @@
             "name": "slug",
             "schema": {
               "type": "string",
-              "maxLength": 48,
-              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
-              "description": "The workspace's slug",
+              "enum": [
+                "demo"
+              ],
+              "description": "The workspace's slug: only `demo` until accounts exist",
               "examples": [
                 "demo"
               ]
             },
             "required": true,
-            "description": "The workspace's slug",
+            "description": "The workspace's slug: only `demo` until accounts exist",
             "example": "demo"
           }
         ],
@@ -5146,14 +5147,14 @@
             ]
           },
           "hostnames": {
-            "maxItems": 50,
+            "maxItems": 10,
             "type": "array",
             "items": {
               "type": "string",
               "maxLength": 253,
               "pattern": "^(?=.{1,253}$)(?:\\*\\.)?(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
             },
-            "description": "Names it serves, sorted: the first 50",
+            "description": "Names it serves, sorted: the first 10",
             "examples": [
               [
                 "app.homelab.example",

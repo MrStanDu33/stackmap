@@ -12,8 +12,8 @@ import type { Traffic } from '../../shared/contracts/traffic';
  */
 export async function readTraffic({ db, repos, workspaceId }: TraceWorkspace): Promise<Traffic> {
   const [derived, manual, listeners, services, hosts] = await Promise.all([
-    listDerivedFlows(db, workspaceId), repos.flows.list(), repos.listeners.list(), repos.services.list(),
-    repos.hosts.list(),
+    listDerivedFlows(db, workspaceId, { basis: false }), repos.flows.list(), repos.listeners.list(),
+    repos.services.list(), repos.hosts.list(),
   ]);
   return buildTraffic({
     hosts,

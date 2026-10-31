@@ -70,10 +70,12 @@ export function buildTraffic({ hosts, services, listeners, flows }: TrafficEntit
   const ordered = [
     ...flows.filter(({ origin }) => origin === 'derived'), ...flows.filter(({ origin }) => origin === 'manual'),
   ];
-  const keptFlows = cap(ordered.flatMap((flow) => {
+  const resolved = ordered.flatMap((flow) => {
     const source = sourceOf(flow);
-    return source && listenerIds.has(flow.targetListenerId) ? [toFlow(flow, source)] : [];
-  }), MAX_TRAFFIC_FLOWS);
+    return source && listenerIds.has(flow.targetListenerId) ? [{ flow, source }] : [];
+  });
+  // Capped before mapping: only the kept flows' hostnames are sorted.
+  const keptFlows = cap(resolved, MAX_TRAFFIC_FLOWS).map(({ flow, source }) => toFlow(flow, source));
 
   return { hosts: keptHosts, services: keptServices, listeners: keptListeners, flows: keptFlows, truncated };
 }

@@ -47,11 +47,13 @@ const fromRow = (row: Row): DerivedFlow => ({
 export async function listDerivedFlows(
   db: Kysely<Database>,
   workspaceId: string,
-  _options: { basis?: boolean } = {},
+  { basis = true }: { basis?: boolean } = {},
 ): Promise<DerivedFlow[]> {
-  const rows = await db.selectFrom('derived_flow').select(COLUMNS).where('workspaceId', '=', workspaceId)
+  // A basis can hold 10,000 entries per flow: skip reading it when nothing describes hops.
+  const columns = basis ? COLUMNS : COLUMNS.filter((column) => column !== 'basis');
+  const rows = await db.selectFrom('derived_flow').select(columns).where('workspaceId', '=', workspaceId)
     .orderBy('extension').orderBy('deriver').orderBy('key').execute();
-  return rows.map(fromRow);
+  return rows.map((row) => fromRow({ ...row, basis: basis ? row.basis : '[]' }));
 }
 
 export interface RefreshOptions {
