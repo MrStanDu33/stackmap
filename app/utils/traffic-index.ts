@@ -8,7 +8,7 @@ type Listener = Traffic['listeners'][number];
 export const portLabel = ({ port, transport }: Listener): string => `${String(port)}/${transport}`;
 
 /** Derived by which extension and deriver, or documented by hand. */
-export const originLabel = (flow: TrafficFlow, t: Translate): string => (flow.origin === 'manual'
+export const originLabel = (flow: Pick<TrafficFlow, 'origin' | 'extension' | 'deriver'>, t: Translate): string => (flow.origin === 'manual'
   ? t('traffic.origin.manual')
   : t('traffic.origin.derived', { extension: flow.extension, deriver: flow.deriver }));
 

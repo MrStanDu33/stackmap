@@ -30,6 +30,7 @@ export const Default: Story = {
     const navigation = canvas.getByRole('navigation');
 
     await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('aria-current', 'page');
+    await expect(within(navigation).getByRole('link', { name: t('trace.title') })).not.toHaveAttribute('aria-current');
     await expect(canvas.getByText(t('app.name'))).toBeVisible();
     await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
   },

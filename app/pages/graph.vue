@@ -172,7 +172,7 @@ watch(selection, (selected) => {
       <UAlert
         v-if="traffic?.truncated"
         color="warning"
-        variant="subtle"
+        variant="outline"
         :title="t('traffic.truncated')"
       />
       <div class="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">

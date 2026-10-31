@@ -8,8 +8,76 @@
   "trace": {
     "hop": {
       "unknown": "Aucun détail disponible | Aucun détail disponible pour {count} éléments",
-      "more": "{count} étape de plus | {count} étapes de plus"
-    }
+      "more": "{count} intermédiaire de plus | {count} intermédiaires de plus",
+      "missing": "{entity} : aucune description"
+    },
+    "title": "Trace",
+    "form": {
+      "label": "Tracer un nom d’hôte",
+      "hostname": "Nom d’hôte",
+      "hostnameHint": "Par exemple app.homelab.example",
+      "client": "Client",
+      "port": "Port (facultatif)",
+      "portHint": "Seulement les entrées sur ce port",
+      "submit": "Tracer",
+      "error": {
+        "hostname": "Saisissez un nom d’hôte tel que app.homelab.example",
+        "wildcard": "Un joker ne peut pas être tracé : saisissez un seul nom",
+        "port": "Saisissez un port de 1 à 65535"
+      }
+    },
+    "start": "Saisissez un nom d’hôte pour voir comment une requête l’atteint.",
+    "loading": "Calcul de la trace pour {hostname}…",
+    "nothing": {
+      "public": "Rien n’atteint {hostname} depuis Internet.",
+      "internal": "Rien n’atteint {hostname} depuis le réseau local."
+    },
+    "tryOther": {
+      "public": "Essayer depuis Internet",
+      "internal": "Essayer depuis le réseau local"
+    },
+    "error": "La trace n’a pas pu être calculée.",
+    "truncated": "Seule une partie de cette trace est affichée : elle s’arrête à {nodes} services ou {steps} étapes.",
+    "summary": {
+      "public": "{hostname} depuis Internet : {entries}, {steps}, {dependencies}",
+      "internal": "{hostname} depuis le réseau local : {entries}, {steps}, {dependencies}"
+    },
+    "count": {
+      "entries": "{count} entrée | {count} entrées",
+      "steps": "{count} étape | {count} étapes",
+      "dependencies": "{count} dépendance | {count} dépendances"
+    },
+    "request": "Requête",
+    "level": "Dépendances, niveau {depth}",
+    "step": "Depuis {source} vers {service}, port {port}",
+    "dependencyStep": "{step}, dépendance, niveau {depth}",
+    "cycle": "{step}, retour vers {target} : déjà parcouru, la trace s’arrête ici",
+    "cycleNote": "Retour vers {target} : déjà parcouru, la trace s’arrête ici.",
+    "listener": "{service}, {port}, {where}",
+    "onHost": "sur {host}",
+    "stage": {
+      "dns": "DNS",
+      "network": "Réseau",
+      "proxy": "Proxy"
+    },
+    "hops": "Intermédiaires",
+    "noHop": "Aucun intermédiaire : un flux direct",
+    "role": {
+      "request": "Requête",
+      "dependency": "Dépendance, niveau {depth}",
+      "listener": "port d’écoute",
+      "step": "étape"
+    },
+    "selected": "Sélection : {name}",
+    "external": "externe",
+    "canvas": "Graphe de la trace",
+    "legend": {
+      "title": "Styles de trait",
+      "request": "Plein : la requête",
+      "dependency": "Tirets : une dépendance",
+      "cycle": "Pointillés : retour vers un port d’écoute déjà sur le chemin"
+    },
+    "hopWithStage": "{stage} : {sentence}"
   },
   "common": {
     "retry": "Réessayer"

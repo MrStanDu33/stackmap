@@ -304,6 +304,16 @@ healthcheck calls it. The database error goes to the logs, never to the response
   the detail panel and highlights its flows, thicker and solid against dimmed and dashed ones; a live region
   announces it (events only: the counts on load, then each selection), following a link inside the panel moves focus
   to its title, and Escape closes the panel and returns focus unless another widget used it.
+- The Trace view (`/trace`) draws `GET /api/workspaces/:workspaceId/trace` for a hostname, a client and an optional
+  port, all kept in the URL (checked with the route's own query schema before any request). The path runs left to
+  right: the client, each listener the request reaches, then the dependencies; steps are edges, solid for the
+  request, dashed for dependencies, dotted for cycles, and every step's hops are the extensions' translated sentences
+  (a missing translation reads "{entity}: no description"). `?view=list` shows the ordered steps with their hops as
+  the accessible equivalent, and the detail panel shows a step's hops in order or a listener's steps in and out. Both
+  graphs share their layout code (`useElkLayout`, ELK in a worker) and their conventions.
+- Solid buttons keep their background on hover and press and underline their label instead (`app/app.config.ts`):
+  Nuxt UI's faded hover drops the label below 4.5:1 on the midnight theme. Warnings use the outline alert for the
+  same reason in the light theme.
 
 ## Testing
 
