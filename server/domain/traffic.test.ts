@@ -84,6 +84,20 @@ describe('buildTraffic', () => {
     expect(traffic.flows.map(({ id: flowId }) => flowId)).toEqual([proxy.id, entry.id, call.id]);
   });
 
+  it('breaks ties by id: hosts with the same name, listeners on the same port; a service may have no listener', () => {
+    const twin = { id: id(0), name: SERVER.name, kind: 'vm' };
+    const udp = { ...listener(9, NPM, 443), transport: 'udp' };
+    const idle = { id: id(6), name: 'Idle', kind: 'app', hostId: SERVER.id };
+
+    const traffic = buildTraffic(entities({
+      hosts: [SERVER, twin], services: [NPM, idle], listeners: [NPM_443, udp, NPM_80],
+    }));
+
+    expect(traffic.hosts.map(({ id: hostId }) => hostId)).toEqual([twin.id, SERVER.id]);
+    expect(traffic.services.map(({ name }) => name)).toEqual(['Idle', 'NPM']);
+    expect(traffic.listeners.map(({ id: listenerId }) => listenerId)).toEqual([NPM_80.id, udp.id, NPM_443.id]);
+  });
+
   it('returns the first 50 hostnames of a flow, sorted, with hostnameCount the total', () => {
     const names = Array.from({ length: MAX_TRAFFIC_FLOW_HOSTNAMES + 10 }, (_, n) => `site-${String(n).padStart(3, '0')}.homelab.example`);
     const entry = flow({ sourceClient: 'public', targetListenerId: NPM_443.id, hostnames: names.toReversed() });
