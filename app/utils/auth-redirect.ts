@@ -4,11 +4,17 @@ export interface AuthState {
   signedIn: boolean;
 }
 
-const pathOf = (fullPath: string) => fullPath.split(/[?#]/)[0];
+const pathOf = (fullPath: string) => fullPath.split(/[?#]/)[0] ?? '';
+
+/** Pages open to anyone: the API reference, which documents the public API description. */
+const PUBLIC = /^\/api\/docs(?:\/|$)/;
 
 /** Where a page must send the visitor instead, or null to show it. */
 export function authRedirect(fullPath: string, { setUp, signedIn }: AuthState): string | null {
   const path = pathOf(fullPath);
+  if (PUBLIC.test(path)) {
+    return null;
+  }
   if (!setUp) {
     return path === '/setup' ? null : '/setup';
   }
