@@ -81,10 +81,20 @@ lowercase DNS names), so equal values are stored the same way.
   network is documented; a forward whose host no longer holds its external address gives nothing. The core exports
   the shared rules (`listenerIndex`, `reachableListeners`, `dnsNamesByAddress`, which resolves each name once per
   CNAME budget) from `@stackmap/extension-core/flows`. Access policies and VPNs come with their extensions _(planned)_.
+- A **trace** follows the stored flows for a hostname, from a `public` or `internal` client
+  (`GET /api/workspaces/:workspaceId/trace`), computed on each request by `server/domain/trace.ts`. Entry flows are
+  the client's flows serving the name (exact names win over wildcards, as in DNS), narrowed to a port when one is
+  given (a forward's external port, else the listener's published port). From each listener on the request path,
+  its service's flows serving the name continue the request, except one back to the listener it arrived at (a proxy
+  serving the name on its own port); from every listener reached, flows without names (manual ones) are
+  dependencies, followed 8 levels deep. A listener is one node, followed once; a step back to a listener on its own
+  path is marked as a cycle. The walk stops at 500 nodes or 1,000 steps (`truncated`). Each step's hops come from
+  the **trace hop resolvers** of the entities in its flow's basis: the core describes DNS records (the traced name's
+  chain), NAT port forwards and the reverse proxy routes; an entity without a resolver, or whose resolver fails,
+  times out (5 s) or returns an invalid result, gets a generic hop, logged with its extension.
 
 _(Planned.)_
 
-- A **trace** is computed for a hostname: client → DNS → public IP, NAT or tunnel → proxy → upstream → dependencies.
 - A **plan** is an ordered checklist. A step can link to an entity and turn it from `planned` to `active`. A
   **template** is a reusable plan with an entity blueprint.
 - **Custom types** let users define entity types (fields, icon, graph role, relations, trace participation) stored in
@@ -192,9 +202,12 @@ admin approves it again _(install flows: phase 5; community extensions: after v1
 
 An extension's server code can contribute **flow derivers** (`flowDerivers`, ids unique in the extension): each reads
 the workspace through a frozen reader (`get` and `list` only) and returns flow drafts, each checked with the SDK's
-`flowDraftSchema` (at most 1,000 hostnames and 1,000 basis entries per flow).
+`flowDraftSchema` (at most 10,000 hostnames and 10,000 basis entries per flow). It can also contribute **trace hop
+resolvers** (`traceHopResolvers`): each describes the basis entities of one entity type as hops (stage `dns`,
+`network` or `proxy`, an i18n label and its params, and the port a client connects to, if any), checked with
+`traceHopsSchema`. One extension per entity: a second one resolving the same entity fails.
 
-_(Planned.)_ Extensions will also contribute fields on other extensions' entities, flow types, **trace hop resolvers** (resolve the next hop through its entities), templates, wizard
+_(Planned.)_ Extensions will also contribute fields on other extensions' entities, flow types, templates, wizard
 questions and themes, and domain events will join the hooks as the features that emit them arrive.
 
 Admins install and remove extensions, and workspace admins turn them on or off _(planned, phase 5; who may do it is a
