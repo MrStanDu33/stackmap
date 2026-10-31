@@ -8,8 +8,7 @@ import { createI18n, useI18n } from 'vue-i18n';
 import { createMemoryHistory, createRouter, RouterLink } from 'vue-router';
 
 import i18nConfig from '../i18n/i18n.config';
-import en from '../i18n/locales/en.json';
-import fr from '../i18n/locales/fr.json';
+import { MESSAGES } from '../tests/support/i18n';
 
 import type { Ref } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
@@ -21,7 +20,8 @@ export const i18n = createI18n({
   legacy: false,
   locale: 'en',
   fallbackLocale: 'en',
-  messages: { en, fr },
+  // With the built-in extensions' strings, as the app merges them: trace hops are their sentences.
+  messages: MESSAGES,
 });
 
 export { useI18n };
