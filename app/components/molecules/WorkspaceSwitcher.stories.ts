@@ -22,7 +22,7 @@ type Story = StoryObj<typeof meta>;
 const { t } = i18n.global;
 const role = (key: 'owner' | 'viewer') => t(`workspace.role.${key}`);
 
-/** Opens the menu from its button; the menu is rendered in a portal, outside the canvas. */
+/** Opens the menu from its button. */
 const open = async (canvasElement: HTMLElement, name: string) => {
   await userEvent.click(within(canvasElement).getByRole('button', { name }));
   return within(await waitFor(() => {

@@ -71,7 +71,7 @@ test.describe('sign-in', () => {
     await expect(page.getByRole('checkbox', { name: 'Add the demo workspace' })).toBeChecked();
     await page.getByRole('button', { name: 'Create the admin account' }).click();
 
-    await expect(page).toHaveURL(`${FRESH_URL}/graph`);
+    await expect(page).toHaveURL(`${FRESH_URL}/w/demo/graph`);
     await expect(page.locator('.vue-flow__edge')).toHaveCount(9);
     await expect(page.getByText(ADMIN.name)).toBeVisible();
   });
@@ -89,12 +89,13 @@ test.describe('sign-in', () => {
     await expectNoAxeViolation(page);
 
     await fillSignIn(page);
-    await expect(page).toHaveURL(`${FRESH_URL}/graph?view=list`);
+    // Back to the page asked for, which leads to the same view of the workspace (4b).
+    await expect(page).toHaveURL(`${FRESH_URL}/w/demo/graph?view=list`);
 
     await page.goto('/login');
-    await expect(page).toHaveURL(`${FRESH_URL}/graph`);
+    await expect(page).toHaveURL(`${FRESH_URL}/w/demo/graph`);
     await page.goto('/setup');
-    await expect(page).toHaveURL(`${FRESH_URL}/graph`);
+    await expect(page).toHaveURL(`${FRESH_URL}/w/demo/graph`);
 
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL(`${FRESH_URL}/login`);

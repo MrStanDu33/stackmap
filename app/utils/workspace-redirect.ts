@@ -1,9 +1,10 @@
 /** Where `/`, `/graph` or `/trace` lead: the same view of a workspace, or null without any. */
-export function workspaceRedirect(
-  _view: 'graph' | 'trace',
-  _query: Record<string, unknown>,
-  _slugs: readonly string[],
-  _remembered: string | undefined,
-): { path: string; query: Record<string, unknown> } | null {
-  return null;
+export function workspaceRedirect<Q>(
+  view: 'graph' | 'trace',
+  query: Q,
+  slugs: readonly string[],
+  remembered: string | undefined,
+): { path: string; query: Q } | null {
+  const slug = remembered && slugs.includes(remembered) ? remembered : slugs[0];
+  return slug === undefined ? null : { path: `/w/${slug}/${view}`, query };
 }

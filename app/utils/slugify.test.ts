@@ -12,6 +12,11 @@ describe('slugify', () => {
     expect(slugify('x'.repeat(60))).toHaveLength(48);
   });
 
+  it('starts with a letter, as the API requires', () => {
+    expect(slugify('2026 Homelab')).toBe('homelab');
+    expect(slugify('42')).toBe('');
+  });
+
   it('gives an empty slug for a name without letters or digits', () => {
     expect(slugify('!!!')).toBe('');
     expect(slugify('   ')).toBe('');

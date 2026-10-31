@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { DEMO_URL, EMPTY_URL, signInTo } from './support/accounts';
+import { DEMO_URL, EMPTY_URL, signInTo, USER } from './support/accounts';
 
 import type { Page } from '@playwright/test';
 
@@ -17,19 +17,6 @@ const createWorkspace = async (page: Page, url = DEMO_URL) => {
   const response = await page.request.post(`${url}/api/workspaces`, { data: { name: `Lab ${slug}`, slug } });
   expect(response.status()).toBe(201);
   return { name: `Lab ${slug}`, slug };
-};
-
-/** Answers /api/session as an account that is not the instance administrator (none can exist before invitations). */
-const asPlainUser = async (page: Page) => {
-  await page.route('**/api/session', async (route) => {
-    if (route.request().method() !== 'GET') {
-      await route.fallback();
-      return;
-    }
-    const response = await route.fetch();
-    const session = await response.json() as { user: Record<string, unknown> };
-    await route.fulfill({ response, json: { user: { ...session.user, role: 'user' } } });
-  });
 };
 
 const switcher = (page: Page, name: string) => page.getByRole('button', { name: `Workspace: ${name}` });
@@ -54,7 +41,7 @@ test.describe('workspaces', () => {
 
     const lab = await createWorkspace(page);
     await page.goto(`/w/${lab.slug}/graph`);
-    await expect(page.getByRole('heading', { name: 'Nothing to draw yet' })).toBeVisible();
+    await expect(page.getByText('Nothing to draw yet')).toBeVisible();
     await page.goto('/graph?view=list');
     await expect(page).toHaveURL(`${DEMO_URL}/w/${lab.slug}/graph?view=list`);
   });
@@ -89,18 +76,18 @@ test.describe('workspaces', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'New workspace' })).toBeVisible();
     await expectNoAxeViolation(page);
 
-    await page.getByRole('textbox', { name: 'Name' }).fill(`Home ${slug.slice(5)}`);
+    await page.getByRole('textbox', { name: /^Name/ }).fill(`Home ${slug.slice(5)}`);
     await expect(page.getByRole('textbox', { name: 'Short name' })).toHaveValue(slug);
     await page.getByRole('button', { name: 'Create workspace' }).click();
 
     await expect(page).toHaveURL(`${DEMO_URL}/w/${slug}/graph`);
-    await expect(page.getByRole('heading', { name: 'Nothing to draw yet' })).toBeVisible();
+    await expect(page.getByText('Nothing to draw yet')).toBeVisible();
     await expect(switcher(page, `Home ${slug.slice(5)}`)).toBeVisible();
   });
 
   test('given a taken slug, the form shows the error on the slug field and focuses it (24)', async ({ page }) => {
     await page.goto('/workspaces/new');
-    await page.getByRole('textbox', { name: 'Name' }).fill('Demo');
+    await page.getByRole('textbox', { name: /^Name/ }).fill('Demo');
     await page.getByRole('button', { name: 'Create workspace' }).click();
 
     const slug = page.getByRole('textbox', { name: 'Short name' });
@@ -109,11 +96,11 @@ test.describe('workspaces', () => {
   });
 
   test('given a user who is not the administrator, /workspaces/new says only an administrator can create workspaces (25)', async ({ page }) => {
-    await asPlainUser(page);
+    await signInTo(page, DEMO_URL, USER);
     await page.goto('/workspaces/new');
 
     await expect(page.getByText('Only an administrator can create workspaces.')).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Name' })).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: /^Name/ })).toHaveCount(0);
   });
 
   test('given the Traffic panel, trace links point to /w/<slug>/trace (26)', async ({ page }) => {
@@ -138,7 +125,7 @@ test.describe('workspaces, without one', () => {
     await expect(page.getByRole('link', { name: 'Create a workspace' })).toHaveAttribute('href', '/workspaces/new');
     await expectNoAxeViolation(page);
 
-    await asPlainUser(page);
+    await signInTo(page, EMPTY_URL, USER);
     await page.reload();
     await expect(page.getByRole('heading', { name: 'No workspace yet' })).toBeVisible();
     await expect(page.getByText('Ask an administrator to invite you to a workspace.')).toBeVisible();

@@ -5,7 +5,12 @@ import type { Traffic } from '#shared/contracts/traffic';
 import type { Selection } from '../../utils/traffic-selection';
 
 /** What is selected in the Traffic view, with what it is linked to. */
-const props = defineProps<{ traffic: Traffic; selection: Selection }>();
+const props = withDefaults(defineProps<{
+  traffic: Traffic;
+  selection: Selection;
+  /** Where the trace links go: the Trace view of the same workspace. */
+  tracePath?: string;
+}>(), { tracePath: '/trace' });
 const emit = defineEmits<{ select: [selection: Selection]; close: [] }>();
 
 const { t } = useI18n();
@@ -255,7 +260,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
           :key="`${item.hostname} ${item.client}`"
         >
           <NuxtLink
-            :to="{ path: '/trace', query: { hostname: item.hostname, client: item.client } }"
+            :to="{ path: tracePath, query: { hostname: item.hostname, client: item.client } }"
             :class="traceLink"
           >
             {{ t(`detail.trace.${item.client}`, { hostname: item.hostname }) }}
@@ -368,7 +373,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
               <span class="block">{{ name }}</span>
               <NuxtLink
                 v-if="flowLinks.get(name)"
-                :to="{ path: '/trace', query: { hostname: name, client: flowLinks.get(name)?.client } }"
+                :to="{ path: tracePath, query: { hostname: name, client: flowLinks.get(name)?.client } }"
                 :class="traceLink"
               >
                 {{ t(`detail.trace.${flowLinks.get(name)?.client}`, { hostname: name }) }}

@@ -335,7 +335,14 @@ healthcheck calls it. The database error goes to the logs, never to the response
   on narrow screens) with the display preferences (theme, contrast, language), and the main landmark. The preferences
   are kept in the browser (Nuxt color mode, the `stackmap_contrast` and `stackmap_locale` cookies, applied during SSR
   by `app/plugins/contrast.ts` and i18n) until accounts save them per user.
-- The Traffic view (`/graph`) draws `GET /api/workspaces/:workspaceId/traffic` for the `demo` workspace with Vue Flow:
+- Workspaces are in the URL: `/w/<slug>/graph` and `/w/<slug>/trace`, so links and bookmarks open the same one. The
+  sidebar's switcher (`WorkspaceSwitcher`, a non-modal menu of links kept in the sidebar's landmark) lists the
+  user's workspaces with their role and keeps the view; the instance administrator also gets `/workspaces/new`.
+  `useWorkspaces()` fetches the list once on the client, shared by every page, and remembers the last workspace
+  opened in the `stackmap-workspace` cookie (its slug only). `/`, `/graph` and `/trace` lead to that one, or the first
+  by name, with the same query; without any, they say how to get one. A slug that is unknown or not the user's shows
+  the same "Workspace not found" page.
+- The Traffic view (`/w/<slug>/graph`) draws `GET /api/workspaces/:workspaceId/traffic` with Vue Flow:
   hosts hold their services, services list their ports, and each flow ends on its port. ELK lays it out in a web
   worker (`app/composables/useTrafficLayout.ts`, from the pure helpers in `app/utils/traffic-graph.ts`). Nodes are
   buttons with a pressed state, names that start with their visible text and role descriptions in the current
@@ -345,7 +352,7 @@ healthcheck calls it. The database error goes to the logs, never to the response
   the detail panel and highlights its flows, thicker and solid against dimmed and dashed ones; a live region
   announces it (events only: the counts on load, then each selection), following a link inside the panel moves focus
   to its title, and Escape closes the panel and returns focus unless another widget used it.
-- The Trace view (`/trace`) draws `GET /api/workspaces/:workspaceId/trace` for a hostname, a client and an optional
+- The Trace view (`/w/<slug>/trace`) draws `GET /api/workspaces/:workspaceId/trace` for a hostname, a client and an optional
   port, all kept in the URL (checked with the route's own query schema before any request). The path runs left to
   right: the client, each listener the request reaches, then the dependencies; steps are edges, solid for the
   request, dashed for dependencies, dotted for cycles, and every step's hops are the extensions' translated sentences
