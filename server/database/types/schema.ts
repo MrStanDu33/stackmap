@@ -6,6 +6,26 @@ export interface Database {
   appSetting: AppSettingTable;
   workspace: WorkspaceTable;
   derived_flow: DerivedFlowTable;
+  user: UserTable;
+  rateLimit: RateLimitTable;
+}
+
+/**
+ * Better Auth's accounts (written by Better Auth only, through its adapter); the app reads whether any exists. Its
+ * other tables (session, account, verification) are Better Auth's alone.
+ */
+export interface UserTable {
+  id: string;
+  email: string;
+}
+
+/** Attempts per key and window, for the sign-in and setup limits. */
+export interface RateLimitTable {
+  id: string;
+  key: string;
+  count: number;
+  /** Milliseconds since the epoch: a bigint, which Postgres returns as text. */
+  lastRequest: number | string;
 }
 
 /** Instance-wide settings (registration toggle, default landing page…), one JSON value per key. */
