@@ -4,10 +4,13 @@ import { createApp, toWebHandler } from 'h3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import handler from './extensions.get';
+import { useSignedIn } from '../../tests/support/sessions';
 import { createExtensionRegistry } from '../extensions/registry';
 import { setExtensionRegistry } from '../utils/extensions';
 
 import type { ExtensionManifest, ExtensionServer } from '@stackmap/extension-sdk';
+
+useSignedIn();
 
 const core: ExtensionManifest = {
   id: 'core',

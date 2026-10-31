@@ -10,7 +10,7 @@ describe('getTrace contract', () => {
 
     expect(CONTRACTS).toContain(getTrace);
     expect(operation?.tags).toEqual(['Traces']);
-    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '404', '500']);
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '401', '404', '500']);
     expect(Object.keys((operation?.responses?.['404'] as { content?: object } | undefined)?.content ?? {}))
       .toEqual(['application/problem+json']);
   });

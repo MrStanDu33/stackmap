@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import handler from './traffic.get';
 import { DIALECTS } from '../../../../tests/support/databases';
+import { useSignedIn } from '../../../../tests/support/sessions';
 import { BUILTIN_REGISTRY, useTestWorkspaces } from '../../../../tests/support/workspaces';
 import { seedDemoStack } from '../../../demo/demo-stack';
 import { setDatabase } from '../../../utils/database';
@@ -13,6 +14,8 @@ import type { Dialect } from '../../../../tests/support/databases';
 import type { Database } from '../../../database/types/schema';
 import type { SeededDemoStack } from '../../../demo/demo-stack';
 import type { Kysely } from 'kysely';
+
+useSignedIn();
 
 const get = async (workspaceId: string) => {
   const app = createApp().use(createRouter().get('/api/workspaces/:workspaceId/traffic', handler));

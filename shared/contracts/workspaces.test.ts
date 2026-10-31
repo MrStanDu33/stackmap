@@ -10,6 +10,6 @@ describe('listWorkspaces contract', () => {
 
     expect(CONTRACTS).toContain(listWorkspaces);
     expect(operation?.tags).toEqual(['Workspaces']);
-    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '500']);
+    expect(Object.keys(operation?.responses ?? {}).sort()).toEqual(['200', '400', '401', '500']);
   });
 });

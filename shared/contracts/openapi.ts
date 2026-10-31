@@ -35,7 +35,7 @@ a later version of Stackmap: until then, every operation is open.
 ## Roles
 
 Each operation states the role it needs (\`x-required-role\`): \`viewer\`, \`editor\`, \`admin\` or \`owner\` in a
-workspace, or \`public\`. Roles are enforced once accounts exist.
+workspace, or \`public\`. It is checked before the input: \`401\` without a session, \`403\` below the role.
 
 ## Strings
 
@@ -82,6 +82,14 @@ const PROBLEM_RESPONSES = {
   unsupportedMediaType: problemResponse('UnsupportedMediaType', PROBLEMS.unsupported_media_type.description, [{
     code: 'unsupported_media_type',
     detail: 'The request body must be JSON (application/json).',
+  }]),
+  unauthenticated: problemResponse('Unauthenticated', PROBLEMS.unauthenticated.description, [{
+    code: 'unauthenticated',
+    detail: 'Sign in to use this operation.',
+  }]),
+  forbidden: problemResponse('Forbidden', PROBLEMS.forbidden.description, [{
+    code: 'forbidden',
+    detail: 'This operation needs the admin role.',
   }]),
   internalError: problemResponse('InternalError', 'An unexpected error or, outside production, a response that does '
   + 'not match its contract', [
@@ -131,6 +139,9 @@ function toOperation(contract: Contract): ZodOpenApiOperationObject {
     responses: {
       ...responses,
       ...(hasInput ? { 400: PROBLEM_RESPONSES.validationFailed } : {}),
+      // Checked before the input: a caller without a session, or below the role, learns nothing more.
+      ...(contract.requiredRole === 'public' ? {} : { 401: PROBLEM_RESPONSES.unauthenticated }),
+      ...(contract.requiredRole === 'admin' || contract.requiredRole === 'owner' ? { 403: PROBLEM_RESPONSES.forbidden } : {}),
       ...(contract.body === undefined
         ? {}
         : { 413: PROBLEM_RESPONSES.payloadTooLarge, 415: PROBLEM_RESPONSES.unsupportedMediaType }),
@@ -203,8 +214,8 @@ export function createOpenApiDocument(
           type: 'apiKey',
           in: 'cookie',
           name: SESSION_COOKIE,
-          description: 'The session cookie that signing in sets. Enforced once accounts exist; until then, every '
-            + 'operation is open.',
+          description: 'The session cookie that signing in (`POST /api/session`) sets. Over HTTPS its name has the '
+            + '`__Secure-` prefix.',
         },
       },
     },

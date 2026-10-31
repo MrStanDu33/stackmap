@@ -9,8 +9,10 @@ import {
   setResponseStatus,
 } from 'h3';
 
+import { getRequestSession } from './session';
 import { MAX_ISSUES, Problem, problemOf } from '../../shared/contracts/errors';
 
+import type { Session } from '../../shared/contracts/auth';
 import type { Contract } from '../../shared/contracts/contract';
 import type { ProblemCode } from '../../shared/contracts/errors';
 import type { EventHandler, H3Event } from 'h3';
@@ -23,11 +25,12 @@ export const MAX_BODY_BYTES = 1024 * 1024;
 
 type Parsed<S> = S extends z.ZodType ? z.output<S> : undefined;
 
-/** The validated input of a contract's operation. */
+/** The validated input of a contract's operation, and who calls it: always someone, unless the operation is public. */
 export interface ContractInput<C extends Contract> {
   params: Parsed<C['params']>;
   query: Parsed<C['query']>;
   body: Parsed<C['body']>;
+  session: C['requiredRole'] extends 'public' ? null : Session;
 }
 
 /** One of the responses the contract declares: its status and a body matching that status's schema. */
@@ -188,6 +191,23 @@ function responseBody(contract: Contract, { status, body }: { status: number; bo
   throw new ApiFailure('invalid_response', `The response of ${contract.operationId} does not match its contract.`, issues);
 }
 
+/** The caller's session, checked against the contract's role; null for public operations. */
+async function authorize(contract: Contract, event: H3Event): Promise<Session | null> {
+  if (contract.requiredRole === 'public') {
+    return null;
+  }
+  const session = await getRequestSession(event);
+  if (!session) {
+    throw new ApiFailure('unauthenticated', 'Sign in to use this operation.');
+  }
+  // shortcut: workspace roles (viewer, editor) only need a session until memberships exist (phase 4b); admin and
+  // owner need the instance administrator.
+  if ((contract.requiredRole === 'admin' || contract.requiredRole === 'owner') && session.user.role !== 'admin') {
+    throw new ApiFailure('forbidden', `This operation needs the ${contract.requiredRole} role.`);
+  }
+  return session;
+}
+
 /** A route handler that implements a contract: validated input in, a declared response out. */
 // R is inferred from the handler (const keeps `status: 200` literal) and must be one of the declared responses.
 export function defineContractHandler<C extends Contract, const R extends ContractResult<C>>(
@@ -196,12 +216,20 @@ export function defineContractHandler<C extends Contract, const R extends Contra
 ): ContractHandler<C> {
   const eventHandler = defineEventHandler(async (event) => {
     try {
-      const result: { status: number; body: unknown } = await handler(await parseInput(contract, event), event);
+      // Who calls comes first: someone signed out cannot have a body read or an input checked.
+      const session = await authorize(contract, event);
+      const input = { ...await parseInput(contract, event), session } as ContractInput<C>;
+      const result: { status: number; body: unknown } = await handler(input, event);
       const body = responseBody(contract, result);
       setResponseStatus(event, result.status);
       // An expected error the contract declares (404, 409…) is Problem Details, like the ones thrown here.
       if (contract.responses[result.status]?.schema === Problem) {
         setResponseHeader(event, 'content-type', 'application/problem+json');
+      }
+      // h3 answers a null body with 204 and nothing: a declared `null` (signed out) is sent as JSON.
+      if (body === null) {
+        setResponseHeader(event, 'content-type', 'application/json');
+        return 'null';
       }
       return body;
     } catch (error) {

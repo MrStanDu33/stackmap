@@ -4,7 +4,7 @@
   "info": {
     "title": "Stackmap API",
     "summary": "Document your infrastructure: hosts, services, DNS, proxies and the flows between them.",
-    "description": "Stackmap documents your infrastructure (hosts, services, DNS, proxies, VPNs) and the flows between\nthem. Every route is generated from its contract, so this reference is always the API itself.\n\n## Errors\n\nErrors follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457), as `application/problem+json`:\n`type`, `title`, `status`, `detail` and `instance`, plus a stable `code` and, for invalid input, `issues`.\nTranslate errors with `code`, not with `title` or `detail`.\n\n## Authentication\n\nOperations need the session cookie (`better-auth.session_token`) that signing in sets, except public ones. Accounts arrive in\na later version of Stackmap: until then, every operation is open.\n\n## Roles\n\nEach operation states the role it needs (`x-required-role`): `viewer`, `editor`, `admin` or `owner` in a\nworkspace, or `public`. Roles are enforced once accounts exist.\n\n## Strings\n\nNames and labels in responses are i18n keys, such as `extensions.core.name`: the interface translates them.\n\n## Versioning\n\n`info.version` is the version of the API, raised on breaking changes, not with every release of Stackmap.",
+    "description": "Stackmap documents your infrastructure (hosts, services, DNS, proxies, VPNs) and the flows between\nthem. Every route is generated from its contract, so this reference is always the API itself.\n\n## Errors\n\nErrors follow [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457), as `application/problem+json`:\n`type`, `title`, `status`, `detail` and `instance`, plus a stable `code` and, for invalid input, `issues`.\nTranslate errors with `code`, not with `title` or `detail`.\n\n## Authentication\n\nOperations need the session cookie (`better-auth.session_token`) that signing in sets, except public ones. Accounts arrive in\na later version of Stackmap: until then, every operation is open.\n\n## Roles\n\nEach operation states the role it needs (`x-required-role`): `viewer`, `editor`, `admin` or `owner` in a\nworkspace, or `public`. It is checked before the input: `401` without a session, `403` below the role.\n\n## Strings\n\nNames and labels in responses are i18n keys, such as `extensions.core.name`: the interface translates them.\n\n## Versioning\n\n`info.version` is the version of the API, raised on breaking changes, not with every release of Stackmap.",
     "version": "1",
     "contact": {
       "name": "Stackmap",
@@ -62,7 +62,7 @@
     },
     {
       "name": "Workspaces",
-      "description": "Isolated sets of infrastructure data. Until accounts exist, the app seeds a `demo` workspace."
+      "description": "Isolated sets of infrastructure data. Setup can add a `demo` workspace with a fictional home lab."
     }
   ],
   "externalDocs": {
@@ -594,6 +594,9 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -673,6 +676,9 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -748,6 +754,12 @@
               }
             }
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
           "500": {
             "$ref": "#/components/responses/InternalError"
           }
@@ -758,7 +770,7 @@
       "get": {
         "operationId": "listWorkspaces",
         "summary": "Find workspaces",
-        "description": "Gives the demo workspace, the one the app seeds with the demo stack, or none when it does not exist. Until accounts exist, only the `demo` slug is accepted.\n\nRequires the viewer role.",
+        "description": "Gives the demo workspace, the one the app seeds with the demo stack, or none when it does not exist. Until workspace memberships exist, only the `demo` slug is accepted.\n\nRequires the viewer role.",
         "tags": [
           "Workspaces"
         ],
@@ -772,13 +784,13 @@
               "enum": [
                 "demo"
               ],
-              "description": "The workspace's slug: only `demo` until accounts exist",
+              "description": "The workspace's slug: only `demo` until workspace memberships exist",
               "examples": [
                 "demo"
               ]
             },
             "required": true,
-            "description": "The workspace's slug: only `demo` until accounts exist",
+            "description": "The workspace's slug: only `demo` until workspace memberships exist",
             "example": "demo"
           }
         ],
@@ -817,6 +829,9 @@
           },
           "400": {
             "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -988,6 +1003,9 @@
           "400": {
             "$ref": "#/components/responses/ValidationFailed"
           },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
           "404": {
             "description": "No such workspace",
             "content": {
@@ -1112,6 +1130,9 @@
           },
           "400": {
             "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
           },
           "404": {
             "description": "No such workspace",
@@ -5869,6 +5890,52 @@
             }
           }
         }
+      },
+      "Unauthenticated": {
+        "description": "The operation needs a session, and the request has none, or an expired or invalid one.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "examples": {
+              "unauthenticated": {
+                "summary": "Sign in first",
+                "value": {
+                  "type": "urn:stackmap:problem:unauthenticated",
+                  "title": "Sign in first",
+                  "status": 401,
+                  "detail": "Sign in to use this operation.",
+                  "instance": "/api/things/42",
+                  "code": "unauthenticated"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "The session's role is below the one the operation requires.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "examples": {
+              "forbidden": {
+                "summary": "You may not do this",
+                "value": {
+                  "type": "urn:stackmap:problem:forbidden",
+                  "title": "You may not do this",
+                  "status": 403,
+                  "detail": "This operation needs the admin role.",
+                  "instance": "/api/things/42",
+                  "code": "forbidden"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -5876,7 +5943,7 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "better-auth.session_token",
-        "description": "The session cookie that signing in sets. Enforced once accounts exist; until then, every operation is open."
+        "description": "The session cookie that signing in (`POST /api/session`) sets. Over HTTPS its name has the `__Secure-` prefix."
       }
     }
   }

@@ -183,7 +183,7 @@ describe('OpenAPI document: top level', () => {
     const responses = document.components?.responses ?? {};
 
     expect(Object.keys(responses).sort())
-      .toEqual(['InternalError', 'PayloadTooLarge', 'UnsupportedMediaType', 'ValidationFailed']);
+      .toEqual(['InternalError', 'PayloadTooLarge', 'Unauthenticated', 'UnsupportedMediaType', 'ValidationFailed']);
     for (const response of Object.values(responses) as oas31.ResponseObject[]) {
       expect(response.description).toMatch(/\S/);
       expect(response.content?.['application/problem+json']).toMatchObject({
