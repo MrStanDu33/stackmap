@@ -345,6 +345,24 @@ describe('computeTrace: hops', () => {
     }
   });
 
+  it('given a resolver returning hops for entities it was not given, leaves them out and warns with its extension', async () => {
+    const warn = vi.fn();
+    const logger = (): ExtensionLogger => ({ info: () => undefined, warn, error: () => undefined });
+    const extra: RegisteredTraceHopResolver = {
+      extension: 'nat',
+      resolver: {
+        entity: 'port-forward',
+        resolve: ({ ids }) => Promise.resolve([...ids, FORWARD_80].map((hopId): TraceHop =>
+          ({ entity: 'port-forward', id: hopId, stage: 'network', label: 'test.port-forward', params: {} }))),
+      },
+    };
+
+    const result = await trace([entry(NPM_443, APP_NAME, [forward(FORWARD_443)])], {}, { resolvers: [extra], logger });
+
+    expect(result.steps[0]?.hops.map(({ id: hopId }) => hopId)).toEqual([FORWARD_443]);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
   it('given a basis with a forward and DNS records, orders the DNS hops before the forward', async () => {
     const second = { entity: 'dns-record', id: id(21) };
 
