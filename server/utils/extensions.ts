@@ -36,3 +36,8 @@ export function useExtensionHooks(): Pick<ExtensionRuntime, 'callHook'> {
     },
   };
 }
+
+/** Resolves once the extensions' tables exist and their setup ran. */
+export function whenExtensionsStarted(): Promise<void> {
+  return Promise.reject(new Error('Not implemented'));
+}
