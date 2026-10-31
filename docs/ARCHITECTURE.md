@@ -81,6 +81,12 @@ lowercase DNS names), so equal values are stored the same way.
   network is documented; a forward whose host no longer holds its external address gives nothing. The core exports
   the shared rules (`listenerIndex`, `reachableListeners`, `dnsNamesByAddress`, which resolves each name once per
   CNAME budget) from `@stackmap/extension-core/flows`. Access policies and VPNs come with their extensions _(planned)_.
+- The **traffic graph** (`GET /api/workspaces/:workspaceId/traffic`) gives a workspace's hosts, services, listeners
+  and every stored flow, from a client or a service to a listener, for the Traffic view, which nests services in their
+  host and ends each flow on its listener's port. It is built on each request by `server/domain/traffic.ts`, sorted
+  (hosts and services by name, listeners by service then port, derived flows before manual ones) and capped (500
+  hosts, 1,000 services, 2,000 listeners, 5,000 flows, 50 hostnames per flow with their count); a capped list sets
+  `truncated`, and whatever refers to an item left out is left out too, so every reference resolves.
 - A **trace** follows the stored flows for a hostname, from a `public` or `internal` client
   (`GET /api/workspaces/:workspaceId/trace`), computed on each request by `server/domain/trace.ts`. Entry flows are
   the client's flows serving the name (exact names win over wildcards, as in DNS), narrowed to a port when one is
@@ -110,7 +116,12 @@ own table _(planned)_.
 
 The **demo stack** (`server/demo/demo-stack.ts`) is a fictional home lab, described with references by name: a home
 server behind an edge router, a website and its database behind Nginx Proxy Manager, `homelab.example`. It combines
-the extensions' entities, so it belongs to the app; tests use it, and the app seeds it into its demo workspace.
+the extensions' entities, so it belongs to the app; tests use it, and the app seeds it into its demo workspace: when
+the server starts and no workspace has the slug `demo`, `server/plugins/demo.ts` creates it and seeds the demo stack,
+before the first request is served. An existing `demo` workspace is never touched; a seed that fails removes the
+workspace it created, so the next start tries again, and the app runs on. `STACKMAP_DEMO=false` turns it off. It is on
+by default until accounts exist (phase 4), since nothing else creates a workspace yet; the UI finds it with
+`GET /api/workspaces?slug=demo`.
 
 ## Workspaces and isolation
 
