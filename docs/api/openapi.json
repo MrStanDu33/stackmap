@@ -4201,7 +4201,7 @@
             "description": "The flow the step follows"
           },
           "hops": {
-            "maxItems": 50,
+            "maxItems": 200,
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/TraceHop"

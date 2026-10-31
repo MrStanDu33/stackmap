@@ -25,7 +25,7 @@ export interface TraceWorkspace {
 export async function traceWorkspace(
   { db, repos, workspaceId }: TraceWorkspace,
   request: TraceRequest,
-  options: Omit<TraceOptions, 'read'>,
+  options: Omit<TraceOptions, 'reader'>,
 ): Promise<Trace> {
   const [derived, manual, listeners, services, hosts] = await Promise.all([
     listDerivedFlows(db, workspaceId), repos.flows.list(), repos.listeners.list(), repos.services.list(),
@@ -43,5 +43,6 @@ export async function traceWorkspace(
   const repositories = Object.entries(repos as unknown as Record<string, FlowReader[keyof FlowReader]>);
   const read = Object.fromEntries(repositories.filter(([key]) => key !== 'transaction')
     .map(([key, { get, list }]) => [key, { get, list }])) as unknown as FlowReader;
-  return computeTrace({ flows, listeners, services, hosts }, request, { ...options, read });
+  const reader = () => ({ read, end: () => undefined });
+  return computeTrace({ flows, listeners, services, hosts }, request, { ...options, reader });
 }

@@ -21,4 +21,8 @@ describe('port-forward hop resolver', () => {
       port: 8443,
     }]);
   });
+
+  it('given a forward whose router is not in the workspace, gives no hop', () => {
+    expect(resolvePortForwardHops({ portForwards: [FORWARD], hosts: [] }, [FORWARD.id])).toEqual([]);
+  });
 });

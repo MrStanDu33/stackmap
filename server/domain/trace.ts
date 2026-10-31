@@ -44,9 +44,16 @@ export interface TraceRequest {
   client: FlowClient;
 }
 
+/** What one resolver call reads through, ended once the call returns, fails or times out. */
+export interface ResolverReader {
+  read: FlowReader;
+  end: (reason: 'finished' | 'failed' | 'timed out') => void;
+}
+
 export interface TraceOptions {
   resolvers: readonly RegisteredTraceHopResolver[];
-  read: FlowReader;
+  /** A reader for one resolver call, named after its owner (`trace hop resolver "route"`). */
+  reader: (owner: string) => ResolverReader;
   /** The logger of a resolver's extension, for its failures. */
   logger: (extension: string) => ExtensionLogger;
   timeoutMs?: number;
@@ -81,7 +88,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
  * Describes a flow's basis as hops, one resolver call per entity, ordered by stage then basis order. A basis entity
  * no resolver knows, or whose resolver fails, gets generic hops: the trace never breaks on an extension.
  */
-function hopResolver(hostname: string, { resolvers, read, logger, timeoutMs = RESOLVER_TIMEOUT_MS }: TraceOptions) {
+function hopResolver(hostname: string, { resolvers, reader, logger, timeoutMs = RESOLVER_TIMEOUT_MS }: TraceOptions) {
   const byEntity = new Map(resolvers.map((registered) => [registered.resolver.entity, registered]));
   const resolveEntity = async (entity: string, basis: FlowBasis[]): Promise<TraceHop[]> => {
     const registered = byEntity.get(entity);
@@ -92,7 +99,7 @@ function hopResolver(hostname: string, { resolvers, read, logger, timeoutMs = RE
     const ids = basis.map(({ id }) => id);
     try {
       const result = traceHopsSchema.safeParse(
-        await withTimeout(registered.resolver.resolve({ hostname, ids, read }), timeoutMs),
+        await withTimeout(registered.resolver.resolve({ hostname, ids, read: reader(entity).read }), timeoutMs),
       );
       if (!result.success) {
         log.error(`trace hop resolver "${entity}" returned an invalid result: ${String(result.error.issues.length)} issues`);

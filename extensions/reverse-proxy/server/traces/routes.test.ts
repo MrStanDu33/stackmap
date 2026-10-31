@@ -21,4 +21,8 @@ describe('route hop resolver', () => {
       { id: WILDCARD.id, params: { hostname: '*.dev.homelab.example' } },
     ]);
   });
+
+  it('given a route whose proxy is not in the workspace, gives no hop', () => {
+    expect(resolveRouteHops({ routes: [SITE], services: [] }, 'app.homelab.example', [SITE.id])).toEqual([]);
+  });
 });

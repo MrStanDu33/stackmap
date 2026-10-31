@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { computeTrace } from './trace';
-import { MAX_TRACE_NODES, MAX_TRACE_STEPS } from '../../shared/contracts/traces';
+import { MAX_TRACE_NODES, MAX_TRACE_STEP_HOPS, MAX_TRACE_STEPS } from '../../shared/contracts/traces';
 
-import type { TraceEntities, TraceFlow, TraceOptions, TraceRequest } from './trace';
+import type { ResolverReader, TraceEntities, TraceFlow, TraceOptions, TraceRequest } from './trace';
 import type { Trace } from '../../shared/contracts/traces';
 import type { RegisteredTraceHopResolver } from '../extensions/registry';
 import type { ExtensionLogger } from '@stackmap/extension-sdk';
@@ -81,7 +81,9 @@ const fakeResolver = (extension: string, entity: string, stage: TraceStage): Reg
     entity,
     resolve: ({ ids }) => Promise.resolve(ids.map((hopId): TraceHop => {
       const port = FORWARD_PORTS.get(hopId);
-      return { entity, id: hopId, stage, label: `test.${entity}`, params: {}, ...(port === undefined ? {} : { port }) };
+      return {
+        entity, id: hopId, stage, label: `extensions.${extension}.test`, params: {}, ...(port === undefined ? {} : { port }),
+      };
     })),
   },
 });
@@ -94,6 +96,9 @@ const RESOLVERS = [
 
 const silent = (): ExtensionLogger => ({ info: () => undefined, warn: () => undefined, error: () => undefined });
 
+/** Resolvers here read nothing: the fakes answer from the ids alone. */
+const noReader = (): ResolverReader => ({ read: {} as FlowReader, end: () => undefined });
+
 const trace = (
   flows: TraceFlow[],
   request: Partial<TraceRequest> = {},
@@ -102,7 +107,7 @@ const trace = (
 ): Promise<Trace> => computeTrace(
   { flows, listeners: LISTENERS, services: SERVICES, hosts: [SERVER], ...entities },
   { hostname: 'app.homelab.example', port: null, client: 'public', ...request },
-  { resolvers: RESOLVERS, read: {} as FlowReader, logger: silent, ...options },
+  { resolvers: RESOLVERS, reader: noReader, logger: silent, ...options },
 );
 
 /** `source → target role[ depth][ cycle] (hop entities)` per step, in walk order. */
@@ -310,22 +315,94 @@ describe('computeTrace: the walk', () => {
 });
 
 describe('computeTrace: hops', () => {
-  it('given a basis entity no active extension resolves, gives a generic hop naming the entity', async () => {
-    const peer = { entity: 'vpn-peer', id: id(60) };
+  it('given a basis entity no active extension resolves, gives one generic hop naming the entity and counting its entries', async () => {
+    const peers = Array.from({ length: 300 }, (_, n) => ({ entity: 'vpn-peer', id: id(2000 + n) }));
 
-    const result = await trace([entry(NPM_443, APP_NAME, [dns, peer])]);
+    const result = await trace([entry(NPM_443, APP_NAME, [dns, ...peers])]);
 
     expect(result.steps[0]?.hops).toEqual([
-      { entity: 'dns-record', id: RECORD, stage: 'dns', label: 'test.dns-record', params: {} },
-      { entity: 'vpn-peer', id: id(60), stage: 'network', label: 'trace.hop.unknown', params: { entity: 'vpn-peer' } },
+      { entity: 'dns-record', id: RECORD, stage: 'dns', label: 'extensions.core.test', params: {} },
+      {
+        entity: 'vpn-peer', id: id(2000), stage: 'network', label: 'trace.hop.unknown',
+        params: { entity: 'vpn-peer', count: '300' },
+      },
     ]);
+  });
+
+  it('given more hops on a step than the limit, keeps the first ones and ends with one hop counting the rest', async () => {
+    const entities = ['peer', 'tunnel', 'gateway', 'firewall', 'balancer'];
+    const resolvers = entities.map((entity) => fakeResolver('vpn', entity, 'network'));
+    const basis = entities.flatMap((entity, e) =>
+      Array.from({ length: 50 }, (_, n) => ({ entity, id: id(3000 + (e * 100) + n) })));
+
+    const hops = (await trace([entry(NPM_443, APP_NAME, basis)], {}, { resolvers })).steps[0]?.hops ?? [];
+
+    expect(hops).toHaveLength(MAX_TRACE_STEP_HOPS);
+    expect(hops.at(-1)).toEqual({
+      entity: basis[MAX_TRACE_STEP_HOPS - 1]?.entity, id: basis[MAX_TRACE_STEP_HOPS - 1]?.id, stage: 'network',
+      label: 'trace.hop.more', params: { count: String(basis.length - MAX_TRACE_STEP_HOPS + 1) },
+    });
+  });
+
+  it('given hops labelled outside the resolver\'s extension, gives the generic hop and logs the failure with its extension', async () => {
+    const error = vi.fn();
+    const logger = vi.fn((): ExtensionLogger => ({ info: () => undefined, warn: () => undefined, error }));
+    const borrowed: RegisteredTraceHopResolver = {
+      extension: 'nat',
+      resolver: {
+        entity: 'port-forward',
+        resolve: ({ ids }) => Promise.resolve(ids.map((hopId): TraceHop => ({
+          entity: 'port-forward', id: hopId, stage: 'network', label: 'extensions.core.trace.address.public', params: {},
+        }))),
+      },
+    };
+
+    const flows = [entry(NPM_443, APP_NAME, [forward(FORWARD_443)])];
+
+    const result = await trace(flows, {}, { resolvers: [borrowed], logger });
+
+    expect(result.steps[0]?.hops).toMatchObject([{ entity: 'port-forward', label: 'trace.hop.unknown' }]);
+    expect(logger).toHaveBeenCalledWith('nat');
+    expect(error).toHaveBeenCalledOnce();
+  });
+
+  it('given a resolver that failed, does not call it again in the same trace', async () => {
+    const resolve = vi.fn(() => Promise.reject(new Error('boom')));
+    const resolvers = [{ extension: 'nat', resolver: { entity: 'port-forward', resolve } }];
+    const flows = [
+      entry(NPM_80, APP_NAME, [forward(FORWARD_80)]),
+      entry(NPM_443, APP_NAME, [forward(FORWARD_443)]),
+    ];
+
+    const result = await trace(flows, {}, { resolvers });
+
+    expect(resolve).toHaveBeenCalledOnce();
+    expect(result.steps.map(({ hops }) => hops.map(({ label }) => label))).toEqual([['trace.hop.unknown'], ['trace.hop.unknown']]);
+  });
+
+  it('gives each resolver call its own reader and ends it once the call returns, fails or times out', async () => {
+    const ended: string[] = [];
+    const reader = vi.fn((owner: string): ResolverReader => ({
+      read: {} as FlowReader,
+      end: (reason) => {
+        ended.push(`${owner} ${reason}`);
+      },
+    }));
+    const stuck = { extension: 'nat', resolver: { entity: 'port-forward', resolve: () => new Promise<never>(() => undefined) } };
+
+    await trace([entry(NPM_443, APP_NAME, [dns, forward(FORWARD_443)])], {}, {
+      resolvers: [RESOLVERS[0] as RegisteredTraceHopResolver, stuck], reader, timeoutMs: 20,
+    });
+
+    expect(ended.sort()).toEqual(['trace hop resolver "dns-record" finished', 'trace hop resolver "port-forward" timed out']);
   });
 
   it('given a resolver that throws, times out or returns an invalid result, gives generic hops, returns the trace and logs the failure with its extension', async () => {
     const failing = (resolve: () => Promise<readonly TraceHop[]>): RegisteredTraceHopResolver =>
       ({ extension: 'nat', resolver: { entity: 'port-forward', resolve } });
     const generic = {
-      entity: 'port-forward', id: FORWARD_443, stage: 'network', label: 'trace.hop.unknown', params: { entity: 'port-forward' },
+      entity: 'port-forward', id: FORWARD_443, stage: 'network', label: 'trace.hop.unknown',
+      params: { entity: 'port-forward', count: '1' },
     };
     const flows = [entry(NPM_443, APP_NAME, [forward(FORWARD_443)])];
 
@@ -353,7 +430,7 @@ describe('computeTrace: hops', () => {
       resolver: {
         entity: 'port-forward',
         resolve: ({ ids }) => Promise.resolve([...ids, FORWARD_80].map((hopId): TraceHop =>
-          ({ entity: 'port-forward', id: hopId, stage: 'network', label: 'test.port-forward', params: {} }))),
+          ({ entity: 'port-forward', id: hopId, stage: 'network', label: 'extensions.nat.test', params: {} }))),
       },
     };
 

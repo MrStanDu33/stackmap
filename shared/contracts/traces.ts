@@ -1,5 +1,5 @@
 import { entityId, port } from '@stackmap/extension-sdk/entities';
-import { FLOW_CLIENTS, MAX_TRACE_HOP_PARAMS, MAX_TRACE_HOPS, TRACE_STAGES } from '@stackmap/extension-sdk/server';
+import { FLOW_CLIENTS, MAX_TRACE_HOP_PARAMS, TRACE_STAGES } from '@stackmap/extension-sdk/server';
 import { z } from 'zod';
 
 import { defineContract } from './contract';
@@ -8,6 +8,8 @@ import { i18nKey, kebabId, line, text } from './formats';
 
 export const MAX_TRACE_NODES = 500;
 export const MAX_TRACE_STEPS = 1000;
+/** Hops on one step: room for many extensions' hops; past it, the last hop counts the ones left out. */
+export const MAX_TRACE_STEP_HOPS = 200;
 /** How many dependency levels a trace follows below the request's last service. */
 export const MAX_TRACE_DEPENDENCY_DEPTH = 8;
 
@@ -127,7 +129,7 @@ export const TraceStep = z.object({
     encrypted: z.boolean().nullable().meta({ description: 'Whether it is encrypted; null when unknown', examples: [null] }),
     purpose: line(200).nullable().meta({ description: 'Why it exists (manual flows)', examples: [null] }),
   }).meta({ description: 'The flow the step follows' }),
-  hops: z.array(TraceHop).max(MAX_TRACE_HOPS).meta({ description: 'What it goes through, DNS first, then network, then proxies' }),
+  hops: z.array(TraceHop).max(MAX_TRACE_STEP_HOPS).meta({ description: 'What it goes through, DNS first, then network, then proxies' }),
 }).meta({ id: 'TraceStep', description: 'A flow the trace follows, from one node to a listener', examples: [step] });
 
 const trace = {

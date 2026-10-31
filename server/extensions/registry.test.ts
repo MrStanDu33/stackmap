@@ -499,17 +499,40 @@ describe('extension registry: entities', () => {
 });
 
 describe('extension registry: trace hop resolvers', () => {
+  const resolver = { entity: 'peer', resolve: () => Promise.resolve([]) };
+  /** An extension with server code, declaring the `peer` entity when asked to. */
+  const extension = (id: string, { peer = false, dependsOn = [] as string[] } = {}) => {
+    const base = manifest(id, { dependsOn, code: { server: true } });
+    const entities = peer ? [{ id: 'peer', table: `${id}_peer`, label: `extensions.${id}.entities.peer` }] : [];
+    return { ...base, contributes: { ...base.contributes, entities } } satisfies ExtensionManifest;
+  };
+  /** Its server code, resolving `peer` unless told not to, with the repository of the entity it declares. */
+  const serverOf = (item: ExtensionManifest, { resolves = true } = {}) => defineExtensionServer(item, {
+    ...(resolves ? { traceHopResolvers: [resolver] } : {}),
+    repositories: (item.contributes.entities ?? []).map(({ id, table }) => defineEntityRepository({
+      entity: id, key: `${item.id}Peers`, table, schema: { input: {}, patch: {} } as never, columns: [],
+    })),
+  });
+
   it('given two active extensions resolving the same entity, fails the second with a conflict naming the entity and keeps the first one\'s resolver', () => {
-    const resolver = { entity: 'peer', resolve: () => Promise.resolve([]) };
-    const alpha = manifest('alpha', { code: { server: true } });
-    const beta = manifest('beta', { code: { server: true } });
-    const servers = [alpha, beta]
-      .map((extension) => defineExtensionServer(extension, { traceHopResolvers: [resolver] }));
+    const alpha = extension('alpha', { peer: true });
+    const beta = extension('beta', { dependsOn: ['alpha'] });
+    const servers = [serverOf(alpha), serverOf(beta)];
 
     const registry = createExtensionRegistry([alpha, beta], { servers });
 
     expect(summary([alpha, beta], { servers }))
       .toEqual(['alpha active', 'beta failed: resolves trace hops of "peer", which "alpha" already resolves']);
     expect(registry.traceHopResolvers()).toEqual([{ extension: 'alpha', resolver }]);
+  });
+
+  it('given a resolver for an entity neither its extension nor that extension\'s dependencies declare, fails the extension', () => {
+    const alpha = extension('alpha', { peer: true });
+    const gamma = extension('gamma');
+
+    expect(summary([alpha, gamma], { servers: [serverOf(alpha, { resolves: false }), serverOf(gamma)] })).toEqual([
+      'alpha active',
+      'gamma failed: resolves trace hops of "peer", which neither it nor its dependencies declare',
+    ]);
   });
 });
