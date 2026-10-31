@@ -35,6 +35,7 @@ coverage
 reports
 .stryker-tmp
 playwright-report
+tests/e2e/.auth
 test-results
 blob-report
 storybook-static

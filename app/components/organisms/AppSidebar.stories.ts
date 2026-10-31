@@ -1,4 +1,4 @@
-import { expect, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 
 import AppSidebar from './AppSidebar.vue';
 import { i18n, router } from '../../../.storybook/nuxt-shims';
@@ -33,5 +33,36 @@ export const Default: Story = {
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).not.toHaveAttribute('aria-current');
     await expect(canvas.getByText(t('app.name'))).toBeVisible();
     await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
+  },
+};
+
+/** Signed in: the footer shows the user's name and Sign out (24). */
+export const SignedIn: Story = {
+  args: { user: { name: 'Ada' }, onSignOut: fn() },
+  render: (args) => ({
+    components: { AppSidebar },
+    setup: () => ({ args }),
+    template: '<UDashboardGroup><AppSidebar v-bind="args" /></UDashboardGroup>',
+  }),
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText('Ada')).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: t('auth.signOut') }));
+    await expect(args.onSignOut).toHaveBeenCalledOnce();
+  },
+};
+
+/** Collapsed: an icon button named "Sign out (<name>)" (24). */
+export const SignedInCollapsed: Story = {
+  args: { user: { name: 'Ada' }, onSignOut: fn() },
+  render: (args) => ({
+    components: { AppSidebar },
+    setup: () => ({ args }),
+    template: '<UDashboardGroup><AppSidebar v-bind="args" :collapsed="true" /></UDashboardGroup>',
+  }),
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: t('auth.signOutOf', { name: 'Ada' }) }));
+    await expect(args.onSignOut).toHaveBeenCalledOnce();
   },
 };

@@ -1,5 +1,8 @@
 <script setup lang="ts">
 /** The app's navigation: only the sections that exist, and the display preferences in its footer. */
+defineProps<{ user?: { name: string } | null }>();
+defineEmits<{ signOut: [] }>();
+
 const { t } = useI18n();
 
 const items = computed(() => [

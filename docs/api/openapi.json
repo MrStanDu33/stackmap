@@ -37,6 +37,10 @@
   ],
   "tags": [
     {
+      "name": "Accounts",
+      "description": "Setting up the first administrator, and signing in and out. The session is a cookie."
+    },
+    {
       "name": "Extensions",
       "description": "The installed extensions: what they add (kinds, languages), their state, and their diagnostics.",
       "externalDocs": {
@@ -157,6 +161,434 @@
                       },
                       "paths": {}
                     }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/setup": {
+      "get": {
+        "operationId": "getSetup",
+        "summary": "Say whether the first administrator can be created",
+        "description": "`open` while no account exists and the setup window, counted from the server start, has not passed; `closed` once it has, until a restart; `done` once an account exists.\n\nPublic: anyone can call it.",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "x-required-role": "public",
+        "responses": {
+          "200": {
+            "description": "The setup state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupState"
+                },
+                "examples": {
+                  "open": {
+                    "summary": "Fresh instance",
+                    "value": {
+                      "state": "open",
+                      "minutes": 15
+                    }
+                  },
+                  "done": {
+                    "summary": "Set up",
+                    "value": {
+                      "state": "done",
+                      "minutes": 15
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "setUp",
+        "summary": "Create the first administrator",
+        "description": "Creates the instance administrator, signs them in (the session cookie is set) and, when asked, adds the demo workspace. Only once, and only while setup is `open`; of two concurrent requests, one wins.\n\nPublic: anyone can call it.",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "x-required-role": "public",
+        "requestBody": {
+          "description": "The administrator's account",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "Their name",
+                    "examples": [
+                      "Ada"
+                    ]
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "description": "Its email; compared without case",
+                    "examples": [
+                      "ada@homelab.example"
+                    ]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "12 to 128 characters",
+                    "examples": [
+                      "correct horse battery"
+                    ]
+                  },
+                  "demo": {
+                    "type": "boolean",
+                    "description": "Add the demo workspace",
+                    "examples": [
+                      true
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "email",
+                  "password",
+                  "demo"
+                ],
+                "description": "The administrator's account"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created and signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                },
+                "examples": {
+                  "ada": {
+                    "summary": "Ada",
+                    "value": {
+                      "user": {
+                        "id": "0199d6a0-0000-7000-8000-000000000101",
+                        "name": "Ada",
+                        "email": "ada@homelab.example",
+                        "role": "admin"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "403": {
+            "description": "The setup window has passed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "setup_closed": {
+                    "summary": "The setup window has passed",
+                    "value": {
+                      "type": "urn:stackmap:problem:setup_closed",
+                      "title": "Setup is closed",
+                      "status": 403,
+                      "detail": "Setup is closed. Restart Stackmap to open it again.",
+                      "instance": "/api/setup",
+                      "code": "setup_closed"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An account exists",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "already_set_up": {
+                    "summary": "An account exists",
+                    "value": {
+                      "type": "urn:stackmap:problem:already_set_up",
+                      "title": "Stackmap is already set up",
+                      "status": 409,
+                      "detail": "Stackmap is already set up.",
+                      "instance": "/api/setup",
+                      "code": "already_set_up"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "description": "Too many attempts from this address; `Retry-After` says when to try again",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "too_many_requests": {
+                    "summary": "Too many attempts from this address; `Retry-After` says when to try again",
+                    "value": {
+                      "type": "urn:stackmap:problem:too_many_requests",
+                      "title": "Too many attempts",
+                      "status": 429,
+                      "detail": "Too many attempts. Try again in 42 seconds.",
+                      "instance": "/api/setup",
+                      "code": "too_many_requests"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/session": {
+      "get": {
+        "operationId": "getSession",
+        "summary": "Say who is signed in",
+        "description": "The account of the session cookie, or `null` without a valid one.\n\nPublic: anyone can call it.",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "x-required-role": "public",
+        "responses": {
+          "200": {
+            "description": "The session, or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Session"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "examples": {
+                  "signedIn": {
+                    "summary": "Signed in",
+                    "value": {
+                      "user": {
+                        "id": "0199d6a0-0000-7000-8000-000000000101",
+                        "name": "Ada",
+                        "email": "ada@homelab.example",
+                        "role": "admin"
+                      }
+                    }
+                  },
+                  "signedOut": {
+                    "summary": "Signed out",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "signIn",
+        "summary": "Sign in",
+        "description": "Checks an email and password and sets the session cookie. A wrong email and a wrong password get the same answer. Attempts are limited per address.\n\nPublic: anyone can call it.",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "x-required-role": "public",
+        "requestBody": {
+          "description": "The credentials",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "description": "Its email; compared without case",
+                    "examples": [
+                      "ada@homelab.example"
+                    ]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "Its password",
+                    "examples": [
+                      "correct horse battery"
+                    ]
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "description": "The credentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                },
+                "examples": {
+                  "ada": {
+                    "summary": "Ada",
+                    "value": {
+                      "user": {
+                        "id": "0199d6a0-0000-7000-8000-000000000101",
+                        "name": "Ada",
+                        "email": "ada@homelab.example",
+                        "role": "admin"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "description": "Wrong email or password",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "invalid_credentials": {
+                    "summary": "Wrong email or password",
+                    "value": {
+                      "type": "urn:stackmap:problem:invalid_credentials",
+                      "title": "Email or password is incorrect",
+                      "status": 401,
+                      "detail": "Email or password is incorrect.",
+                      "instance": "/api/session",
+                      "code": "invalid_credentials"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "description": "Too many attempts from this address; `Retry-After` says when to try again",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "too_many_requests": {
+                    "summary": "Too many attempts from this address; `Retry-After` says when to try again",
+                    "value": {
+                      "type": "urn:stackmap:problem:too_many_requests",
+                      "title": "Too many attempts",
+                      "status": 429,
+                      "detail": "Too many attempts. Try again in 42 seconds.",
+                      "instance": "/api/session",
+                      "code": "too_many_requests"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "signOut",
+        "summary": "Sign out",
+        "description": "Ends the session on the server and clears its cookie; the answer is the session now: none.\n\nRequires the viewer role.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "Signed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "signedOut": {
+                    "summary": "Signed out",
+                    "value": null
                   }
                 }
               }
@@ -819,11 +1251,17 @@
               "validation_failed",
               "payload_too_large",
               "unsupported_media_type",
+              "unauthenticated",
+              "forbidden",
+              "invalid_credentials",
+              "already_set_up",
+              "setup_closed",
+              "too_many_requests",
               "workspace_not_found",
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `workspace_not_found` (404): No workspace has this id.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -3262,6 +3700,116 @@
           }
         ]
       },
+      "SetupState": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed",
+              "done"
+            ],
+            "description": "Whether setup can happen",
+            "examples": [
+              "open"
+            ]
+          },
+          "minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440,
+            "description": "How long the window stays open after a start (`SETUP_TIMEOUT_MINUTES`)",
+            "examples": [
+              15
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "minutes"
+        ],
+        "additionalProperties": false,
+        "description": "The setup state",
+        "examples": [
+          {
+            "state": "open",
+            "minutes": 15
+          }
+        ]
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "maxLength": 36,
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "description": "The account's id",
+                "examples": [
+                  "0199d6a0-0000-7000-8000-000000000101"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 100,
+                "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                "description": "Its name",
+                "examples": [
+                  "Ada"
+                ]
+              },
+              "email": {
+                "type": "string",
+                "maxLength": 254,
+                "format": "email",
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                "description": "Its email, lower-cased",
+                "examples": [
+                  "ada@homelab.example"
+                ]
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "admin",
+                  "user"
+                ],
+                "description": "`admin` manages the whole instance; `user` only what their workspaces allow",
+                "examples": [
+                  "admin"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "email",
+              "role"
+            ],
+            "additionalProperties": false,
+            "description": "The signed-in account"
+          }
+        },
+        "required": [
+          "user"
+        ],
+        "additionalProperties": false,
+        "description": "Who is signed in",
+        "examples": [
+          {
+            "user": {
+              "id": "0199d6a0-0000-7000-8000-000000000101",
+              "name": "Ada",
+              "email": "ada@homelab.example",
+              "role": "admin"
+            }
+          }
+        ]
+      },
       "Extension": {
         "type": "object",
         "properties": {
@@ -5270,6 +5818,52 @@
                       "message": "Too small: expected string to have >=1 characters"
                     }
                   ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "PayloadTooLarge": {
+        "description": "The body is over 1 MiB.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "examples": {
+              "payload_too_large": {
+                "summary": "The request body is too large",
+                "value": {
+                  "type": "urn:stackmap:problem:payload_too_large",
+                  "title": "The request body is too large",
+                  "status": 413,
+                  "detail": "The request body is larger than 1048576 bytes.",
+                  "instance": "/api/things/42",
+                  "code": "payload_too_large"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UnsupportedMediaType": {
+        "description": "The body is not `application/json`.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "examples": {
+              "unsupported_media_type": {
+                "summary": "The request body must be JSON",
+                "value": {
+                  "type": "urn:stackmap:problem:unsupported_media_type",
+                  "title": "The request body must be JSON",
+                  "status": 415,
+                  "detail": "The request body must be JSON (application/json).",
+                  "instance": "/api/things/42",
+                  "code": "unsupported_media_type"
                 }
               }
             }

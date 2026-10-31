@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { defineContractHandler, MAX_BODY_BYTES } from './contract-handler';
+import { setSessionResolver } from './session';
 import { defineContract } from '../../shared/contracts/contract';
 import { Problem, problemOf } from '../../shared/contracts/errors';
 
@@ -77,7 +78,14 @@ const serve = (handler: EventHandler) => {
   };
 };
 
+/** A valid body for the account contract. */
+const ACCOUNT_BODY = { user: { name: 'Ada' }, items: [] as { id: string }[], plan: 'free' };
+
+const ADA = { user: { id: '0199d6a0-0000-7000-8000-000000000101', name: 'Ada', email: 'ada@homelab.example', role: 'admin' } } as const;
+
 beforeEach(() => {
+  // Signed in as the instance admin, unless a test says otherwise.
+  setSessionResolver(() => Promise.resolve(ADA));
   // Failures are logged on purpose; keep the test output clean.
   vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
@@ -316,5 +324,58 @@ describe('defineContractHandler: Problem Details', () => {
     expect(response.status).toBe(404);
     expect(response.headers.get('content-type')).toBe('application/problem+json');
     expect(await response.json()).toEqual(problem);
+  });
+
+  it('given a non-public contract and no session, answers 401 unauthenticated before reading the body: a 1 MiB body or an invalid query gets 401 (16)', async () => {
+    setSessionResolver(() => Promise.resolve(null));
+    const run = vi.fn(() => ({ status: 200 as const, body: { id: '1', name: 'x', dryRun: false } }));
+    const call = serve(defineContractHandler(thing, run));
+
+    const tooLarge = await call('/api/things/1', JSON.stringify({ name: 'x'.repeat(MAX_BODY_BYTES) }));
+    const invalid = await call('/api/things/abc?dryRun=maybe', '{}');
+
+    for (const { status, json } of [tooLarge, invalid]) {
+      expect(status).toBe(401);
+      expect(json).toMatchObject({ code: 'unauthenticated', status: 401 });
+    }
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('given a session the resolver cannot read, as an expired or forged cookie, answers 401 unauthenticated (17)', async () => {
+    setSessionResolver(() => Promise.resolve(null));
+    const call = serve(defineContractHandler(account, () => ({ status: 200, body: ACCOUNT_BODY })));
+
+    expect((await call('/api/things/1', undefined, { cookie: 'better-auth.session_token=forged' })).status).toBe(401);
+  });
+
+  it('given an admin contract and a session whose instance role is user, answers 403 forbidden (18)', async () => {
+    setSessionResolver(() => Promise.resolve({ user: { ...ADA.user, role: 'user' } }));
+    const run = vi.fn(() => ({ status: 200 as const, body: ACCOUNT_BODY }));
+    const call = serve(defineContractHandler({ ...account, requiredRole: 'admin' }, run));
+
+    const { status, json } = await call('/api/things/1');
+
+    expect(status).toBe(403);
+    expect(json).toMatchObject({ code: 'forbidden' });
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('given a public contract, answers without a session (19)', async () => {
+    setSessionResolver(() => Promise.resolve(null));
+    const call = serve(defineContractHandler(
+      { ...account, requiredRole: 'public' },
+      () => ({ status: 200, body: ACCOUNT_BODY }),
+    ));
+
+    expect((await call('/api/things/1')).status).toBe(200);
+  });
+
+  it('passes the session to the handler, typed', async () => {
+    const run = vi.fn((_input: unknown) => ({ status: 200 as const, body: ACCOUNT_BODY }));
+    const call = serve(defineContractHandler(account, run));
+
+    await call('/api/things/1');
+
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ session: ADA }), expect.anything());
   });
 });

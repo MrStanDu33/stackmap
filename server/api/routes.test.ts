@@ -1,9 +1,11 @@
 import { globSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { createApp, createRouter, toWebHandler } from 'h3';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { CONTRACTS } from '../../shared/contracts';
+import { setSessionResolver } from '../utils/session';
 
 import type { Contract } from '../../shared/contracts/contract';
 
@@ -43,5 +45,41 @@ describe('API routes and contracts', () => {
     const routes = new Set(routeFiles.map(routeOf).map(({ method, path }) => `${method} ${path}`));
     const orphans = CONTRACTS.map(({ method, path }) => `${method} ${path}`).filter((route) => !routes.has(route));
     expect(orphans).toEqual([]);
+  });
+
+  afterEach(() => {
+    setSessionResolver(() => Promise.resolve(null));
+  });
+
+  it('every route enforces its contract\'s role: 401 without a session, 403 for admin ones below admin (20)', async () => {
+    const wrong = [];
+    for (const file of routeFiles) {
+      const handler = (await import(file) as { default: Parameters<ReturnType<typeof createRouter>['use']>[1] }).default;
+      const contract = await contractOf(file);
+      if (!contract || contract.requiredRole === 'public') {
+        continue;
+      }
+      // Every placeholder filled, so the route matches; the role is checked before the input.
+      const path = contract.path.replaceAll(/:\w+/g, '0199d6a0-0000-7000-8000-000000000001');
+      const call = async () => {
+        const app = createApp().use(createRouter().use(contract.path, handler, contract.method));
+        return (await toWebHandler(app)(new Request(`http://localhost${path}`, { method: contract.method.toUpperCase() }))).status;
+      };
+      setSessionResolver(() => Promise.resolve(null));
+      const signedOut = await call();
+      setSessionResolver(() => Promise.resolve({
+        user: { id: '0199d6a0-0000-7000-8000-000000000102', name: 'Grace', email: 'grace@homelab.example', role: 'user' },
+      }));
+      const asUser = contract.requiredRole === 'admin' ? await call() : 403;
+      if (signedOut !== 401 || asUser !== 403) {
+        wrong.push(`${contract.operationId}: ${String(signedOut)} signed out, ${String(asUser)} as a user`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+
+  it('no route answers under /api/auth: Better Auth\'s own router is not mounted (21)', () => {
+    expect(routeFiles.map(routeOf).filter(({ path }) => path.startsWith('/api/auth'))).toEqual([]);
+    expect(globSync(join(API_DIR, '../routes/**/*.ts'))).toEqual([]);
   });
 });

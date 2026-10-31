@@ -19,6 +19,36 @@ export const PROBLEMS = {
     title: 'The request body must be JSON',
     description: 'The body is not `application/json`.',
   },
+  unauthenticated: {
+    status: 401,
+    title: 'Sign in first',
+    description: 'The operation needs a session, and the request has none, or an expired or invalid one.',
+  },
+  forbidden: {
+    status: 403,
+    title: 'You may not do this',
+    description: 'The session\'s role is below the one the operation requires.',
+  },
+  invalid_credentials: {
+    status: 401,
+    title: 'Email or password is incorrect',
+    description: 'No account has this email and password; which one is wrong is not said.',
+  },
+  already_set_up: {
+    status: 409,
+    title: 'Stackmap is already set up',
+    description: 'An account exists: the first administrator can only be created once.',
+  },
+  setup_closed: {
+    status: 403,
+    title: 'Setup is closed',
+    description: 'The setup window, counted from the server start, has passed; restarting Stackmap opens it again.',
+  },
+  too_many_requests: {
+    status: 429,
+    title: 'Too many attempts',
+    description: 'Too many attempts from this address; `Retry-After` says how many seconds to wait.',
+  },
   workspace_not_found: {
     status: 404,
     title: 'The workspace does not exist',

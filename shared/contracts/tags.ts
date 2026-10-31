@@ -21,6 +21,9 @@ export const TAGS: Readonly<Record<string, TagDocs>> = {
   Workspaces: {
     description: 'Isolated sets of infrastructure data. Until accounts exist, the app seeds a `demo` workspace.',
   },
+  Accounts: {
+    description: 'Setting up the first administrator, and signing in and out. The session is a cookie.',
+  },
   System: {
     description: 'The instance itself: whether it is up, and the description of this API.',
   },
