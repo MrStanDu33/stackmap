@@ -43,8 +43,12 @@ const fromRow = (row: Row): DerivedFlow => ({
   basis: fromJson(row.basis, 'derived_flow.basis') as FlowBasis[],
 });
 
-/** The workspace's derived flows, by extension, deriver and key. */
-export async function listDerivedFlows(db: Kysely<Database>, workspaceId: string): Promise<DerivedFlow[]> {
+/** The workspace's derived flows, by extension, deriver and key; without `basis` (empty) when not needed. */
+export async function listDerivedFlows(
+  db: Kysely<Database>,
+  workspaceId: string,
+  _options: { basis?: boolean } = {},
+): Promise<DerivedFlow[]> {
   const rows = await db.selectFrom('derived_flow').select(COLUMNS).where('workspaceId', '=', workspaceId)
     .orderBy('extension').orderBy('deriver').orderBy('key').execute();
   return rows.map(fromRow);

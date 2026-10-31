@@ -39,10 +39,17 @@ describe.each(DIALECTS)('GET /api/workspaces?slug= on %s', (dialect: Dialect) =>
     });
   });
 
-  it('answers 200 with no workspace for an unknown slug', async () => {
+  it('answers 200 with no workspace before the demo workspace exists', async () => {
     use();
 
-    expect(await get('slug=nowhere')).toEqual({ status: 200, json: { workspaces: [] } });
+    expect(await get('slug=demo')).toEqual({ status: 200, json: { workspaces: [] } });
+  });
+
+  it('answers 400 for any slug but demo until accounts exist, so it cannot reveal another workspace\'s id', async () => {
+    await createWorkspace(use(), { name: 'Home', slug: 'home' });
+
+    expect(await get('slug=home'))
+      .toMatchObject({ status: 400, json: { code: 'validation_failed', issues: [{ path: 'query.slug' }] } });
   });
 
   it('answers 400 validation_failed for a missing or malformed slug (upper case, too long, invisible characters)', async () => {

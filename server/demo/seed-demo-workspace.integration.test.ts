@@ -11,6 +11,19 @@ import type { Dialect } from '../../tests/support/databases';
 import type { Database } from '../database/types/schema';
 import type { Kysely } from 'kysely';
 
+// A cleanup that cannot run either, as when the database connection dropped: the seed must not rely on one.
+const cleanup = vi.hoisted(() => ({ fails: false }));
+
+vi.mock('../repositories/workspaces', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../repositories/workspaces')>();
+  return {
+    ...original,
+    deleteWorkspace: (...args: Parameters<typeof original.deleteWorkspace>) => (cleanup.fails
+      ? Promise.reject(new Error('Connection lost'))
+      : original.deleteWorkspace(...args)),
+  };
+});
+
 describe.each(DIALECTS)('demo workspace seed on %s', (dialect: Dialect) => {
   const workspaces = useTestWorkspaces(dialect);
 
@@ -43,10 +56,32 @@ describe.each(DIALECTS)('demo workspace seed on %s', (dialect: Dialect) => {
     expect(await countRows(workspaces.db, 'core_site', existing.id)).toBe(0);
   });
 
-  it('given STACKMAP_DEMO=false, creates no workspace', async () => {
-    await seed({ env: { STACKMAP_DEMO: 'false' } });
+  it('given STACKMAP_DEMO=false, 0, no or off in any case, creates no workspace', async () => {
+    for (const value of ['false', 'FALSE', '0', 'no', 'Off']) {
+      await seed({ env: { STACKMAP_DEMO: value } });
+
+      expect(await demoWorkspaces(), value).toEqual([]);
+    }
+  });
+
+  it('creates the workspace and its data in one transaction: a failed seed leaves nothing, with no cleanup to run', async () => {
+    cleanup.fails = true;
+    const log = logger();
+
+    try {
+      await seed({
+        logger: log,
+        seed: async (repos) => {
+          await repos.sites.create({ name: 'Half done' });
+          throw new Error('Seed broke');
+        },
+      });
+    } finally {
+      cleanup.fails = false;
+    }
 
     expect(await demoWorkspaces()).toEqual([]);
+    expect(log.error).toHaveBeenCalledWith(expect.stringContaining('Seed broke'));
   });
 
   it('given a seed that fails midway, leaves no demo workspace and logs the error', async () => {

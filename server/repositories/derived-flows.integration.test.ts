@@ -91,6 +91,14 @@ describe.each(DIALECTS)('derived flow refresh on %s', (dialect: Dialect) => {
     }]);
   });
 
+  it('lists the flows without their basis when asked, for reads that do not describe hops', async () => {
+    const repos = reposWith([perListener()]);
+    const listener = await createListener(repos, { tags: ['app'] });
+
+    expect(await listDerivedFlows(workspaces.db, workspaces.a.workspace.id, { basis: false }))
+      .toMatchObject([{ targetListenerId: listener.id, hostnames: ['app.homelab.example'], basis: [] }]);
+  });
+
   it('keeps a derived flow unchanged, with its id, when an unrelated write happens', async () => {
     const repos = reposWith([perListener()]);
     await createListener(repos, { tags: ['app'] });

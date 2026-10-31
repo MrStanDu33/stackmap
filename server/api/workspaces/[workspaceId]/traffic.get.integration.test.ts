@@ -81,6 +81,21 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/traffic on %s', (diale
     expect(json).toEqual({ hosts: [], services: [], listeners: [], flows: [], truncated: false });
   });
 
+  it('given two seeded workspaces, each one\'s traffic has only its own ids', async () => {
+    await seed();
+    await seedDemoStack(workspaces.b.repos);
+    const idsOf = async (workspaceId: string) => {
+      const traffic = (await get(workspaceId)).json as Traffic;
+      return new Set([traffic.hosts, traffic.services, traffic.listeners, traffic.flows].flat().map(({ id }) => id));
+    };
+
+    const [a, b] = [await idsOf(workspaces.a.workspace.id), await idsOf(workspaces.b.workspace.id)];
+
+    expect(a.size).toBeGreaterThan(0);
+    expect(b.size).toBe(a.size);
+    expect([...a].filter((id) => b.has(id))).toEqual([]);
+  });
+
   it('answers 404 workspace_not_found for an unknown workspace and 400 validation_failed for a malformed id', async () => {
     await seed();
 
