@@ -186,6 +186,6 @@
       "public": "Tracer {hostname} depuis Internet",
       "internal": "Tracer {hostname} depuis le réseau local"
     },
-    "namesReaching": "Noms qui y mènent"
+    "namesReaching": "Noms d’hôte qui y mènent"
   }
 }

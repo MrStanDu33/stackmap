@@ -9,6 +9,9 @@ export function parseSelected(raw: unknown, index: TraceIndex): TraceSelection |
     return null;
   }
   const separator = raw.indexOf(':');
+  if (separator === -1) {
+    return null;
+  }
   const type = raw.slice(0, separator);
   const id = raw.slice(separator + 1);
   if (type === 'step' && index.step(id)) {

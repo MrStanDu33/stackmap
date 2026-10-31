@@ -248,14 +248,15 @@ export const TwoPanels: Story = {
     components: { TrafficDetailPanel },
     setup: () => ({ args }),
     template: '<div><TrafficDetailPanel :traffic="args.traffic" :selection="args.selection" />'
-      + '<TrafficDetailPanel :traffic="args.traffic" :selection="{ type: \'service\', id: args.selection.id }" /></div>',
+      + `<TrafficDetailPanel :traffic="args.traffic" :selection="{ type: 'host', id: '${hosts.server}' }" /></div>`,
   }),
   play: async ({ canvasElement }) => {
     const ids = [...canvasElement.querySelectorAll('[id]')].map(({ id }) => id);
 
     await expect(new Set(ids).size).toBe(ids.length);
-    await expect(within(canvasElement).getAllByRole('region', { name: t('detail.namesReaching') })).toHaveLength(2);
-    await expect(within(canvasElement).getAllByRole('complementary', { name: 'Nginx Proxy Manager' })).toHaveLength(2);
+    // Each panel is named by its own title, not the first one's.
+    await expect(within(canvasElement).getByRole('complementary', { name: 'Nginx Proxy Manager' })).toBeVisible();
+    await expect(within(canvasElement).getByRole('complementary', { name: 'Home server' })).toBeVisible();
   },
 };
 

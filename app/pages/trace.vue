@@ -214,8 +214,10 @@ const writeSelected = (value: string | undefined) => {
   }
 };
 // A linked selection is checked once its trace has arrived; one that is not in it is dropped.
+let restored = false;
 watch(index, (loaded) => {
   if (loaded && route.query.selected !== undefined) {
+    restored = true;
     selection.value = parseSelected(route.query.selected, loaded);
     writeSelected(selectedParam(selection.value));
   }
@@ -227,9 +229,13 @@ watch(selection, (selected) => {
   const name = selected ? selectionName(selected) : undefined;
   const position = selected?.type === 'step' ? index.value?.position(selected.id) : undefined;
   if (name && position) {
-    announcement.value = t('trace.walk.announce', { ...position, name });
+    const step = t('trace.walk.announce', { ...position, name });
+    // Restored from a link: the result's summary, set in the same tick, is said first rather than replaced.
+    announcement.value = restored ? `${announcement.value} ${step}` : step;
+    restored = false;
     return;
   }
+  restored = false;
   announcement.value = name ? t('trace.selected', { name }) : '';
 });
 </script>

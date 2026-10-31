@@ -186,6 +186,6 @@
       "public": "Trace {hostname} from the Internet",
       "internal": "Trace {hostname} from the local network"
     },
-    "namesReaching": "Names reaching it"
+    "namesReaching": "Hostnames that reach it"
   }
 }

@@ -39,7 +39,23 @@ watch(() => props.selection, async (selected) => {
     return;
   }
   await nextTick();
-  root.value?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+  const current = root.value?.querySelector('[aria-current="true"]');
+  if (!current) {
+    return;
+  }
+  // Not at the cost of the focus: on a narrow screen the panel's Next button sits below the list, and both may not
+  // fit. What scrolls is the dashboard panel, not the page: every scrolled ancestor is put back.
+  const scrolled: [Element, number][] = [];
+  for (let box = current.parentElement; box; box = box.parentElement) {
+    scrolled.push([box, box.scrollTop]);
+  }
+  current.scrollIntoView({ block: 'nearest' });
+  const focused = document.activeElement?.getBoundingClientRect();
+  if (focused && (focused.bottom <= 0 || focused.top >= window.innerHeight)) {
+    for (const [box, top] of scrolled) {
+      box.scrollTop = top;
+    }
+  }
 });
 
 const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-visible:outline-2 '

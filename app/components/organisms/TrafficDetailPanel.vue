@@ -17,6 +17,9 @@ const port = computed(() => (props.selection.type === 'listener' ? index.value.p
 const flow = computed(() => (props.selection.type === 'flow' ? index.value.flow(props.selection.id) : undefined));
 const client = computed(() => (props.selection.type === 'client' ? props.selection.id : undefined));
 
+// Unique per panel: two can share a page (the docs).
+const titleId = useId();
+const reachingId = useId();
 const title = computed(() => selectionName(index.value, props.selection, t) ?? '');
 
 const root = useTemplateRef<HTMLElement>('root');
@@ -39,6 +42,8 @@ const outgoing = computed(() => (service.value || client.value
 
 // Names to trace: the flow's own, or those of the flows reaching the port or service.
 const reaching = computed(() => (service.value || port.value ? index.value.namesReaching(props.selection) : []));
+// A service many names reach would list thousands of links: the first ones, then how many more.
+const REACHING_SHOWN = 20;
 const flowLinks = computed(() => new Map((flow.value ? traceLinks([flow.value]) : [])
   .map((item) => [item.hostname, item])));
 
@@ -53,20 +58,21 @@ const select = (type: Selection['type'], id: string) => {
   emit('select', { type, id });
 };
 
+// Standalone links: in strict mode they get the 44 px targets buttons have (a11y.css).
 const traceLink = 'inline-flex items-center gap-1 rounded-sm text-primary underline underline-offset-2 '
-  + 'focus-visible:outline-2 focus-visible:outline-primary';
+  + 'focus-visible:outline-2 focus-visible:outline-primary in-data-[contrast=strict]:min-h-11';
 const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary';
 </script>
 
 <template>
   <aside
     ref="root"
-    aria-labelledby="traffic-detail-title"
+    :aria-labelledby="titleId"
     class="flex flex-col gap-4"
   >
     <div class="flex items-start justify-between gap-2">
       <h2
-        id="traffic-detail-title"
+        :id="titleId"
         ref="heading"
         tabindex="-1"
         class="text-lg font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
@@ -235,17 +241,17 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
 
     <section
       v-if="service || port"
-      aria-labelledby="traffic-detail-reaching"
+      :aria-labelledby="reachingId"
     >
       <h3
-        id="traffic-detail-reaching"
+        :id="reachingId"
         class="font-medium"
       >
         {{ t('detail.namesReaching') }}
       </h3>
       <ul class="flex flex-col gap-1 text-sm">
         <li
-          v-for="item in reaching"
+          v-for="item in reaching.slice(0, REACHING_SHOWN)"
           :key="`${item.hostname} ${item.client}`"
         >
           <NuxtLink
@@ -259,6 +265,12 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
               aria-hidden="true"
             />
           </NuxtLink>
+        </li>
+        <li
+          v-if="reaching.length > REACHING_SHOWN"
+          class="text-muted"
+        >
+          {{ t('detail.moreNames', { count: reaching.length - REACHING_SHOWN }) }}
         </li>
         <li
           v-if="reaching.length === 0"
