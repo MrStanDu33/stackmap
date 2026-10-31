@@ -15,6 +15,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const { t } = i18n.global;
+// getByText collapses the page's whitespace, French non-breaking spaces included: expected text is collapsed alike.
+const spaced = (text: string) => text.replace(/\s+/g, ' ');
 
 /** A search landmark: a valid name is submitted lower-cased, from the Internet, without a port; names are suggested. */
 export const Default: Story = {
@@ -46,7 +48,7 @@ export const Invalid: Story = {
 
     await userEvent.type(hostname, '*.homelab.example');
     await userEvent.click(submit);
-    await expect(canvas.getByText(t('trace.form.error.wildcard'))).toBeVisible();
+    await expect(canvas.getByText(spaced(t('trace.form.error.wildcard')))).toBeVisible();
 
     await userEvent.clear(hostname);
     await userEvent.type(hostname, 'app.homelab.example');

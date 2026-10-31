@@ -20,6 +20,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const { t } = i18n.global;
+// getByText collapses the page's whitespace, French non-breaking spaces included: expected text is collapsed alike.
+const spaced = (text: string) => text.replace(/\s+/g, ' ');
 
 /** The request in order, each step with its hops as sentences, then the dependencies by level. */
 export const Demo: Story = {
@@ -48,7 +50,7 @@ export const Demo: Story = {
 export const Truncated: Story = {
   args: { trace: { ...DEMO_TRACE, truncated: true } },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(t('trace.truncated', { nodes: 500, steps: 1000 }))).toBeVisible();
+    await expect(within(canvasElement).getByText(spaced(t('trace.truncated', { nodes: 500, steps: 1000 })))).toBeVisible();
   },
 };
 
@@ -69,7 +71,7 @@ export const Cycle: Story = {
     } satisfies Trace,
   },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(t('trace.cycleNote', { target: 'Nginx Proxy Manager 80/tcp' })))
+    await expect(within(canvasElement).getByText(spaced(t('trace.cycleNote', { target: 'Nginx Proxy Manager 80/tcp' }))))
       .toBeVisible();
   },
 };

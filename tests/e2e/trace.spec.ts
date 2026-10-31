@@ -80,7 +80,9 @@ test.describe('trace view', () => {
   test('given a name nothing serves, the page says so and offers the other client', async ({ page }) => {
     await page.goto('/trace?hostname=nowhere.homelab.example&client=public');
 
-    await expect(page.getByText('Nothing reaches nowhere.homelab.example from Internet.')).toBeVisible();
+    // The page's message; the live region announces the same words.
+    await expect(page.getByText('Nothing reaches nowhere.homelab.example from Internet.')
+      .and(page.locator(':not([role="status"])'))).toBeVisible();
     await page.getByRole('button', { name: 'Try from Local network' }).click();
     await expect(page).toHaveURL(/client=internal/);
   });
