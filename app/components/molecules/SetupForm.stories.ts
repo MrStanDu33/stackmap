@@ -62,7 +62,7 @@ export const Invalid: Story = {
 
     await expect(form.name).toHaveFocus();
     await expect(form.name).toHaveAccessibleDescription(expect.stringContaining(t('auth.error.name')) as unknown);
-    await expect(form.email).toHaveAccessibleDescription(expect.stringContaining(t('auth.error.email')) as unknown);
+    await expect(form.email).toHaveAccessibleDescription(expect.stringContaining(t('auth.error.email', { example: 'admin@homelab.example' })) as unknown);
     await expect(form.password).toHaveAccessibleDescription(expect.stringContaining(t('auth.error.password')) as unknown);
     await expect(within(canvasElement).getByRole('status')).toHaveTextContent(t('auth.error.name'));
     await expect(args.onSubmit).not.toHaveBeenCalled();

@@ -13,6 +13,7 @@ import { parseTraceQuery } from '~/utils/trace-query';
 import { parseSelected, selectedParam } from '~/utils/trace-selection';
 
 const { t, n, locale } = useI18n();
+const { session, signOut } = useAccount();
 const route = useRoute();
 const router = useRouter();
 
@@ -241,7 +242,10 @@ watch(selection, (selected) => {
 </script>
 
 <template>
-  <AppShell>
+  <AppShell
+    :user="session?.user"
+    @sign-out="signOut"
+  >
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h1
         ref="heading"
