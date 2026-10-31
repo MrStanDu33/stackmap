@@ -27,6 +27,11 @@ export async function claimSetup(db: Kysely<Database>, at: Date): Promise<boolea
   }
 }
 
+/** At start: a claim with no account was left by a crash during setup, and would block it for good. */
+export async function releaseUnusedSetupClaim(_db: Kysely<Database>): Promise<void> {
+  // Not implemented yet.
+}
+
 /** Gives the claim back when the administrator could not be created, so setup can be tried again. */
 export async function releaseSetup(db: Kysely<Database>): Promise<void> {
   await db.deleteFrom('appSetting').where('key', '=', SETUP_CLAIM).execute();

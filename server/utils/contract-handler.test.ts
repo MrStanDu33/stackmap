@@ -378,4 +378,28 @@ describe('defineContractHandler: Problem Details', () => {
 
     expect(run).toHaveBeenCalledWith(expect.objectContaining({ session: ADA }), expect.anything());
   });
+
+  it('answers every operation with Cache-Control: no-store: responses hold the caller\'s data', async () => {
+    const response = await toWebHandler(createApp().use(createRouter().post('/api/things/:id', defineContractHandler(
+      account, () => ({ status: 200, body: ACCOUNT_BODY }),
+    ))))(new Request('http://localhost/api/things/1', { method: 'POST' }));
+
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('given a change sent from a page of another origin than BETTER_AUTH_URL, answers 403 invalid_origin without running it', async () => {
+    vi.stubEnv('BETTER_AUTH_URL', 'https://stackmap.homelab.example');
+    const run = vi.fn(() => ({ status: 200 as const, body: ACCOUNT_BODY }));
+    const call = serve(defineContractHandler(account, run));
+
+    const crossSite = await call('/api/things/1', undefined, { origin: 'https://evil.example' });
+    const sameSite = await call('/api/things/1', undefined, { origin: 'https://stackmap.homelab.example' });
+    // Not a browser (curl, scripts): nothing to forge.
+    const noOrigin = await call('/api/things/1');
+
+    expect(crossSite.status).toBe(403);
+    expect(crossSite.json).toMatchObject({ code: 'invalid_origin' });
+    expect([sameSite.status, noOrigin.status]).toEqual([200, 200]);
+    expect(run).toHaveBeenCalledTimes(2);
+  });
 });

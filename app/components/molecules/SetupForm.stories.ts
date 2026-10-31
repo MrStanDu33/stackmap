@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import SetupForm from './SetupForm.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
@@ -83,14 +83,40 @@ export const ShowPassword: Story = {
   },
 };
 
-/** While submitting, the button is busy and keeps its name, and the form is disabled. */
+/** While submitting, the button is busy and keeps its name; the fields are read-only, so focus stays where it was. */
 export const Submitting: Story = {
   args: { busy: true },
   play: async ({ canvasElement }) => {
     const form = fields(canvasElement);
 
     await expect(form.submit).toHaveAttribute('aria-busy', 'true');
-    await expect(form.name).toBeDisabled();
-    await expect(form.password).toBeDisabled();
+    await expect(form.submit).not.toBeDisabled();
+    await expect(form.name).toHaveAttribute('readonly');
+    await expect(form.password).toHaveAttribute('readonly');
+  },
+};
+
+/** Every field is marked required, and a note says so before submitting. */
+export const Required: Story = {
+  play: async ({ canvasElement }) => {
+    const form = fields(canvasElement);
+
+    for (const field of [form.name, form.email, form.password]) {
+      await expect(field).toBeRequired();
+    }
+    await expect(within(canvasElement).getByText(t('auth.field.required'))).toBeVisible();
+  },
+};
+
+/** Errors the server found are shown on their field, which gets the focus. */
+export const ServerErrors: Story = {
+  args: { errors: { email: 'auth.error.email' } },
+  play: async ({ canvasElement }) => {
+    const { email } = fields(canvasElement);
+
+    await waitFor(() => expect(email).toHaveFocus());
+    await expect(email).toHaveAccessibleDescription(
+      expect.stringContaining(t('auth.error.email', { example: 'admin@homelab.example' })) as unknown,
+    );
   },
 };

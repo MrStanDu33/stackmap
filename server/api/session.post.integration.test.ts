@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { describe, expect, it } from 'vitest';
 
 import { SESSION_COOKIE } from '../../shared/contracts/security';
@@ -57,5 +58,29 @@ describe.each(DIALECTS)('POST /api/session on %s', (dialect: Dialect) => {
     expect((await accounts.call('POST', '/api/session', {
       body: { email: ADMIN.email, password: ADMIN.password }, ip: '192.0.2.41',
     })).status).toBe(200);
+  });
+
+  it('given an account Better Auth refuses for another reason (banned), answers the same 401 as a wrong password', async () => {
+    await accounts.signedIn();
+    await sql`update ${sql.table('user')} set banned = ${dialect === 'postgres' ? sql`true` : sql`1`}`.execute(accounts.db());
+
+    const banned = await accounts.call('POST', '/api/session', { body: { email: ADMIN.email, password: ADMIN.password } });
+    const wrong = await accounts.call('POST', '/api/session', { body: { email: ADMIN.email, password: 'not the password' } });
+
+    expect(banned.status).toBe(401);
+    expect(banned.json).toEqual(wrong.json);
+  });
+
+  it('records the session\'s address as the limiter counts it, the one the proxy added', async () => {
+    await accounts.signedIn();
+
+    await accounts.call('POST', '/api/session', {
+      body: { email: ADMIN.email, password: ADMIN.password }, ip: '198.51.100.7, 192.0.2.42',
+    });
+
+    const { rows } = await sql<{ ipAddress: string }>`select ${sql.ref('ipAddress')} from ${sql.table('session')}`
+      .execute(accounts.db());
+    expect(rows.map(({ ipAddress }) => ipAddress)).toContain('192.0.2.42');
+    expect(rows.map(({ ipAddress }) => ipAddress)).not.toContain('198.51.100.7');
   });
 });

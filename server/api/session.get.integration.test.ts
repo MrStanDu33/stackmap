@@ -31,4 +31,18 @@ describe.each(DIALECTS)('GET /api/session on %s', (dialect: Dialect) => {
     vi.useFakeTimers({ now: Date.now() + 8 * 24 * 60 * 60_000, toFake: ['Date'] });
     expect((await accounts.call('GET', '/api/session', { cookie })).json).toBeNull();
   });
+
+  it('given a session over a day old, renews it and its cookie; given an expired one, clears the cookie', async () => {
+    const cookie = await accounts.signedIn();
+
+    vi.useFakeTimers({ now: Date.now() + 2 * 24 * 60 * 60_000, toFake: ['Date'] });
+    const renewed = await accounts.call('GET', '/api/session', { cookie });
+    expect(renewed.json).not.toBeNull();
+    expect(renewed.setCookie).toMatch(new RegExp(`^${SESSION_COOKIE.replaceAll('.', '\\.')}=[^;]+;.*Max-Age=\\d{5,}`, 'i'));
+
+    vi.useFakeTimers({ now: Date.now() + 8 * 24 * 60 * 60_000, toFake: ['Date'] });
+    const expired = await accounts.call('GET', '/api/session', { cookie });
+    expect(expired.json).toBeNull();
+    expect(expired.setCookie).toMatch(/Max-Age=0/i);
+  });
 });

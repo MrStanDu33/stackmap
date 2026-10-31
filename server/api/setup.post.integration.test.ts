@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { ADMIN, cookieOf, useTestAccounts } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 import { markServerStart } from '../auth/setup-window';
+import { claimSetup, releaseUnusedSetupClaim } from '../repositories/accounts';
+import { useAuth } from '../utils/auth';
 
 import type { Dialect } from '../../tests/support/databases';
 
@@ -103,5 +105,40 @@ describe.each(DIALECTS)('POST /api/setup on %s', (dialect: Dialect) => {
     expect(sixth.status).toBe(429);
     expect(sixth.json).toMatchObject({ code: 'too_many_requests' });
     expect(Number(sixth.headers.get('retry-after'))).toBeGreaterThan(0);
+  });
+
+  it('given a setup claim left by a crash, a restart releases it and setup works again', async () => {
+    await claimSetup(accounts.db(), new Date());
+    expect((await accounts.setUp()).status).toBe(409);
+
+    await releaseUnusedSetupClaim(accounts.db());
+
+    expect((await accounts.setUp()).status).toBe(201);
+  });
+
+  it('given an account, a restart keeps the claim: setup stays done', async () => {
+    await accounts.signedIn();
+
+    await releaseUnusedSetupClaim(accounts.db());
+
+    expect((await accounts.setUp({ email: 'grace@homelab.example' })).status).toBe(409);
+  });
+
+  it('given a failure after the account is created, removes it: setup can be tried again and makes an admin', async () => {
+    const auth = await useAuth();
+    const signUp = auth.api.signUpEmail.bind(auth.api);
+    const spy = vi.spyOn(auth.api, 'signUpEmail').mockImplementationOnce(async (...args) => {
+      await signUp(...args);
+      throw new Error('Session store unavailable');
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    expect((await accounts.setUp()).status).toBe(500);
+    expect(await accounts.count('user')).toBe(0);
+    spy.mockRestore();
+
+    const { status, json } = await accounts.setUp();
+    expect(status).toBe(201);
+    expect(json).toMatchObject({ user: { role: 'admin' } });
   });
 });

@@ -29,6 +29,11 @@ export const PROBLEMS = {
     title: 'You may not do this',
     description: 'The session\'s role is below the one the operation requires.',
   },
+  invalid_origin: {
+    status: 403,
+    title: 'The request comes from another site',
+    description: 'A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.',
+  },
   invalid_credentials: {
     status: 401,
     title: 'Email or password is incorrect',

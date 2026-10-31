@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import AppSidebar from './AppSidebar.vue';
 import { i18n, router } from '../../../.storybook/nuxt-shims';
@@ -62,7 +62,15 @@ export const SignedInCollapsed: Story = {
     template: '<UDashboardGroup><AppSidebar v-bind="args" :collapsed="true" /></UDashboardGroup>',
   }),
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: t('auth.signOutOf', { name: 'Ada' }) }));
+    const signOut = within(canvasElement).getByRole('button', { name: t('auth.signOutOf', { name: 'Ada' }) });
+
+    // Icons alone: a tooltip names each for sighted users too.
+    await userEvent.hover(signOut);
+    await expect(await within(document.body).findByRole('tooltip')).toHaveTextContent(t('auth.signOutOf', { name: 'Ada' }));
+    await userEvent.hover(within(canvasElement).getByRole('link', { name: t('trace.title') }));
+    await waitFor(() => expect(within(document.body).getByRole('tooltip')).toHaveTextContent(t('trace.title')));
+
+    await userEvent.click(signOut);
     await expect(args.onSignOut).toHaveBeenCalledOnce();
   },
 };
