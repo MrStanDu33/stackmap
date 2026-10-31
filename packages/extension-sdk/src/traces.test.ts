@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { defineExtensionServer } from './hooks';
-import { MAX_TRACE_HOP_PARAMS, MAX_TRACE_HOPS, traceHopsSchema } from './traces';
+import { MAX_TRACE_HOP_PARAMS, MAX_TRACE_HOPS, servesHostname, traceHopsSchema } from './traces';
 import { issuePaths } from '../../../tests/support/issues';
 
 import type { ExtensionManifest } from './manifest';
@@ -60,5 +60,16 @@ describe('traceHopsSchema', () => {
     expect(issuePaths(traceHopsSchema.safeParse([hop({ params: { peer: 'x'.repeat(201) } })]))).toEqual(['0.params.peer']);
     expect(issuePaths(traceHopsSchema.safeParse([hop({ port: 70_000 })]))).toEqual(['0.port']);
     expect(traceHopsSchema.safeParse(Array.from({ length: MAX_TRACE_HOPS + 1 }, () => hop())).success).toBe(false);
+  });
+});
+
+describe('servesHostname', () => {
+  it('matches a name itself, and a wildcard over the names below its base at any depth, not the base itself', () => {
+    expect(servesHostname('app.homelab.example', 'app.homelab.example')).toBe(true);
+    expect(servesHostname('*.dev.homelab.example', 'a.dev.homelab.example')).toBe(true);
+    expect(servesHostname('*.dev.homelab.example', 'a.b.dev.homelab.example')).toBe(true);
+    expect(servesHostname('*.dev.homelab.example', 'dev.homelab.example')).toBe(false);
+    expect(servesHostname('*.dev.homelab.example', 'xdev.homelab.example')).toBe(false);
+    expect(servesHostname('app.homelab.example', 'www.homelab.example')).toBe(false);
   });
 });

@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { entityId, port } from './entities/common';
+import { i18nKey, kebabId, text } from './formats';
+
 import type { FlowReader } from './flows';
 
 /*
@@ -35,4 +38,19 @@ export interface TraceHopResolver {
   resolve: (context: { hostname: string; ids: readonly string[]; read: FlowReader }) => Promise<readonly TraceHop[]>;
 }
 
-export const traceHopsSchema: z.ZodType<TraceHop[]> = z.array(z.never()).max(MAX_TRACE_HOPS);
+/** Whether a hostname pattern serves a name: the name itself, or a wildcard over the names below its base. */
+export const servesHostname = (pattern: string, hostname: string): boolean =>
+  pattern === hostname || (pattern.startsWith('*.') && hostname.endsWith(pattern.slice(1)));
+
+export const traceHopSchema: z.ZodType<TraceHop> = z.strictObject({
+  entity: kebabId(),
+  id: entityId(),
+  stage: z.enum(TRACE_STAGES),
+  label: i18nKey(),
+  params: z.record(z.string().max(40).regex(/^[A-Za-z][\w-]*$/), text(200))
+    .refine((params) => Object.keys(params).length <= MAX_TRACE_HOP_PARAMS, `At most ${String(MAX_TRACE_HOP_PARAMS)} params`),
+  port: port().optional(),
+});
+
+/** A resolver's whole result for one call: bounded. */
+export const traceHopsSchema: z.ZodType<TraceHop[]> = z.array(traceHopSchema).max(MAX_TRACE_HOPS);

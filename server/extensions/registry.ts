@@ -241,6 +241,7 @@ function contributionErrors(ordered: readonly Entry[], appLocales: readonly Loca
   const kinds = new Map(KIND_ENTITIES.map((entity) => [entity, new Map<string, string>()]));
   const tables = new Map<string, string>();
   const repositoryKeys = new Map<string, string>();
+  const resolvedEntities = new Map<string, string>();
   for (const entry of ordered.filter((candidate) => !isFailed(candidate))) {
     const errors: string[] = [];
     for (const { table } of entry.manifest.contributes.entities ?? []) {
@@ -257,6 +258,14 @@ function contributionErrors(ordered: readonly Entry[], appLocales: readonly Loca
         repositoryKeys.set(key, entry.manifest.id);
       } else {
         errors.push(`defines repository "${key}", which "${owner}" already defines`);
+      }
+    }
+    for (const { entity } of entry.server?.traceHopResolvers ?? []) {
+      const owner = resolvedEntities.get(entity);
+      if (owner === undefined) {
+        resolvedEntities.set(entity, entry.manifest.id);
+      } else {
+        errors.push(`resolves trace hops of "${entity}", which "${owner}" already resolves`);
       }
     }
     for (const entity of KIND_ENTITIES) {
@@ -370,7 +379,8 @@ export function createExtensionRegistry(
       failDependents(ordered, installed);
       throwIfAlwaysOnFailed(ordered);
     },
-    traceHopResolvers: () => [],
+    traceHopResolvers: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
+      (server?.traceHopResolvers ?? []).map((resolver) => ({ extension: manifest.id, resolver }))),
     flowDerivers: () => ordered.filter((entry) => !isFailed(entry)).flatMap(({ manifest, server }) =>
       (server?.flowDerivers ?? []).map((deriver) => ({ extension: manifest.id, deriver }))),
     // Each with the extensions whose tables it may refer to, which the repositories enforce at runtime, and the

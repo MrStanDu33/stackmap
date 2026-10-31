@@ -90,13 +90,20 @@ export const CORE_CLIENT_HOOKS: readonly (keyof ClientHooks)[] = ['app:mounted',
 /** Ties an extension's server code to its manifest. */
 export function defineExtensionServer(
   manifest: ExtensionManifest,
-  { setup, hooks = {}, migrations, repositories, flowDerivers }: Omit<ExtensionServer, 'extension' | 'hooks'> & {
+  { setup, hooks = {}, migrations, repositories, flowDerivers, traceHopResolvers }: Omit<
+    ExtensionServer, 'extension' | 'hooks'
+  > & {
     hooks?: HookHandlers<ServerHooks>;
   },
 ): ExtensionServer {
   const twice = flowDerivers?.find(({ id }, index) => flowDerivers.findIndex((other) => other.id === id) !== index);
   if (twice) {
     throw new Error(`Extension "${manifest.id}" defines flow deriver "${twice.id}" twice.`);
+  }
+  const resolvedTwice = traceHopResolvers?.find(({ entity }, index) =>
+    traceHopResolvers.findIndex((other) => other.entity === entity) !== index);
+  if (resolvedTwice) {
+    throw new Error(`Extension "${manifest.id}" resolves trace hops of "${resolvedTwice.entity}" twice.`);
   }
   // A frozen copy: an extension cannot add handlers after the app checked which hooks it may handle.
   return {
@@ -106,6 +113,9 @@ export function defineExtensionServer(
     ...(migrations ? { migrations: Object.freeze({ ...migrations }) } : {}),
     ...(repositories ? { repositories: Object.freeze(repositories.map(freezeDefinition)) } : {}),
     ...(flowDerivers ? { flowDerivers: Object.freeze(flowDerivers.map((item) => Object.freeze({ ...item }))) } : {}),
+    ...(traceHopResolvers
+      ? { traceHopResolvers: Object.freeze(traceHopResolvers.map((item) => Object.freeze({ ...item }))) }
+      : {}),
   };
 }
 
