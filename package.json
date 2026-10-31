@@ -53,6 +53,7 @@
     "@stackmap/extension-reverse-proxy": "workspace:*",
     "@stackmap/extension-sdk": "workspace:*",
     "@vue-flow/core": "^1.48.2",
+    "better-auth": "1.7.14",
     "better-sqlite3": "^13.0.3",
     "culori": "^4.0.2",
     "elkjs": "^0.12.1",
