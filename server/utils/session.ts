@@ -1,13 +1,26 @@
+import { useAuth } from './auth';
+
 import type { Session } from '../../shared/contracts/auth';
 import type { H3Event } from 'h3';
 
 /** Reads who is signed in from a request: by default the session cookie, through Better Auth. */
 export type SessionResolver = (event: H3Event) => Promise<Session | null>;
 
-let resolver: SessionResolver = () => Promise.resolve(null);
+/** The session of the request's cookie, or null when it has none, or an expired or invalid one. */
+const fromCookie: SessionResolver = async (event) => {
+  const auth = await useAuth();
+  const found = await auth.api.getSession({ headers: event.headers });
+  if (!found) {
+    return null;
+  }
+  const { id, name, email, role } = found.user;
+  return { user: { id, name, email, role: role === 'admin' ? 'admin' : 'user' } };
+};
 
-/** For tests: who requests are made as. */
-export function setSessionResolver(next: SessionResolver): void {
+let resolver: SessionResolver = fromCookie;
+
+/** For tests: who requests are made as; the cookie resolver again when called without one. */
+export function setSessionResolver(next: SessionResolver = fromCookie): void {
   resolver = next;
 }
 

@@ -28,14 +28,14 @@ describe.each(DIALECTS)('POST /api/setup on %s', (dialect: Dialect) => {
     expect(json).toEqual({ user: { id: expect.any(String) as unknown, name: ADMIN.name, email: ADMIN.email, role: 'admin' } });
     const session = await accounts.call('GET', '/api/session', { cookie: cookieOf(setCookie) });
     expect(session.json).toEqual(json);
-    expect(await accounts.count('workspace')).toBe(1);
+    expect(await accounts.hasDemo()).toBe(true);
   });
 
   it('given demo false, creates the admin and no workspace (3)', async () => {
     expect((await accounts.setUp()).status).toBe(201);
 
     expect(await accounts.count('user')).toBe(1);
-    expect(await accounts.count('workspace')).toBe(0);
+    expect(await accounts.hasDemo()).toBe(false);
   });
 
   it('given an account exists, answers 409 already_set_up and changes nothing (4)', async () => {

@@ -2,7 +2,7 @@ import { createApp, createRouter, toWebHandler } from 'h3';
 import { sql } from 'kysely';
 import { beforeEach } from 'vitest';
 
-import { useTestWorkspaces } from './workspaces';
+import { BUILTIN_REGISTRY, useTestWorkspaces } from './workspaces';
 import sessionDelete from '../../server/api/session.delete';
 import sessionGet from '../../server/api/session.get';
 import sessionPost from '../../server/api/session.post';
@@ -11,6 +11,7 @@ import setupPost from '../../server/api/setup.post';
 import listWorkspaces from '../../server/api/workspaces/index.get';
 import { markServerStart } from '../../server/auth/setup-window';
 import { setDatabase } from '../../server/utils/database';
+import { setExtensionRegistry } from '../../server/utils/extensions';
 
 import type { Dialect } from './databases';
 import type { Database } from '../../server/database/types/schema';
@@ -50,6 +51,7 @@ export function useTestAccounts(dialect: Dialect) {
 
   beforeEach(() => {
     setDatabase(Promise.resolve(db()));
+    setExtensionRegistry(BUILTIN_REGISTRY);
     markServerStart(new Date());
   });
 
@@ -86,10 +88,13 @@ export function useTestAccounts(dialect: Dialect) {
     return cookie;
   };
 
-  const count = async (table: 'user' | 'workspace') => {
+  const count = async (table: 'user') => {
     const { rows } = await sql<{ n: number | string }>`select count(*) as n from ${sql.table(table)}`.execute(db());
     return Number(rows[0]?.n);
   };
 
-  return { db, call, setUp, signedIn, count };
+  /** Whether the demo workspace exists (the test database also holds workspaces A and B). */
+  const hasDemo = async () => (await db().selectFrom('workspace').select('id').where('slug', '=', 'demo').execute()).length === 1;
+
+  return { db, call, setUp, signedIn, count, hasDemo };
 }

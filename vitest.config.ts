@@ -72,6 +72,9 @@ export default defineConfig({
           exclude: ['**/node_modules/**'],
           globalSetup: ['tests/support/integration-setup.ts'],
           testTimeout: 20_000,
+          // Fictional, for tests only: Better Auth would otherwise write a secret into ./data. The tests send
+          // X-Forwarded-For to tell clients apart.
+          env: { BETTER_AUTH_SECRET: 'integration-tests-only-not-a-real-secret-0123456789', TRUST_PROXY: 'true' },
         },
       },
       ...storybookProjects,

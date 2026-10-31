@@ -5,6 +5,9 @@ import type {
 import type { PortForward, PortForwardInput } from '../../extensions/nat/entities';
 import type { ProxyRoute, ProxyRouteInput } from '../../extensions/reverse-proxy/entities';
 import type { WorkspaceRepositories } from '../repositories';
+// The extensions' repositories (repos.portForwards, repos.proxyRoutes) join WorkspaceRepositories in these modules.
+import type {} from '../../extensions/nat/server/repositories';
+import type {} from '../../extensions/reverse-proxy/server/repositories';
 
 /**
  * A fictional home lab, with references by name instead of ids: tests use it, and the app seeds it into its demo

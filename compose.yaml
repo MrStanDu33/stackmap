@@ -16,8 +16,10 @@ services:
       # Owner of the files in /data. Set them to your user (`id -u`, `id -g`) when you bind-mount a host directory.
       PUID: 1000
       PGID: 1000
-      # Seeds a fictional demo workspace at start until accounts exist; false turns it off.
-      # STACKMAP_DEMO: "false"
+      # true behind a reverse proxy that sets X-Forwarded-For, so sign-in attempts are limited per client address.
+      # TRUST_PROXY: "true"
+      # Seeds a fictional demo workspace at start; /setup offers it otherwise.
+      # STACKMAP_DEMO: "true"
     volumes:
       - stackmap-data:/data
 
