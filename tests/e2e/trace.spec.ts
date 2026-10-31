@@ -215,8 +215,11 @@ test.describe('trace view', () => {
   test('given a URL with selected=step:<id>, the page opens with that step\'s panel', async ({ page }) => {
     await page.goto('/trace?hostname=app.homelab.example&client=public&view=list');
     await firstStep(page).click();
-    await page.getByRole('button', { name: 'Next step' }).click();
     await expect(page).toHaveURL(SELECTED_STEP);
+    const first = page.url();
+    await page.getByRole('button', { name: 'Next step' }).click();
+    // The URL is replaced after the panel changes: wait for the second step's.
+    await expect(page).not.toHaveURL(first);
     const link = page.url();
 
     await page.goto('/graph');
