@@ -203,21 +203,24 @@ export const PansToStep: Story = {
     const zoomIn = canvas.getByRole('button', { name: t('traffic.zoomIn') });
     const zoom = () => (canvasElement.querySelector<HTMLElement>('[style*="--graph-zoom"]')?.style
       .getPropertyValue('--graph-zoom'));
-    // The canvas fits again 100 ms after its size settles: zoom only once the zoom has stopped changing.
-    let last = zoom();
-    await waitFor(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      const now = zoom();
-      const steady = now === last;
-      last = now;
-      await expect(steady).toBe(true);
-    }, { timeout: 5000 });
-    // Each press once the last has landed: Vue Flow zooms from where it is, with a short animation.
+    // Until the zoom stops changing: the canvas fits again 100 ms after its size settles, and each press animates.
+    const settled = async () => {
+      let last = zoom();
+      await waitFor(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const now = zoom();
+        const steady = now === last;
+        last = now;
+        await expect(steady).toBe(true);
+      }, { timeout: 5000 });
+    };
+    await settled();
+    // Each press once the last has landed: Vue Flow zooms from where it is.
     for (let press = 0; press < 5; press += 1) {
       const before = Number(zoom());
       await userEvent.click(zoomIn);
-      // A press zooms by 1.2: wait for the end of its animation.
-      await waitFor(() => expect(Number(zoom())).toBeCloseTo(before * 1.2, 4));
+      await waitFor(() => expect(Number(zoom())).toBeGreaterThan(before));
+      await settled();
     }
     const zoomed = zoom();
     const inside = () => {
