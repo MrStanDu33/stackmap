@@ -92,4 +92,16 @@ describe('elkToVueFlow', () => {
       .toBe('From Website to Website database, port 5432/tcp');
     expect(edges).toHaveLength(DEMO_TRAFFIC.flows.length);
   });
+
+  it('makes nodes buttons, with a role description in the current language for nodes and flows', () => {
+    const { nodes, edges } = elkToVueFlow(DEMO_TRAFFIC, placed(trafficToElk(DEMO_TRAFFIC)), t);
+    const node = (id: string) => nodes.find((item) => item.id === id);
+
+    expect(node(`service:${services.npm}`)?.domAttributes)
+      .toEqual({ role: 'button', 'aria-roledescription': 'service' });
+    expect(node(`host:${hosts.server}`)?.domAttributes).toEqual({ role: 'button', 'aria-roledescription': 'host' });
+    expect(node('client:public')?.domAttributes).toEqual({ role: 'button', 'aria-roledescription': 'client' });
+    expect(edges.find(({ id }) => id === `flow:${flows.database}`)?.domAttributes)
+      .toEqual({ 'aria-roledescription': 'flow' });
+  });
 });

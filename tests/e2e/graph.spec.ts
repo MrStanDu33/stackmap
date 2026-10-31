@@ -39,19 +39,19 @@ test.describe('traffic view', () => {
     await page.getByRole('radio', { name: 'List' }).click();
 
     await expect(page).toHaveURL(/\?view=list$/);
-    await expect(page.getByRole('table', { name: 'Home server' })).toBeVisible();
+    await expect(page.getByRole('table', { name: /^Home server/ })).toBeVisible();
     for (const name of DEMO_SERVICES) {
       await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
     }
     await expectNoAxeViolation(page);
     await page.reload();
     await expect(page.getByRole('radio', { name: 'List' })).toBeChecked();
-    await expect(page.getByRole('table', { name: 'Home server' })).toBeVisible();
+    await expect(page.getByRole('table', { name: /^Home server/ })).toBeVisible();
   });
 
   test('given the list, activating Nginx Proxy Manager opens its details; Escape closes them and returns focus to the row', async ({ page }) => {
     await page.goto('/graph?view=list');
-    const npm = page.getByRole('table', { name: 'Home server' }).getByRole('button', { name: 'Nginx Proxy Manager' });
+    const npm = page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Nginx Proxy Manager' });
 
     await npm.focus();
     await page.keyboard.press('Enter');
@@ -102,13 +102,73 @@ test.describe('traffic view', () => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto('/graph');
 
+    // One h1, the page's: the narrow bar shows the app name without a heading.
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    await expectNoAxeViolation(page);
     // Nuxt UI's toggle, with its own translated labels.
     await page.getByRole('button', { name: 'Open sidebar' }).click();
-    const graphLink = page.getByRole('link', { name: 'Graph' });
-    await expect(graphLink).toBeVisible();
-    await expect(graphLink).toHaveAttribute('aria-current', 'page');
+    const trafficLink = page.getByRole('link', { name: 'Traffic' });
+    await expect(trafficLink).toBeVisible();
+    await expect(trafficLink).toHaveAttribute('aria-current', 'page');
     await page.keyboard.press('Escape');
-    await expect(graphLink).toBeHidden();
+    await expect(trafficLink).toBeHidden();
+  });
+
+  test('given a narrow screen, scrolling over the graph scrolls the page instead of zooming the graph', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 600 });
+    await page.goto('/graph');
+    await graphReady(page);
+    const pane = page.locator('.vue-flow__transformationpane');
+    const before = await pane.getAttribute('style');
+
+    await page.locator('.vue-flow').hover();
+    await page.mouse.wheel(0, 300);
+
+    await page.waitForTimeout(300);
+    await expect(pane).toHaveAttribute('style', before ?? '');
+  });
+
+  test('given the panel open, Escape in the language list closes only the list', async ({ page }) => {
+    await page.goto('/graph?view=list');
+    await page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Website', exact: true }).click();
+    const panel = page.getByRole('complementary');
+    await expect(panel).toBeVisible();
+
+    await page.getByRole('combobox', { name: 'Language' }).click();
+    await page.keyboard.press('Escape');
+
+    await expect(page.getByRole('listbox')).toBeHidden();
+    await expect(panel).toBeVisible();
+  });
+
+  test('given a selection closed, the live region does not repeat the summary', async ({ page }) => {
+    await page.goto('/graph?view=list');
+    const summary = page.getByRole('status').filter({ hasText: '2 hosts, 4 services, 9 flows' });
+    await expect(summary).toHaveCount(1);
+    await page.getByRole('table', { name: /^Home server/ }).getByRole('button', { name: 'Website', exact: true }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Selected: Website' })).toHaveCount(1);
+
+    await page.keyboard.press('Escape');
+
+    await expect(page.getByRole('complementary')).toBeHidden();
+    await expect(summary).toHaveCount(0);
+  });
+
+  test('given the list view while the traffic loads, it says so', async ({ page }) => {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/api/workspaces/*/traffic', async (route) => {
+      await held;
+      await route.continue();
+    });
+
+    await page.goto('/graph?view=list');
+
+    await expect(page.getByRole('status').filter({ hasText: 'Loading the traffic…' })).toHaveCount(1);
+    release();
+    await expect(page.getByRole('table', { name: /^Home server/ })).toBeVisible();
   });
 
   test('given the traffic route fails, the page shows an error and Try again reloads it', async ({ page }) => {
@@ -122,6 +182,8 @@ test.describe('traffic view', () => {
     fail = false;
     await page.getByRole('button', { name: 'Try again' }).click();
     await graphReady(page);
+    // The button is gone: focus moves to the page's heading rather than being lost.
+    await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   });
 });
 

@@ -23,7 +23,9 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByRole('heading', { name: t('preferences.title') })).toBeVisible();
+    // A named region, not a heading: the sidebar comes before the page's h1.
+    await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
+    await expect(canvas.queryByRole('heading')).toBeNull();
     await expect(canvas.getByRole('radiogroup', { name: t('preferences.theme') })).toBeVisible();
     // The current theme: each theme's story project starts from its own.
     const theme = html.classList.contains('light') ? 'preferences.light' : 'preferences.midnight';
@@ -64,6 +66,6 @@ export const French: Story = {
     await userEvent.click(within(document.body).getByRole('option', { name: 'Français' }));
 
     await waitFor(() => expect(i18n.global.locale.value).toBe('fr'));
-    await expect(await canvas.findByRole('heading', { name: 'Affichage' })).toBeVisible();
+    await expect(await canvas.findByRole('region', { name: 'Affichage' })).toBeVisible();
   },
 };

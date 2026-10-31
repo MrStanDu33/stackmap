@@ -1,10 +1,12 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { ref } from 'vue';
 
 import TrafficDetailPanel from './TrafficDetailPanel.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
 import { DEMO_IDS, DEMO_TRAFFIC } from '../../../tests/support/demo-traffic';
 
 import type { Traffic } from '../../../shared/contracts/traffic';
+import type { Selection } from '../../utils/traffic-selection';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
 const { hosts, services, listeners, flows } = DEMO_IDS;
@@ -100,13 +102,15 @@ export const FlowWithMoreNames: Story = {
       flows: DEMO_TRAFFIC.flows.map((flow) => (flow.id === flows.publicHttps ? { ...flow, hostnameCount: 15 } : flow)),
     } satisfies Traffic,
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const details = panel(canvasElement);
 
     await expect(details.getByText('www.homelab.example')).toBeVisible();
     await expect(details.getByText(t('detail.moreNames', { count: 12 }))).toBeVisible();
     await expect(details.getByText(t('traffic.origin.derived', { extension: 'nat', deriver: 'port-forwards' })))
       .toBeVisible();
+    await userEvent.click(details.getByRole('button', { name: t('traffic.client.public') }));
+    await expect(args.onSelect).toHaveBeenCalledWith({ type: 'client', id: 'public' });
   },
 };
 
@@ -118,5 +122,27 @@ export const Client: Story = {
 
     await expect(details.getByRole('heading', { level: 2, name: t('traffic.client.public') })).toBeVisible();
     await expect(details.getAllByRole('button', { name: /Nginx Proxy Manager/ })).toHaveLength(2);
+  },
+};
+
+/** Following a link inside the panel keeps focus there, on the new title, rather than losing it. */
+export const FollowingALink: Story = {
+  render: (args) => ({
+    components: { TrafficDetailPanel },
+    setup: () => {
+      const selection = ref(args.selection as Selection);
+      return { args, selection };
+    },
+    template: '<TrafficDetailPanel :traffic="args.traffic" :selection="selection" @select="selection = $event" />',
+  }),
+  play: async ({ canvasElement }) => {
+    const details = panel(canvasElement);
+    const port = details.getAllByRole('button', { name: /443\/tcp/ })[0];
+
+    port?.focus();
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() => expect(details.getByRole('heading', { level: 2 })).toHaveFocus());
+    await expect(details.getByRole('heading', { level: 2 })).toHaveTextContent('443/tcp');
   },
 };

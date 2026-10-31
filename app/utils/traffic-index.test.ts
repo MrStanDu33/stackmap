@@ -49,8 +49,9 @@ describe('indexTraffic', () => {
     expect(selectionName(index, { type: 'host', id: hosts.server }, t)).toBe('Home server');
     expect(selectionName(index, { type: 'service', id: services.database }, t)).toBe('Website database');
     expect(selectionName(index, { type: 'listener', id: listeners.npmHttps }, t)).toBe('Nginx Proxy Manager 443/tcp');
+    // Written out, not with an arrow that screen readers read as "right arrow".
     expect(selectionName(index, { type: 'flow', id: flows.routeWebsite }, t))
-      .toBe('Nginx Proxy Manager → Website 3000/tcp');
+      .toBe('From Nginx Proxy Manager to Website 3000/tcp');
     expect(selectionName(index, { type: 'service', id: 'gone' }, t)).toBeUndefined();
   });
 });

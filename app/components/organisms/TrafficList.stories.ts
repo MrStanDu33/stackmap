@@ -20,7 +20,9 @@ const { t } = i18n.global;
 const { hosts, services, listeners } = DEMO_IDS;
 
 /** The table of a host, by its caption. */
-const tableOf = (canvasElement: HTMLElement, caption: string) => within(canvasElement).getByRole('table', { name: caption });
+// The caption is the host's name, then its kind.
+const tableOf = (canvasElement: HTMLElement, caption: string) =>
+  within(canvasElement).getByRole('table', { name: new RegExp(`^${caption}`) });
 
 /** One table per host, then the external services; each port lists its incoming flows. */
 export const Demo: Story = {
@@ -29,7 +31,7 @@ export const Demo: Story = {
     const server = tableOf(canvasElement, 'Home server');
 
     await expect(canvas.getAllByRole('table').map((table) => table.querySelector('caption')?.textContent.trim()))
-      .toEqual(['Edge router', 'Home server', t('traffic.external')]);
+      .toEqual(['Edge router router', 'Home server physical', t('traffic.external')]);
     await expect(within(server).getAllByRole('columnheader').map(({ textContent }) => textContent.trim()))
       .toEqual([t('traffic.table.port'), t('traffic.table.from'), t('traffic.table.names'), t('traffic.table.how')]);
     await expect(within(tableOf(canvasElement, 'Edge router')).getByText(t('traffic.table.noService'))).toBeVisible();
@@ -41,7 +43,10 @@ export const Demo: Story = {
     await expect(within(tableOf(canvasElement, t('traffic.external'))).getByRole('button', { name: 'Weather API' }))
       .toBeVisible();
 
-    await userEvent.click(within(server).getByRole('button', { name: 'Nginx Proxy Manager' }));
+    // Clients can be selected from the list too, as from the graph.
+    await userEvent.click(within(server).getAllByRole('button', { name: t('traffic.client.public') })[0] ?? server);
+    await expect(args.onSelect).toHaveBeenCalledWith({ type: 'client', id: 'public' });
+    await userEvent.click(within(server).getAllByRole('button', { name: 'Nginx Proxy Manager' })[0] ?? server);
     await expect(args.onSelect).toHaveBeenCalledWith({ type: 'service', id: services.npm });
     within(server).getByRole('button', { name: 'Home server' }).focus();
     await userEvent.keyboard('{Enter}');
@@ -82,5 +87,16 @@ export const ManyNames: Story = {
     await expect(within(server).getByText(t('traffic.more', { count: 2 }))).toBeVisible();
     const unused = within(server).getAllByRole('row').find((row) => row.textContent.includes('9100/tcp'));
     await expect(unused).toHaveTextContent(t('traffic.table.noFlow'));
+  },
+};
+
+/** An empty workspace says so, as the graph does. */
+export const Empty: Story = {
+  args: { traffic: { hosts: [], services: [], listeners: [], flows: [], truncated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText(t('traffic.empty'))).toBeVisible();
+    await expect(canvas.queryByRole('table')).toBeNull();
   },
 };

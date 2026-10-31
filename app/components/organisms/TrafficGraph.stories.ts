@@ -65,6 +65,9 @@ export const Demo: Story = {
     await userEvent.tab();
     await expect(canvas.getByRole('button', { name: t('traffic.fit') })).toHaveFocus();
 
+    await expect(nodeOf(canvasElement, `service:${services.npm}`)).toHaveAttribute('role', 'button');
+    await expect(nodeOf(canvasElement, `service:${services.npm}`))
+      .toHaveAttribute('aria-roledescription', t('traffic.role.service'));
     nodeOf(canvasElement, `service:${services.npm}`).focus();
     await userEvent.keyboard('{Enter}');
     await expect(args.onSelect).toHaveBeenCalledWith({ type: 'service', id: services.npm });
@@ -78,6 +81,38 @@ export const Selected: Story = {
     await waitFor(() => expect(flowsIn(canvasElement, 'highlighted')).toHaveLength(7));
     await expect(flowsIn(canvasElement, 'dimmed')).toHaveLength(2);
     await expect(canvasElement.querySelector(`[data-flow-state="dimmed"][data-flow="${flows.database}"]`)).not.toBeNull();
+    // The selected node says so; the others are not pressed.
+    await expect(nodeOf(canvasElement, `service:${services.npm}`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(nodeOf(canvasElement, `service:${services.website}`)).toHaveAttribute('aria-pressed', 'false');
+    // Dimmed flows stay visible (3:1), and lines keep their width whatever the zoom.
+    const dimmed = canvasElement.querySelector<SVGPathElement>(`[data-flow="${flows.database}"] path`);
+    await expect(Number(dimmed ? getComputedStyle(dimmed).opacity : 0)).toBeGreaterThanOrEqual(0.6);
+    await expect(dimmed).toHaveAttribute('vector-effect', 'non-scaling-stroke');
+  },
+};
+
+/** Zoomed in: a node that gets focus off the canvas is brought into view, so focus is never hidden. */
+export const ZoomedIn: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvasElement.querySelectorAll('.vue-flow__edge')).toHaveLength(DEMO_TRAFFIC.flows.length));
+    for (let step = 0; step < 10; step += 1) {
+      await userEvent.click(canvas.getByRole('button', { name: t('traffic.zoomIn') }));
+    }
+    const pane = canvas.getByRole('region', { name: t('traffic.canvas') });
+    const node = nodeOf(canvasElement, 'client:public');
+
+    node.focus();
+
+    await waitFor(() => {
+      const inner = node.getBoundingClientRect();
+      const outer = pane.getBoundingClientRect();
+      void expect(inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top
+        && inner.bottom <= outer.bottom).toBe(true);
+    }, { timeout: 2000 });
+    // Brought into view by panning the graph: a browser scroll of the clipped canvas would shift it under the pointer.
+    const flow = canvasElement.querySelector<HTMLElement>('.vue-flow');
+    await waitFor(() => expect([flow?.scrollLeft, flow?.scrollTop]).toEqual([0, 0]), { timeout: 2000 });
   },
 };
 
