@@ -39,5 +39,9 @@ export function useExtensionHooks(): Pick<ExtensionRuntime, 'callHook'> {
 
 /** Resolves once the extensions' tables exist and their setup ran. */
 export function whenExtensionsStarted(): Promise<void> {
-  return Promise.reject(new Error('Not implemented'));
+  const starting = runtime;
+  if (!starting) {
+    throw new Error(`The extensions are not ready: the startup plugin (${PLUGIN}) has not run.`);
+  }
+  return starting.then(() => undefined);
 }
