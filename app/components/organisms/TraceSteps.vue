@@ -32,12 +32,25 @@ const targetName = (step: TraceStep) => {
   return target ? listenerName(target) : '';
 };
 
+const root = useTemplateRef<HTMLElement>('root');
+// A step selected from the panel may be out of view: bring it in, without moving the page more than needed.
+watch(() => props.selection, async (selected) => {
+  if (selected?.type !== 'step') {
+    return;
+  }
+  await nextTick();
+  root.value?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+});
+
 const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-visible:outline-2 '
   + 'focus-visible:outline-primary aria-[current=true]:font-semibold aria-[current=true]:text-primary';
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div
+    ref="root"
+    class="flex flex-col gap-6"
+  >
     <section
       v-for="group in groups"
       :key="group.key"

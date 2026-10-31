@@ -25,11 +25,19 @@ export function indexTrace(trace: Trace) {
   const listeners = new Map(trace.nodes.flatMap((node) => (node.type === 'listener' ? [[node.id, node.listener]] : [])));
   const request = trace.steps.filter(({ role }) => role === 'request');
   const byDepth = Map.groupBy(trace.steps.filter(({ role }) => role === 'dependency'), ({ depth }) => depth);
+  const dependencies = [...byDepth.entries()].toSorted(([a], [b]) => a - b);
+  // The order the list shows: the request, then the dependencies by level.
+  const walk = [...request, ...dependencies.flatMap(([, steps]) => steps)];
   return {
-    walk: [] as TraceStep[],
-    position: (_stepId: string): StepPosition | undefined => undefined,
+    walk,
+    position: (stepId: string): StepPosition | undefined => {
+      const at = walk.findIndex(({ id }) => id === stepId);
+      return at === -1
+        ? undefined
+        : { position: at + 1, total: walk.length, previous: walk[at - 1]?.id, next: walk[at + 1]?.id };
+    },
     request,
-    dependencies: [...byDepth.entries()].toSorted(([a], [b]) => a - b),
+    dependencies,
     entries: request.filter(({ source }) => source === 'client').length,
     step: (id: string) => trace.steps.find((step) => step.id === id),
     listener: (id: string): Listener | undefined => listeners.get(id),
