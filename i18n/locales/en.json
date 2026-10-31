@@ -12,5 +12,97 @@
       "unknown": "No details available | No details available for {count} entries",
       "more": "{count} more step | {count} more steps"
     }
+  },
+  "common": {
+    "retry": "Try again"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "graph": "Graph"
+  },
+  "preferences": {
+    "title": "Display",
+    "theme": "Theme",
+    "midnight": "Midnight",
+    "light": "Light",
+    "contrast": "Contrast",
+    "standard": "Standard",
+    "strict": "RGAA strict",
+    "language": "Language"
+  },
+  "traffic": {
+    "title": "Traffic",
+    "view": "View",
+    "graph": "Graph",
+    "loading": "Loading the traffic…",
+    "empty": "Nothing to draw yet",
+    "emptyHint": "Hosts, services and their flows will appear here.",
+    "noWorkspace": "No workspace yet",
+    "noWorkspaceHint": "Start Stackmap without STACKMAP_DEMO=false to explore the demo workspace.",
+    "error": "The traffic could not be loaded.",
+    "layoutError": "The graph could not be laid out.",
+    "truncated": "Only part of this workspace is shown: it is too large to draw at once.",
+    "summary": "{hosts}, {services}, {flows}",
+    "count": {
+      "hosts": "{count} host | {count} hosts",
+      "services": "{count} service | {count} services",
+      "flows": "{count} flow | {count} flows"
+    },
+    "selected": "Selected: {name}",
+    "client": {
+      "public": "Internet",
+      "internal": "Local network"
+    },
+    "external": "External",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to view",
+    "canvas": "Traffic graph",
+    "node": {
+      "host": "{name}, {kind}, {count} service | {name}, {kind}, {count} services",
+      "service": "{name}, {kind}, on {host}, {count} port | {name}, {kind}, on {host}, {count} ports",
+      "externalService": "{name}, {kind}, external, {count} port | {name}, {kind}, external, {count} ports"
+    },
+    "edge": "From {source} to {service}, port {port}",
+    "more": "+{count} more",
+    "origin": {
+      "derived": "Derived by {extension} ({deriver})",
+      "manual": "Documented by hand"
+    },
+    "table": {
+      "label": "Traffic by host",
+      "port": "Port",
+      "from": "From",
+      "names": "Names",
+      "how": "How",
+      "noFlow": "No incoming flow",
+      "noService": "No service"
+    },
+    "list": "List"
+  },
+  "detail": {
+    "label": "Details",
+    "close": "Close details",
+    "kind": "Kind",
+    "host": "Host",
+    "service": "Service",
+    "port": "Port",
+    "from": "From",
+    "to": "To",
+    "origin": "Origin",
+    "names": "Names",
+    "ports": "Ports",
+    "incoming": "Incoming flows",
+    "outgoing": "Outgoing flows",
+    "services": "Services",
+    "none": "None",
+    "protocol": "Protocol",
+    "encrypted": "Encrypted",
+    "purpose": "Purpose",
+    "publishedPort": "Published port",
+    "yes": "Yes",
+    "no": "No",
+    "unknown": "Unknown",
+    "moreNames": "and {count} more"
   }
 }

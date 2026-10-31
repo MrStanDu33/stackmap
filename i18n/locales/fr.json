@@ -12,5 +12,97 @@
       "unknown": "Aucun détail disponible | Aucun détail disponible pour {count} éléments",
       "more": "{count} étape de plus | {count} étapes de plus"
     }
+  },
+  "common": {
+    "retry": "Réessayer"
+  },
+  "nav": {
+    "label": "Navigation principale",
+    "graph": "Graphe"
+  },
+  "preferences": {
+    "title": "Affichage",
+    "theme": "Thème",
+    "midnight": "Nuit",
+    "light": "Clair",
+    "contrast": "Contraste",
+    "standard": "Standard",
+    "strict": "RGAA renforcé",
+    "language": "Langue"
+  },
+  "traffic": {
+    "title": "Trafic",
+    "view": "Vue",
+    "graph": "Graphe",
+    "loading": "Chargement du trafic…",
+    "empty": "Rien à dessiner pour l'instant",
+    "emptyHint": "Les hôtes, les services et leurs flux apparaîtront ici.",
+    "noWorkspace": "Aucun espace de travail",
+    "noWorkspaceHint": "Démarrez Stackmap sans STACKMAP_DEMO=false pour explorer l'espace de démonstration.",
+    "error": "Le trafic n'a pas pu être chargé.",
+    "layoutError": "Le graphe n'a pas pu être disposé.",
+    "truncated": "Seule une partie de cet espace de travail est affichée : il est trop grand pour être dessiné d'un coup.",
+    "summary": "{hosts}, {services}, {flows}",
+    "count": {
+      "hosts": "{count} hôte | {count} hôtes",
+      "services": "{count} service | {count} services",
+      "flows": "{count} flux | {count} flux"
+    },
+    "selected": "Sélection : {name}",
+    "client": {
+      "public": "Internet",
+      "internal": "Réseau local"
+    },
+    "external": "Externe",
+    "zoomIn": "Zoomer",
+    "zoomOut": "Dézoomer",
+    "fit": "Ajuster à la vue",
+    "canvas": "Graphe du trafic",
+    "node": {
+      "host": "{name}, {kind}, {count} service | {name}, {kind}, {count} services",
+      "service": "{name}, {kind}, sur {host}, {count} port | {name}, {kind}, sur {host}, {count} ports",
+      "externalService": "{name}, {kind}, externe, {count} port | {name}, {kind}, externe, {count} ports"
+    },
+    "edge": "De {source} vers {service}, port {port}",
+    "more": "+{count} de plus",
+    "origin": {
+      "derived": "Déduit par {extension} ({deriver})",
+      "manual": "Documenté à la main"
+    },
+    "table": {
+      "label": "Trafic par hôte",
+      "port": "Port",
+      "from": "Depuis",
+      "names": "Noms",
+      "how": "Comment",
+      "noFlow": "Aucun flux entrant",
+      "noService": "Aucun service"
+    },
+    "list": "Liste"
+  },
+  "detail": {
+    "label": "Détails",
+    "close": "Fermer les détails",
+    "kind": "Type",
+    "host": "Hôte",
+    "service": "Service",
+    "port": "Port",
+    "from": "Depuis",
+    "to": "Vers",
+    "origin": "Origine",
+    "names": "Noms",
+    "ports": "Ports",
+    "incoming": "Flux entrants",
+    "outgoing": "Flux sortants",
+    "services": "Services",
+    "none": "Aucun",
+    "protocol": "Protocole",
+    "encrypted": "Chiffré",
+    "purpose": "Objectif",
+    "publishedPort": "Port publié",
+    "yes": "Oui",
+    "no": "Non",
+    "unknown": "Inconnu",
+    "moreNames": "et {count} de plus"
   }
 }
