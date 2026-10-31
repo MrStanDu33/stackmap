@@ -290,12 +290,24 @@ healthcheck calls it. The database error goes to the logs, never to the response
   the app works offline and tells no third party where it runs.
 - Accessibility targets RGAA 4.1 / WCAG 2.1 AA; the strict mode raises contrast to AAA, removes motion, keeps focus
   visible and enlarges targets. Every graph has an accessible table equivalent.
+- Every page sits in the `AppShell` template: a skip link, the `AppSidebar` (only the sections that exist; a drawer
+  on narrow screens) with the display preferences (theme, contrast, language), and the main landmark. The preferences
+  are kept in the browser (Nuxt color mode, the `stackmap_contrast` and `stackmap_locale` cookies, applied during SSR
+  by `app/plugins/contrast.ts` and i18n) until accounts save them per user.
+- The Traffic view (`/graph`) draws `GET /api/workspaces/:workspaceId/traffic` for the `demo` workspace with Vue Flow:
+  hosts hold their services, services list their ports, and each flow ends on its port. ELK lays it out in a web
+  worker (`app/composables/useTrafficLayout.ts`, from the pure helpers in `app/utils/traffic-graph.ts`); nodes are
+  focusable with names in the current language (Vue Flow's own English keyboard help is turned off, the graph is
+  read-only). `?view=list` shows the same data as tables, one per host. Selecting a host, service, port or flow opens
+  the detail panel and highlights its flows, thicker and solid against dimmed and dashed ones; a live region
+  announces it, and Escape closes the panel and returns focus.
 
 ## Testing
 
 Tests are the specification: acceptance criteria are written as test names before the code. Layers: unit tests
 (Vitest), integration tests against SQLite and Postgres, stories as component tests, Docker image smoke tests, and
-end-to-end tests with Playwright and axe _(planned)_. Coverage thresholds and nightly mutation testing guard the domain
+end-to-end tests with Playwright and axe against the built app (one server seeded with the demo workspace, one
+without). Coverage thresholds and nightly mutation testing guard the domain
 logic. Test data comes from factories (the core's in `extensions/core/testing`, for its tests and those of the
 extensions built on it) and the demo stack, with fictional values only (documentation and private IP ranges,
 `.example` names), which tests check. On Postgres, each test gets its own schema, in a database of its Vitest worker.
