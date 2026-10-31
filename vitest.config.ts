@@ -43,6 +43,8 @@ export default defineConfig({
         },
       },
       {
+        // The app's alias for shared code, as Nuxt and Storybook resolve it: client helpers import contracts with it.
+        resolve: { alias: { '#shared': join(import.meta.dirname, 'shared') } },
         test: {
           name: 'unit',
           environment: 'node',
