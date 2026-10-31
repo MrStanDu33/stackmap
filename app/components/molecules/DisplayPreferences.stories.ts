@@ -25,7 +25,9 @@ export const Default: Story = {
 
     await expect(canvas.getByRole('heading', { name: t('preferences.title') })).toBeVisible();
     await expect(canvas.getByRole('radiogroup', { name: t('preferences.theme') })).toBeVisible();
-    await expect(canvas.getByRole('radio', { name: t('preferences.midnight') })).toBeChecked();
+    // The current theme: each theme's story project starts from its own.
+    const theme = html.classList.contains('light') ? 'preferences.light' : 'preferences.midnight';
+    await expect(canvas.getByRole('radio', { name: t(theme) })).toBeChecked();
     await expect(canvas.getByRole('radiogroup', { name: t('preferences.contrast') })).toBeVisible();
     await expect(canvas.getByRole('radio', { name: t('preferences.standard') })).toBeChecked();
     await expect(canvas.getByRole('combobox', { name: t('preferences.language') })).toHaveTextContent(i18n.global.locale.value === 'fr' ? 'Français' : 'English');
@@ -62,6 +64,6 @@ export const French: Story = {
     await userEvent.click(within(document.body).getByRole('option', { name: 'Français' }));
 
     await waitFor(() => expect(i18n.global.locale.value).toBe('fr'));
-    await expect(canvas.getByRole('heading', { name: 'Affichage' })).toBeVisible();
+    await expect(await canvas.findByRole('heading', { name: 'Affichage' })).toBeVisible();
   },
 };

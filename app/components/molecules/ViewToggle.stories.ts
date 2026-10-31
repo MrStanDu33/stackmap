@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import ViewToggle from './ViewToggle.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
@@ -26,9 +26,12 @@ export const Graph: Story = {
     await expect(graph).toBeChecked();
     await expect(within(group).getByRole('radio', { name: t('traffic.list') })).not.toBeChecked();
     graph.focus();
-    await userEvent.keyboard('{ArrowRight}');
+    // Held down, as a real key press is: the radio group selects the focused item a tick later, if the key is
+    // still down.
+    await userEvent.keyboard('{ArrowRight>}');
 
-    await expect(args['onUpdate:modelValue']).toHaveBeenCalledWith('list');
+    await waitFor(() => expect(args['onUpdate:modelValue']).toHaveBeenCalledWith('list'));
+    await userEvent.keyboard('{/ArrowRight}');
   },
 };
 
