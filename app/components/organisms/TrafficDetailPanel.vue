@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { indexTraffic, originLabel, portLabel, selectionName, sourceOf, targetName } from '../../utils/traffic-index';
+import { indexTraffic, originLabel, portLabel, selectionName, sourceOf, targetName, traceLinks } from '../../utils/traffic-index';
 
 import type { Traffic } from '#shared/contracts/traffic';
 import type { Selection } from '../../utils/traffic-selection';
@@ -37,6 +37,11 @@ const outgoing = computed(() => (service.value || client.value
   ? index.value.flowsFrom(props.selection)
   : []));
 
+// Names to trace: the flow's own, or those of the flows reaching the port or service.
+const reaching = computed(() => (service.value || port.value ? index.value.namesReaching(props.selection) : []));
+const flowLinks = computed(() => new Map((flow.value ? traceLinks([flow.value]) : [])
+  .map((item) => [item.hostname, item])));
+
 const yesNo = (value: boolean | null) => {
   if (value === null) {
     return t('detail.unknown');
@@ -48,6 +53,8 @@ const select = (type: Selection['type'], id: string) => {
   emit('select', { type, id });
 };
 
+const traceLink = 'inline-flex items-center gap-1 rounded-sm text-primary underline underline-offset-2 '
+  + 'focus-visible:outline-2 focus-visible:outline-primary';
 const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary';
 </script>
 
@@ -226,6 +233,42 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
       </ul>
     </section>
 
+    <section
+      v-if="service || port"
+      aria-labelledby="traffic-detail-reaching"
+    >
+      <h3
+        id="traffic-detail-reaching"
+        class="font-medium"
+      >
+        {{ t('detail.namesReaching') }}
+      </h3>
+      <ul class="flex flex-col gap-1 text-sm">
+        <li
+          v-for="item in reaching"
+          :key="`${item.hostname} ${item.client}`"
+        >
+          <NuxtLink
+            :to="{ path: '/trace', query: { hostname: item.hostname, client: item.client } }"
+            :class="traceLink"
+          >
+            {{ t(`detail.trace.${item.client}`, { hostname: item.hostname }) }}
+            <UIcon
+              name="i-lucide-route"
+              class="size-4 shrink-0"
+              aria-hidden="true"
+            />
+          </NuxtLink>
+        </li>
+        <li
+          v-if="reaching.length === 0"
+          class="text-muted"
+        >
+          {{ t('detail.none') }}
+        </li>
+      </ul>
+    </section>
+
     <section v-if="service || client">
       <h3 class="font-medium">
         {{ t('detail.outgoing') }}
@@ -308,8 +351,21 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
             <li
               v-for="name in flow.hostnames"
               :key="name"
+              class="mb-1"
             >
-              {{ name }}
+              <span class="block">{{ name }}</span>
+              <NuxtLink
+                v-if="flowLinks.get(name)"
+                :to="{ path: '/trace', query: { hostname: name, client: flowLinks.get(name)?.client } }"
+                :class="traceLink"
+              >
+                {{ t(`detail.trace.${flowLinks.get(name)?.client}`, { hostname: name }) }}
+                <UIcon
+                  name="i-lucide-route"
+                  class="size-4 shrink-0"
+                  aria-hidden="true"
+                />
+              </NuxtLink>
             </li>
             <li
               v-if="flow.hostnameCount > flow.hostnames.length"

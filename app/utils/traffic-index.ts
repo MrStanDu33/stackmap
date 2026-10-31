@@ -25,7 +25,19 @@ export interface TraceLink {
 }
 
 /** The names the flows serve, each with the client to trace it from. */
-export const traceLinks = (_flows: readonly TrafficFlow[]): TraceLink[] => [];
+export function traceLinks(flows: readonly TrafficFlow[]): TraceLink[] {
+  const links = new Map<string, TraceLink>();
+  for (const { source, hostnames } of flows) {
+    // A flow between services is reached from the Internet first; the trace says so if it is not.
+    const client = source.type === 'client' ? source.client : 'public';
+    // The trace route refuses wildcards.
+    for (const hostname of hostnames.filter((name) => !name.startsWith('*.'))) {
+      links.set(`${hostname} ${client}`, { hostname, client });
+    }
+  }
+  return [...links.values()].toSorted((a, b) => a.hostname.localeCompare(b.hostname)
+    || (a.client === b.client ? 0 : a.client === 'public' ? -1 : 1));
+}
 
 export function indexTraffic(traffic: Traffic) {
   const hosts = new Map(traffic.hosts.map((host) => [host.id, host]));
@@ -50,7 +62,14 @@ export function indexTraffic(traffic: Traffic) {
     flowsFrom: ({ type, id }: Pick<Selection, 'type' | 'id'>) => traffic.flows.filter(({ source }) => (type === 'client'
       ? source.type === 'client' && source.client === id
       : source.type === 'service' && source.serviceId === id)),
-    namesReaching: (_selection: Pick<Selection, 'type' | 'id'>): TraceLink[] => [],
+    namesReaching: ({ type, id }: Pick<Selection, 'type' | 'id'>): TraceLink[] => {
+      if (type === 'listener') {
+        return traceLinks(flowsByTarget.get(id) ?? []);
+      }
+      return type === 'service'
+        ? traceLinks((portsByService.get(id) ?? []).flatMap((port) => flowsByTarget.get(port.id) ?? []))
+        : [];
+    },
     sourceName: (flow: TrafficFlow, t: Translate) => (flow.source.type === 'client'
       ? t(`traffic.client.${flow.source.client}`)
       : services.get(flow.source.serviceId)?.name ?? ''),
