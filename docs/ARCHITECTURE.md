@@ -310,7 +310,13 @@ healthcheck calls it. The database error goes to the logs, never to the response
   request, dashed for dependencies, dotted for cycles, and every step's hops are the extensions' translated sentences
   (a missing translation reads "{entity}: no description"). `?view=list` shows the ordered steps with their hops as
   the accessible equivalent, and the detail panel shows a step's hops in order or a listener's steps in and out. Both
-  graphs share their layout code (`useElkLayout`, ELK in a worker) and their conventions.
+  graphs share their layout code (`useElkLayout`, ELK in a worker) and their conventions. A selected step's panel
+  walks the trace with Previous and Next in the list's order (the request, then the dependencies by level); the graph
+  pans to the step and the list scrolls to it. The selection is kept in `?selected=` (`step:<id>`, `listener:<id>` or
+  `client`), replaced rather than pushed, and dropped when it is not in the trace.
+- The Traffic view's panel links to traces: a flow's exact names, and the names of the flows reaching a port or
+  service, each traced from its flow's client (from the Internet for a flow between services). Wildcards are not
+  linked, since the trace route refuses them.
 - Solid buttons keep their background on hover and press and underline their label instead (`app/app.config.ts`):
   Nuxt UI's faded hover drops the label below 4.5:1 on the midnight theme. Warnings use the outline alert for the
   same reason in the light theme.
