@@ -31,8 +31,8 @@ export const Demo: Story = {
     await expect(canvas.getAllByRole('table').map((table) => table.querySelector('caption')?.textContent.trim()))
       .toEqual(['Edge router', 'Home server', t('traffic.external')]);
     await expect(within(server).getAllByRole('columnheader').map(({ textContent }) => textContent.trim()))
-      .toEqual([t('traffic.list.port'), t('traffic.list.from'), t('traffic.list.names'), t('traffic.list.how')]);
-    await expect(within(tableOf(canvasElement, 'Edge router')).getByText(t('traffic.list.noService'))).toBeVisible();
+      .toEqual([t('traffic.table.port'), t('traffic.table.from'), t('traffic.table.names'), t('traffic.table.how')]);
+    await expect(within(tableOf(canvasElement, 'Edge router')).getByText(t('traffic.table.noService'))).toBeVisible();
     // NPM's port 80: from the local network (DNS) and from the Internet (port forward).
     const http = within(server).getAllByRole('row').filter((row) => row.textContent.includes('80/tcp'));
     await expect(http).toHaveLength(2);
@@ -81,6 +81,6 @@ export const ManyNames: Story = {
     await expect(within(server).queryByText('site-10.homelab.example')).toBeNull();
     await expect(within(server).getByText(t('traffic.more', { count: 2 }))).toBeVisible();
     const unused = within(server).getAllByRole('row').find((row) => row.textContent.includes('9100/tcp'));
-    await expect(unused).toHaveTextContent(t('traffic.list.noFlow'));
+    await expect(unused).toHaveTextContent(t('traffic.table.noFlow'));
   },
 };

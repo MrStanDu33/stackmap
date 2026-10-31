@@ -27,7 +27,8 @@ test.describe('traffic view', () => {
     for (const name of ['Edge router', 'Home server', ...DEMO_SERVICES]) {
       await expect(page.locator('.vue-flow').getByText(name, { exact: true })).toBeVisible();
     }
-    await expect(page.getByRole('status')).toContainText('2 hosts, 4 services, 9 flows');
+    // Our live region: Nuxt's route announcer is another status region.
+    await expect(page.getByRole('status').filter({ hasText: '2 hosts, 4 services, 9 flows' })).toHaveCount(1);
     await expectNoAxeViolation(page);
   });
 
@@ -74,7 +75,7 @@ test.describe('traffic view', () => {
 
     await expect(page.getByRole('complementary').getByRole('heading', { level: 2, name: 'Website database' }))
       .toBeVisible();
-    await expect(page.getByRole('status')).toContainText('Selected: Website database');
+    await expect(page.getByRole('status').filter({ hasText: 'Selected: Website database' })).toHaveCount(1);
   });
 
   test('given the sidebar, French, light theme and strict contrast apply and survive a reload', async ({ page }) => {
@@ -101,7 +102,8 @@ test.describe('traffic view', () => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto('/graph');
 
-    await page.getByRole('button', { name: 'Open navigation' }).click();
+    // Nuxt UI's toggle, with its own translated labels.
+    await page.getByRole('button', { name: 'Open sidebar' }).click();
     const graphLink = page.getByRole('link', { name: 'Graph' });
     await expect(graphLink).toBeVisible();
     await expect(graphLink).toHaveAttribute('aria-current', 'page');

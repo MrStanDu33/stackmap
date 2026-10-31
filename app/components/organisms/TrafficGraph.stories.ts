@@ -51,7 +51,8 @@ export const Demo: Story = {
 
     await waitFor(() => expect(canvasElement.querySelectorAll('.vue-flow__edge')).toHaveLength(DEMO_TRAFFIC.flows.length));
     for (const name of ['Edge router', 'Home server', 'Nginx Proxy Manager', 'Website', 'Website database', 'Weather API']) {
-      await expect(canvas.getByText(name)).toBeVisible();
+      // Vue Flow shows a node once it has measured it, a moment after the edges.
+      await waitFor(() => expect(canvas.getByText(name)).toBeVisible());
     }
     await expect(canvas.getByText(t('traffic.client.public'))).toBeVisible();
     await expect(canvas.getByText(t('traffic.client.internal'))).toBeVisible();
