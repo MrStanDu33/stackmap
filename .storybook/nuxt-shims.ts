@@ -61,3 +61,30 @@ export const NuxtLink = defineComponent({
     return () => h(RouterLink, { to: props.to }, slots);
   },
 });
+
+/** Nuxt color mode, as the app configures it: `dark` (midnight) or `light`, applied as a class on `<html>`. */
+export const useColorMode = () => {
+  const html = document.documentElement;
+  return {
+    get preference(): string {
+      return html.classList.contains('light') ? 'light' : 'dark';
+    },
+    set preference(mode: string) {
+      html.classList.toggle('dark', mode === 'dark');
+      html.classList.toggle('light', mode === 'light');
+    },
+    get value(): string {
+      return this.preference;
+    },
+  };
+};
+
+const cookies = new Map<string, Ref>();
+
+/** Cookies kept in memory: stories have no server to send them to. */
+export const useCookie = <T>(name: string, options: { default?: () => T } = {}): Ref<T> => {
+  if (!cookies.has(name)) {
+    cookies.set(name, ref(options.default?.()));
+  }
+  return cookies.get(name) as Ref<T>;
+};

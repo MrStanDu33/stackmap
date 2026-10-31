@@ -68,6 +68,23 @@ jobs:
       - run: pnpm test:stories
       - run: pnpm storybook:build
 
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      # The built app with the demo workspace, and one without: user journeys, keyboard and axe.
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-24.04

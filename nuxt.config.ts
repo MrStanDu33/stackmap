@@ -38,6 +38,7 @@ export default defineNuxtConfig({
         '../tests/unit/**/*',
         '../tests/support/**/*',
         '../tests/smoke/**/*',
+        '../tests/e2e/**/*',
         // The extension SDK and the built-in extensions' manifests and tests.
         '../packages/*/src/**/*',
         '../extensions/*/*.ts',

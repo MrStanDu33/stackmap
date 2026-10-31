@@ -7,5 +7,5 @@
   and a `play` function asserting the behavior. Stories are the component tests.
 - Use Nuxt UI components and semantic utilities; no palette shades or raw colors.
 - Every string through `$t()` / `useI18n()`, added to both `i18n/locales/en.json` and `fr.json`.
-- Nuxt APIs only through auto-imports (`useI18n`, `useState`, `useRuntimeConfig`, `useNuxtApp`, `NuxtLink`). If a
+- Nuxt APIs only through auto-imports (`useI18n`, `useState`, `useRuntimeConfig`, `useNuxtApp`, `useColorMode`, `useCookie`, `NuxtLink`). If a
   component needs more of Nuxt (data fetching, routing logic), it belongs in a page or container.
