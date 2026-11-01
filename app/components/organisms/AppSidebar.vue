@@ -20,6 +20,10 @@ const base = computed(() => (props.current ? `/w/${props.current}` : ''));
 const items = computed(() => [
   { label: t('traffic.title'), 'aria-label': t('traffic.title'), icon: 'i-lucide-waypoints', to: `${base.value}/graph` },
   { label: t('trace.title'), 'aria-label': t('trace.title'), icon: 'i-lucide-route', to: `${base.value}/trace` },
+  // A workspace's own page: only inside one.
+  ...(props.current
+    ? [{ label: t('members.title'), 'aria-label': t('members.title'), icon: 'i-lucide-users', to: `${base.value}/members` }]
+    : []),
 ]);
 </script>
 

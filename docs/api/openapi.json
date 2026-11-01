@@ -1254,6 +1254,900 @@
           }
         }
       }
+    },
+    "/api/workspaces/{workspaceId}/members": {
+      "get": {
+        "operationId": "listMembers",
+        "summary": "List the members",
+        "description": "The workspace's members by name, with their role. Admins and owners also get the pending invitations.\n\nRequires the viewer role.",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The members, and the pending invitations for admins and owners",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberList"
+                },
+                "examples": {
+                  "owner": {
+                    "summary": "As an owner",
+                    "value": {
+                      "members": [
+                        {
+                          "userId": "0199d6a0-0000-7000-8000-000000000101",
+                          "name": "Ada",
+                          "email": "ada@homelab.example",
+                          "role": "owner",
+                          "joinedAt": "2026-10-31T09:00:00.000Z"
+                        },
+                        {
+                          "userId": "0199d6a0-0000-7000-8000-000000000102",
+                          "name": "Grace",
+                          "email": "grace@homelab.example",
+                          "role": "editor",
+                          "joinedAt": "2026-11-01T09:00:00.000Z"
+                        }
+                      ],
+                      "invitations": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000201",
+                          "email": "alan@homelab.example",
+                          "role": "viewer",
+                          "invitedBy": "Ada",
+                          "expiresAt": "2026-11-08T09:00:00.000Z"
+                        }
+                      ]
+                    }
+                  },
+                  "viewer": {
+                    "summary": "As a viewer",
+                    "value": {
+                      "members": [
+                        {
+                          "userId": "0199d6a0-0000-7000-8000-000000000101",
+                          "name": "Ada",
+                          "email": "ada@homelab.example",
+                          "role": "owner",
+                          "joinedAt": "2026-10-31T09:00:00.000Z"
+                        },
+                        {
+                          "userId": "0199d6a0-0000-7000-8000-000000000102",
+                          "name": "Grace",
+                          "email": "grace@homelab.example",
+                          "role": "editor",
+                          "joinedAt": "2026-11-01T09:00:00.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "$ref": "#/components/responses/WorkspaceNotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/members/{userId}": {
+      "patch": {
+        "operationId": "updateMember",
+        "summary": "Change a member's role",
+        "description": "Admins change editors and viewers to editor or viewer; owners change any role. A workspace keeps at least one owner.\n\nRequires the viewer role.",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The member's account id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000102"
+              ]
+            },
+            "required": true,
+            "description": "The member's account id",
+            "example": "0199d6a0-0000-7000-8000-000000000102"
+          }
+        ],
+        "requestBody": {
+          "description": "The new role",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "viewer",
+                      "editor",
+                      "admin",
+                      "owner"
+                    ],
+                    "description": "Their role in the workspace",
+                    "examples": [
+                      "editor"
+                    ]
+                  }
+                },
+                "required": [
+                  "role"
+                ],
+                "additionalProperties": false,
+                "description": "The new role"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The member, with the new role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                },
+                "examples": {
+                  "changed": {
+                    "summary": "Now a viewer",
+                    "value": {
+                      "userId": "0199d6a0-0000-7000-8000-000000000102",
+                      "name": "Grace",
+                      "email": "grace@homelab.example",
+                      "role": "viewer",
+                      "joinedAt": "2026-11-01T09:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "description": "The caller may not manage this member or grant this role",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "The caller may not manage this member or grant this role",
+                    "value": {
+                      "type": "urn:stackmap:problem:forbidden",
+                      "title": "You may not do this",
+                      "status": 403,
+                      "detail": "Admins manage editors and viewers only.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/members/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This user is not a member of the workspace",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "member_not_found": {
+                    "summary": "This user is not a member of the workspace",
+                    "value": {
+                      "type": "urn:stackmap:problem:member_not_found",
+                      "title": "Not a member",
+                      "status": 404,
+                      "detail": "No member with this id in the workspace.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/members/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "member_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The change would leave the workspace without an owner",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "last_owner": {
+                    "summary": "The change would leave the workspace without an owner",
+                    "value": {
+                      "type": "urn:stackmap:problem:last_owner",
+                      "title": "A workspace needs an owner",
+                      "status": 409,
+                      "detail": "A workspace needs at least one owner.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/members/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "last_owner"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeMember",
+        "summary": "Remove a member, or leave",
+        "description": "Admins remove editors and viewers; owners remove anyone; every member may remove themselves. A workspace keeps at least one owner.\n\nRequires the viewer role.",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The member's account id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000102"
+              ]
+            },
+            "required": true,
+            "description": "The member's account id",
+            "example": "0199d6a0-0000-7000-8000-000000000102"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "removed": {
+                    "summary": "Removed",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "description": "The caller may not manage this member or grant this role",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "forbidden": {
+                    "summary": "The caller may not manage this member or grant this role",
+                    "value": {
+                      "type": "urn:stackmap:problem:forbidden",
+                      "title": "You may not do this",
+                      "status": 403,
+                      "detail": "Admins manage editors and viewers only.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/members/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "forbidden"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "This user is not a member of the workspace",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "member_not_found": {
+                    "summary": "This user is not a member of the workspace",
+                    "value": {
+                      "type": "urn:stackmap:problem:member_not_found",
+                      "title": "Not a member",
+                      "status": 404,
+                      "detail": "No member with this id in the workspace.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/members/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "member_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The change would leave the workspace without an owner",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "last_owner": {
+                    "summary": "The change would leave the workspace without an owner",
+                    "value": {
+                      "type": "urn:stackmap:problem:last_owner",
+                      "title": "A workspace needs an owner",
+                      "status": 409,
+                      "detail": "A workspace needs at least one owner.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/members/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "last_owner"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/invitations": {
+      "post": {
+        "operationId": "createInvitation",
+        "summary": "Invite someone",
+        "description": "Creates a link that adds the person with this email to the workspace with this role, valid 7 days and once. The link is only in this answer: only its hash is stored. Inviting the same email again replaces the old link. Admins invite editors and viewers; owners invite any role.\n\nRequires the admin role.",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-required-role": "admin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          }
+        ],
+        "requestBody": {
+          "description": "Whom to invite, and as what",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "description": "Its email; compared without case",
+                    "examples": [
+                      "ada@homelab.example"
+                    ]
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "viewer",
+                      "editor",
+                      "admin",
+                      "owner"
+                    ],
+                    "description": "Their role once they accept",
+                    "examples": [
+                      "viewer"
+                    ]
+                  }
+                },
+                "required": [
+                  "email",
+                  "role"
+                ],
+                "additionalProperties": false,
+                "description": "Whom to invite, and as what"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The invitation and its link, shown once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedInvitation"
+                },
+                "examples": {
+                  "created": {
+                    "summary": "A viewer invited",
+                    "value": {
+                      "invitation": {
+                        "id": "0199d6a0-0000-7000-8000-000000000201",
+                        "email": "alan@homelab.example",
+                        "role": "viewer",
+                        "invitedBy": "Ada",
+                        "expiresAt": "2026-11-08T09:00:00.000Z"
+                      },
+                      "url": "/invite/Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/WorkspaceNotFound"
+          },
+          "409": {
+            "description": "The person is already a member",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "already_member": {
+                    "summary": "The person is already a member",
+                    "value": {
+                      "type": "urn:stackmap:problem:already_member",
+                      "title": "Already a member",
+                      "status": 409,
+                      "detail": "This email belongs to a member already.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/invitations",
+                      "code": "already_member"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/invitations/{invitationId}": {
+      "delete": {
+        "operationId": "revokeInvitation",
+        "summary": "Revoke an invitation",
+        "description": "Deletes a pending invitation: its link stops working.\n\nRequires the admin role.",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-required-role": "admin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "path",
+            "name": "invitationId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The invitation's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000201"
+              ]
+            },
+            "required": true,
+            "description": "The invitation's id",
+            "example": "0199d6a0-0000-7000-8000-000000000201"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "revoked": {
+                    "summary": "Revoked",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No invitation has this link: it may have expired, been used or been revoked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "invitation_not_found": {
+                    "summary": "No invitation has this link: it may have expired, been used or been revoked",
+                    "value": {
+                      "type": "urn:stackmap:problem:invitation_not_found",
+                      "title": "The invitation does not exist",
+                      "status": 404,
+                      "detail": "This invitation does not exist or is no longer valid.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/invitations/0199d6a0-0000-7000-8000-000000000201",
+                      "code": "invitation_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/invitations/{token}": {
+      "get": {
+        "operationId": "getInvitation",
+        "summary": "Read an invitation",
+        "description": "What an invitation link offers, for its page. It says nothing about whether the email has an account.\n\nPublic: anyone can call it.",
+        "tags": [
+          "Accounts"
+        ],
+        "security": [],
+        "x-required-role": "public",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "schema": {
+              "type": "string",
+              "maxLength": 43,
+              "pattern": "^[\\w-]{43}$",
+              "description": "The token of the invitation link",
+              "examples": [
+                "Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4"
+              ]
+            },
+            "required": true,
+            "description": "The token of the invitation link",
+            "example": "Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                },
+                "examples": {
+                  "viewer": {
+                    "summary": "A viewer invited to Demo",
+                    "value": {
+                      "workspace": "Demo",
+                      "role": "viewer",
+                      "email": "alan@homelab.example",
+                      "invitedBy": "Ada",
+                      "expiresAt": "2026-11-08T09:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "404": {
+            "description": "No invitation has this link: it may have expired, been used or been revoked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "invitation_not_found": {
+                    "summary": "No invitation has this link: it may have expired, been used or been revoked",
+                    "value": {
+                      "type": "urn:stackmap:problem:invitation_not_found",
+                      "title": "The invitation does not exist",
+                      "status": 404,
+                      "detail": "This invitation does not exist or is no longer valid.",
+                      "instance": "/api/invitations/Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4",
+                      "code": "invitation_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/invitations/{token}/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "summary": "Accept an invitation",
+        "description": "Adds the signed-in account to the workspace with the invitation's role, and uses the link up. The account's email must be the invited one: links create no accounts, since whoever holds one could claim its email.\n\nRequires a session.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "signedIn",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "schema": {
+              "type": "string",
+              "maxLength": 43,
+              "pattern": "^[\\w-]{43}$",
+              "description": "The token of the invitation link",
+              "examples": [
+                "Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4"
+              ]
+            },
+            "required": true,
+            "description": "The token of the invitation link",
+            "example": "Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted: the workspace to open",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 48,
+                      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                      "description": "The workspace's slug",
+                      "examples": [
+                        "demo"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "slug"
+                  ],
+                  "additionalProperties": false
+                },
+                "examples": {
+                  "accepted": {
+                    "summary": "Accepted",
+                    "value": {
+                      "slug": "demo"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "description": "The invitation is for another email",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "invitation_email_mismatch": {
+                    "summary": "The invitation is for another email",
+                    "value": {
+                      "type": "urn:stackmap:problem:invitation_email_mismatch",
+                      "title": "The invitation is for someone else",
+                      "status": 403,
+                      "detail": "This invitation is for another email.",
+                      "instance": "/api/invitations/Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4/accept",
+                      "code": "invitation_email_mismatch"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No invitation has this link: it may have expired, been used or been revoked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "invitation_not_found": {
+                    "summary": "No invitation has this link: it may have expired, been used or been revoked",
+                    "value": {
+                      "type": "urn:stackmap:problem:invitation_not_found",
+                      "title": "The invitation does not exist",
+                      "status": 404,
+                      "detail": "This invitation does not exist or is no longer valid.",
+                      "instance": "/api/invitations/Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4/accept",
+                      "code": "invitation_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts from this address; `Retry-After` says when to try again",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "too_many_requests": {
+                    "summary": "Too many attempts from this address; `Retry-After` says when to try again",
+                    "value": {
+                      "type": "urn:stackmap:problem:too_many_requests",
+                      "title": "Too many attempts",
+                      "status": 429,
+                      "detail": "Too many attempts. Try again in 42 seconds.",
+                      "instance": "/api/invitations/Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4/accept",
+                      "code": "too_many_requests"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1373,10 +2267,15 @@
               "too_many_requests",
               "workspace_not_found",
               "workspace_slug_taken",
+              "invitation_not_found",
+              "invitation_email_mismatch",
+              "already_member",
+              "member_not_found",
+              "last_owner",
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -5899,6 +6798,332 @@
             "hostnameCount": 3
           }
         ]
+      },
+      "MemberList": {
+        "type": "object",
+        "properties": {
+          "members": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Member"
+            },
+            "description": "By name"
+          },
+          "invitations": {
+            "description": "Pending invitations, for admins and owners only",
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingInvitation"
+            }
+          }
+        },
+        "required": [
+          "members"
+        ],
+        "additionalProperties": false,
+        "description": "Members",
+        "examples": [
+          {
+            "members": [
+              {
+                "userId": "0199d6a0-0000-7000-8000-000000000101",
+                "name": "Ada",
+                "email": "ada@homelab.example",
+                "role": "owner",
+                "joinedAt": "2026-10-31T09:00:00.000Z"
+              },
+              {
+                "userId": "0199d6a0-0000-7000-8000-000000000102",
+                "name": "Grace",
+                "email": "grace@homelab.example",
+                "role": "editor",
+                "joinedAt": "2026-11-01T09:00:00.000Z"
+              }
+            ],
+            "invitations": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000201",
+                "email": "alan@homelab.example",
+                "role": "viewer",
+                "invitedBy": "Ada",
+                "expiresAt": "2026-11-08T09:00:00.000Z"
+              }
+            ]
+          }
+        ]
+      },
+      "Member": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "The account's id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000101"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "Its name",
+            "examples": [
+              "Ada"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Its email; compared without case",
+            "examples": [
+              "ada@homelab.example"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin",
+              "owner"
+            ],
+            "description": "Their role in the workspace",
+            "examples": [
+              "editor"
+            ]
+          },
+          "joinedAt": {
+            "type": "string",
+            "maxLength": 30,
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When they joined",
+            "examples": [
+              "2026-10-31T09:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "email",
+          "role",
+          "joinedAt"
+        ],
+        "additionalProperties": false,
+        "description": "A member of a workspace",
+        "examples": [
+          {
+            "userId": "0199d6a0-0000-7000-8000-000000000101",
+            "name": "Ada",
+            "email": "ada@homelab.example",
+            "role": "owner",
+            "joinedAt": "2026-10-31T09:00:00.000Z"
+          }
+        ]
+      },
+      "PendingInvitation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000201"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Its email; compared without case",
+            "examples": [
+              "ada@homelab.example"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin",
+              "owner"
+            ],
+            "description": "Their role in the workspace",
+            "examples": [
+              "editor"
+            ]
+          },
+          "invitedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who invited them, or null once that account is gone",
+            "examples": [
+              "Ada"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "maxLength": 30,
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the link stops working",
+            "examples": [
+              "2026-11-08T09:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "invitedBy",
+          "expiresAt"
+        ],
+        "additionalProperties": false,
+        "description": "An invitation not accepted yet",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000201",
+            "email": "alan@homelab.example",
+            "role": "viewer",
+            "invitedBy": "Ada",
+            "expiresAt": "2026-11-08T09:00:00.000Z"
+          }
+        ]
+      },
+      "CreatedInvitation": {
+        "type": "object",
+        "properties": {
+          "invitation": {
+            "$ref": "#/components/schemas/PendingInvitation"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^\\/invite\\/[\\w-]{43}$",
+            "description": "The link's path, to send to the person",
+            "examples": [
+              "/invite/Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4"
+            ]
+          }
+        },
+        "required": [
+          "invitation",
+          "url"
+        ],
+        "additionalProperties": false,
+        "description": "A new invitation",
+        "examples": [
+          {
+            "invitation": {
+              "id": "0199d6a0-0000-7000-8000-000000000201",
+              "email": "alan@homelab.example",
+              "role": "viewer",
+              "invitedBy": "Ada",
+              "expiresAt": "2026-11-08T09:00:00.000Z"
+            },
+            "url": "/invite/Zm9yIHRoZSBleGFtcGxlIG9ubHkgbm90IGEgdG9rZW4"
+          }
+        ]
+      },
+      "Invitation": {
+        "type": "object",
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "The workspace's name",
+            "examples": [
+              "Demo"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor",
+              "admin",
+              "owner"
+            ],
+            "description": "The role it gives",
+            "examples": [
+              "viewer"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Its email; compared without case",
+            "examples": [
+              "ada@homelab.example"
+            ]
+          },
+          "invitedBy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who invited them",
+            "examples": [
+              "Ada"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "maxLength": 30,
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When the link stops working",
+            "examples": [
+              "2026-11-08T09:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "workspace",
+          "role",
+          "email",
+          "invitedBy",
+          "expiresAt"
+        ],
+        "additionalProperties": false,
+        "description": "An invitation, as its link shows it",
+        "examples": [
+          {
+            "workspace": "Demo",
+            "role": "viewer",
+            "email": "alan@homelab.example",
+            "invitedBy": "Ada",
+            "expiresAt": "2026-11-08T09:00:00.000Z"
+          }
+        ]
       }
     },
     "responses": {
@@ -6051,6 +7276,29 @@
                   "detail": "This operation needs the editor role in the workspace.",
                   "instance": "/api/things/42",
                   "code": "forbidden"
+                }
+              }
+            }
+          }
+        }
+      },
+      "WorkspaceNotFound": {
+        "description": "No workspace has this id, or the caller is not one of its members.",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "examples": {
+              "workspace_not_found": {
+                "summary": "The workspace does not exist",
+                "value": {
+                  "type": "urn:stackmap:problem:workspace_not_found",
+                  "title": "The workspace does not exist",
+                  "status": 404,
+                  "detail": "No workspace with this id that you can open.",
+                  "instance": "/api/things/42",
+                  "code": "workspace_not_found"
                 }
               }
             }

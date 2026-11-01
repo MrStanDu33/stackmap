@@ -64,6 +64,31 @@ export const PROBLEMS = {
     title: 'The slug is taken',
     description: 'Another workspace already uses this slug.',
   },
+  invitation_not_found: {
+    status: 404,
+    title: 'The invitation does not exist',
+    description: 'No invitation has this link or id: it may have expired, been used or been revoked.',
+  },
+  invitation_email_mismatch: {
+    status: 403,
+    title: 'The invitation is for someone else',
+    description: 'The invitation is for another email than the signed-in account\'s.',
+  },
+  already_member: {
+    status: 409,
+    title: 'Already a member',
+    description: 'The person with this email is already a member of the workspace.',
+  },
+  member_not_found: {
+    status: 404,
+    title: 'Not a member',
+    description: 'This user is not a member of the workspace.',
+  },
+  last_owner: {
+    status: 409,
+    title: 'A workspace needs an owner',
+    description: 'The change would leave a workspace without an owner.',
+  },
   internal_error: {
     status: 500,
     title: 'Something went wrong',

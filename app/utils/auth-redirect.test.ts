@@ -52,3 +52,14 @@ describe('safeRedirect', () => {
     }
   });
 });
+
+describe('invitation pages', () => {
+  it('keeps /invite/<token> reachable signed out and signed in (12)', () => {
+    const path = `/invite/${'A'.repeat(43)}`;
+
+    expect(authRedirect(path, { setUp: true, signedIn: false })).toBeNull();
+    expect(authRedirect(path, { setUp: true, signedIn: true })).toBeNull();
+    // Before setup there is nothing to join.
+    expect(authRedirect(path, { setUp: false, signedIn: false })).toBe('/setup');
+  });
+});

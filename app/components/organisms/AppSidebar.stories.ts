@@ -108,5 +108,21 @@ export const WithWorkspaces: Story = {
     await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('href', '/w/demo/graph');
     await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('aria-current', 'page');
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).toHaveAttribute('href', '/w/demo/trace');
+    await expect(within(navigation).getByRole('link', { name: t('members.title') })).toHaveAttribute('href', '/w/demo/members');
+
+    // Open over the navigation, the menu takes the clicks: nothing of the sidebar covers its items.
+    await userEvent.click(canvas.getByRole('button', { name: t('workspace.switcher', { name: 'Demo' }) }));
+    const items = await waitFor(() => {
+      const found = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+      if (found.length === 0) {
+        throw new Error('The menu is not open.');
+      }
+      return found;
+    });
+    for (const item of items) {
+      const { left, top, width, height } = item.getBoundingClientRect();
+      await expect(item.contains(document.elementFromPoint(left + width / 2, top + height / 2))).toBe(true);
+    }
+    await userEvent.keyboard('{Escape}');
   },
 };

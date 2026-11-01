@@ -37,13 +37,15 @@ const items = computed<DropdownMenuItem[][]>(() => [
 <template>
   <!--
     Not modal: a menu of links, which hiding the rest of the page from screen readers would not help. Rendered in
-    place, so it stays in the sidebar's landmark (RGAA 12.6).
+    place, so it stays in the sidebar's landmark (RGAA 12.6), and above the sidebar's links, which would otherwise take
+    its clicks.
   -->
   <UDropdownMenu
     :items="items"
     :content="{ align: 'start' }"
     :modal="false"
     :portal="false"
+    :ui="{ content: 'z-50' }"
   >
     <!-- Disabled while the list loads, so it cannot open an empty menu. -->
     <UTooltip

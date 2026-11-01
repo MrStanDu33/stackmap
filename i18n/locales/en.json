@@ -251,6 +251,70 @@
     },
     "notFound": "Workspace not found",
     "notFoundHint": "It doesn’t exist, or you aren’t a member.",
-    "goToFirst": "Go to {name}"
+    "goToFirst": "Go to {name}",
+    "roleLabel": {
+      "owner": "Owner",
+      "admin": "Administrator",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    }
+  },
+  "members": {
+    "title": "Members",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "actions": "Actions",
+    "you": "(you)",
+    "roleOf": "Role of {name}",
+    "remove": "Remove {name}",
+    "leave": "Leave this workspace",
+    "removeQuestion": "Remove {name} from this workspace? They lose access to its data.",
+    "leaveQuestion": "Leave this workspace? You will need a new invitation to come back.",
+    "invitations": "Pending invitations",
+    "invitedBy": "Invited by",
+    "expires": "Expires",
+    "revoke": "Revoke the invitation for {email}",
+    "revokeConfirm": "Revoke the invitation",
+    "revokeQuestion": "Revoke the invitation for {email}? Its link stops working.",
+    "lastOwner": "A workspace needs at least one owner.",
+    "error": "The members could not be loaded.",
+    "changeError": "The change could not be saved. Try again.",
+    "cancel": "Cancel",
+    "invitedByDeleted": "Deleted account",
+    "loading": "Loading the members…",
+    "removed": "{name} removed",
+    "revoked": "Invitation revoked",
+    "roleChanged": "{name} is now {role}"
+  },
+  "invite": {
+    "title": "Invite someone",
+    "email": "Email",
+    "role": "Role",
+    "submit": "Create the invitation link",
+    "link": "Invitation link",
+    "linkHint": "Send this link to {email}. It works once, for {days} days.",
+    "copy": "Copy",
+    "copied": "Link copied",
+    "created": "Invitation link created for {email}",
+    "error": {
+      "alreadyMember": "This person is already a member.",
+      "email": "Enter an email address, such as {example}."
+    },
+    "copyManual": "The link is selected: press Ctrl+C, or ⌘C on a Mac, to copy it."
+  },
+  "invitation": {
+    "title": "Invitation to join {workspace}",
+    "offer": "{inviter} invited you to {workspace} with the {role} role.",
+    "offerAnonymous": "You are invited to {workspace} with the {role} role.",
+    "for": "This invitation is for {email}.",
+    "signIn": "Sign in to accept",
+    "accept": "Accept the invitation",
+    "wrongAccount": "You are signed in as {email}. Sign out, then sign in as {invited} to accept.",
+    "signOut": "Sign out",
+    "notFound": "Invitation not found",
+    "notFoundHint": "It may have expired or been used already.",
+    "error": "The invitation could not be accepted. Try again.",
+    "signInHint": "Sign in with {email} to accept. No account yet? Ask an administrator to create one."
   }
 }

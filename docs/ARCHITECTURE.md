@@ -190,7 +190,19 @@ one the caller is not a member of give the same `404 workspace_not_found`, so id
 the role gets `403`. The instance administrator creates workspaces (`POST /api/workspaces`) and owns the ones they
 create; setup makes them owner of every workspace that exists then, and the migration that added memberships did the
 same for existing instances. They read other workspaces only with `INSTANCE_ADMIN_ALL_WORKSPACES=true`, as owner.
-Invitations and role changes come in phase 4c _(planned)_. An entitlements service, `can(workspace, feature)`, allows
+
+People join through **invitations** (`invitation` table, `server/repositories/invitations.ts`): a workspace admin or
+owner creates a link, `/invite/<token>`, valid 7 days and once. It is shown once and only its SHA-256 hash is stored;
+inviting the same email again replaces it. An invitation stands only while its inviter may still grant its role:
+demoted, gone from the workspace or deleted, the link answers like an unknown one. Opening it tells the workspace,
+the role, the email and the inviter. Links **create no accounts**: without proof that someone owns an email, whoever
+holds a link could claim that address, and a sign-in afterwards would tell whether it had an account. So accepting
+needs the invited account signed in, and accounts are created by the instance administrator _(phase 4c′)_; open
+registration waits for email verification. Admins invite, re-role, revoke and remove for editors and viewers only;
+owners for anyone (`server/domain/member-rules.ts`); every member may leave. Role changes and removals check these
+rules on the member's role as read after locking the workspace's row, and never leave a workspace without an owner:
+two owners demoting each other at once cannot both go through (`409 last_owner`). Accepting is limited per address
+like sign-in. An entitlements service, `can(workspace, feature)`, allows
 everything in v1 and prepares paid plans _(planned)_.
 
 ## Extensions
@@ -343,6 +355,10 @@ healthcheck calls it. The database error goes to the logs, never to the response
   opened in the `stackmap-workspace` cookie (its slug only). `/`, `/graph` and `/trace` lead to that one, or the first
   by name, with the same query; without any, they say how to get one. A slug that is unknown or not the user's shows
   the same "Workspace not found" page.
+- `/w/<slug>/members` lists the members (`MembersTable`) for everyone, with the controls the caller's role allows and
+  a confirmation before removing, leaving or revoking; admins and owners also invite (`InviteForm`, the link shown
+  once with Copy) and see the pending invitations. `/invite/<token>` (open signed out, `InvitationCard`) offers to
+  sign in with the invited account, then to accept.
 - The Traffic view (`/w/<slug>/graph`) draws `GET /api/workspaces/:workspaceId/traffic` with Vue Flow:
   hosts hold their services, services list their ports, and each flow ends on its port. ELK lays it out in a web
   worker (`app/composables/useTrafficLayout.ts`, from the pure helpers in `app/utils/traffic-graph.ts`). Nodes are

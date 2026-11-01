@@ -6,17 +6,23 @@ export interface AuthState {
 
 const pathOf = (fullPath: string) => fullPath.split(/[?#]/)[0] ?? '';
 
-/** Pages open to anyone: the API reference, which documents the public API description. */
-const PUBLIC = /^\/api\/docs(?:\/|$)/;
+/** Open to anyone: the API reference, which documents the public API description. */
+const API_DOCS = /^\/api\/docs(?:\/|$)/;
+
+/** Open to anyone once set up, signed in or not: an invitation link offers both to create an account and to sign in. */
+const INVITATION = /^\/invite\/[\w-]+$/;
 
 /** Where a page must send the visitor instead, or null to show it. */
 export function authRedirect(fullPath: string, { setUp, signedIn }: AuthState): string | null {
   const path = pathOf(fullPath);
-  if (PUBLIC.test(path)) {
+  if (API_DOCS.test(path)) {
     return null;
   }
   if (!setUp) {
     return path === '/setup' ? null : '/setup';
+  }
+  if (INVITATION.test(path)) {
+    return null;
   }
   if (signedIn) {
     return path === '/login' || path === '/setup' ? '/' : null;

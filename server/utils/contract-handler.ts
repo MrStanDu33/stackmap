@@ -277,7 +277,11 @@ export function defineContractHandler<C extends Contract, const R extends Contra
       if (contract.responses[result.status]?.schema === Problem) {
         setResponseHeader(event, 'content-type', 'application/problem+json');
       }
-      // h3 answers a null body with 204 and nothing: a declared `null` (signed out) is sent as JSON.
+      // h3 answers a null body with 204 and nothing, which is right for a 204; another status's declared `null` (signed
+      // out) is sent as JSON.
+      if (body === null && result.status === 204) {
+        return null;
+      }
       if (body === null) {
         setResponseHeader(event, 'content-type', 'application/json');
         return 'null';
