@@ -45,7 +45,7 @@ export function clientAddress(event: H3Event): string {
 }
 
 /** Counts an attempt for this action and address; the 429 answer, with Retry-After, when over the limit. */
-export async function throttle(db: Kysely<Database>, event: H3Event, action: 'setup' | 'sign-in') {
+export async function throttle(db: Kysely<Database>, event: H3Event, action: 'setup' | 'sign-in' | 'invitation') {
   const { allowed, retryAfter } = await hitRateLimit(db, `${action}:${clientAddress(event)}`, { ...LIMIT, now: Date.now() });
   if (allowed) {
     return null;

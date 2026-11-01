@@ -190,7 +190,16 @@ one the caller is not a member of give the same `404 workspace_not_found`, so id
 the role gets `403`. The instance administrator creates workspaces (`POST /api/workspaces`) and owns the ones they
 create; setup makes them owner of every workspace that exists then, and the migration that added memberships did the
 same for existing instances. They read other workspaces only with `INSTANCE_ADMIN_ALL_WORKSPACES=true`, as owner.
-Invitations and role changes come in phase 4c _(planned)_. An entitlements service, `can(workspace, feature)`, allows
+
+People join through **invitations** (`invitation` table, `server/repositories/invitations.ts`): a workspace admin or
+owner creates a link, `/invite/<token>`, valid 7 days and once. It is shown once and only its SHA-256 hash is stored;
+inviting the same email again replaces it. Opening the link tells the workspace, the role, the email and the inviter,
+and nothing about whether that email has an account: registering through it creates the account when there is none
+and answers the same `202` either way (the password is hashed either way, so the time says nothing either). The person
+then signs in, and accepting needs the invited email. Admins invite, re-role and remove editors and viewers; owners
+anyone (`server/domain/member-rules.ts`); every member may leave. No change leaves a workspace without an owner: each
+one locks the workspace's row before counting its owners, so two owners demoting each other at once cannot both go
+through (`409 last_owner`). Accepting and registering are limited per address like sign-in. An entitlements service, `can(workspace, feature)`, allows
 everything in v1 and prepares paid plans _(planned)_.
 
 ## Extensions

@@ -1,7 +1,7 @@
 import { inTransaction } from './entity-repository';
 import { createWorkspace, toWorkspace, WORKSPACE_COLUMNS } from './workspaces';
 import { MAX_WORKSPACES } from '../../shared/contracts/workspaces';
-import { toTimestamp } from '../database/serialize';
+import { fromTimestamp, toTimestamp } from '../database/serialize';
 
 import type { WorkspaceRole } from '../../shared/contracts/contract';
 import type { Workspace, WorkspaceInput } from '../../shared/workspace';
@@ -96,25 +96,70 @@ export interface WorkspaceMember {
   joinedAt: Date;
 }
 
+const selectMembers = (db: Kysely<Database>, workspaceId: string) => db.selectFrom('member')
+  .innerJoin('user', 'user.id', 'member.userId')
+  .select(['member.userId', 'user.name', 'user.email', 'member.role', 'member.createdAt'])
+  .where('member.workspaceId', '=', workspaceId);
+
+const toMember = ({ createdAt, ...row }: Omit<WorkspaceMember, 'joinedAt'> & { createdAt: string }): WorkspaceMember =>
+  ({ ...row, joinedAt: fromTimestamp(createdAt, 'member.createdAt') });
+
 /** The workspace's members, by name. */
-export function listMembers(_db: Kysely<Database>, _workspaceId: string): Promise<WorkspaceMember[]> {
-  throw new Error('Not implemented');
+export async function listMembers(db: Kysely<Database>, workspaceId: string): Promise<WorkspaceMember[]> {
+  const rows = await selectMembers(db, workspaceId).orderBy('user.name').orderBy('user.email').execute();
+  return rows.map(toMember);
 }
 
 /** The member, or why the change was refused: not a member, or it would leave the workspace without an owner. */
 export type MemberChange = WorkspaceMember | 'member_not_found' | 'last_owner';
 
-/** Changes a member's role, unless it would leave the workspace without an owner (checked in the same transaction). */
-export function setMemberRole(
-  _db: Kysely<Database>,
-  _workspaceId: string,
-  _userId: string,
-  _role: WorkspaceRole,
+/**
+ * Runs a change to a member with the workspace's row locked, so that two changes at once see each other: two owners
+ * demoting each other cannot both go through. SQLite runs one write transaction at a time anyway.
+ */
+function changeMember(
+  db: Kysely<Database>,
+  workspaceId: string,
+  userId: string,
+  { keepsOwner, apply }: { keepsOwner: boolean; apply: (trx: Kysely<Database>) => Promise<unknown> },
 ): Promise<MemberChange> {
-  throw new Error('Not implemented');
+  return inTransaction(db, async (trx) => {
+    await trx.updateTable('workspace').set((update) => ({ id: update.ref('id') })).where('id', '=', workspaceId).execute();
+    const member = await selectMembers(trx, workspaceId).where('member.userId', '=', userId).executeTakeFirst();
+    if (!member) {
+      return 'member_not_found';
+    }
+    if (member.role === 'owner' && !keepsOwner) {
+      const owners = await trx.selectFrom('member').select((count) => count.fn.countAll<number | string>().as('n'))
+        .where('workspaceId', '=', workspaceId).where('role', '=', 'owner').executeTakeFirstOrThrow();
+      if (Number(owners.n) <= 1) {
+        return 'last_owner';
+      }
+    }
+    await apply(trx);
+    return toMember(member);
+  });
 }
 
-/** Removes a member, unless it would leave the workspace without an owner (checked in the same transaction). */
-export function removeMember(_db: Kysely<Database>, _workspaceId: string, _userId: string): Promise<MemberChange> {
-  throw new Error('Not implemented');
+/** Changes a member's role, unless it would leave the workspace without an owner. */
+export async function setMemberRole(
+  db: Kysely<Database>,
+  workspaceId: string,
+  userId: string,
+  role: WorkspaceRole,
+): Promise<MemberChange> {
+  const change = await changeMember(db, workspaceId, userId, {
+    keepsOwner: role === 'owner',
+    apply: (trx) => trx.updateTable('member').set({ role })
+      .where('workspaceId', '=', workspaceId).where('userId', '=', userId).execute(),
+  });
+  return typeof change === 'string' ? change : { ...change, role };
+}
+
+/** Removes a member, unless it would leave the workspace without an owner. */
+export function removeMember(db: Kysely<Database>, workspaceId: string, userId: string): Promise<MemberChange> {
+  return changeMember(db, workspaceId, userId, {
+    keepsOwner: false,
+    apply: (trx) => trx.deleteFrom('member').where('workspaceId', '=', workspaceId).where('userId', '=', userId).execute(),
+  });
 }

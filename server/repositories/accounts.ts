@@ -70,3 +70,14 @@ export async function hitRateLimit(
     retryAfter: Math.max(1, Math.ceil((Number(row.lastRequest) + windowMs - now) / 1000)),
   };
 }
+
+/** Whether an account has this email (compared in lower case, as Better Auth stores it). */
+export async function accountExists(db: Kysely<Database>, email: string): Promise<boolean> {
+  const row = await db.selectFrom('user').select('id').where('email', '=', email.trim().toLowerCase()).executeTakeFirst();
+  return row !== undefined;
+}
+
+/** Ends a session Better Auth opened that no one asked for (it signs in on sign-up), by its token. */
+export async function removeSession(db: Kysely<Database>, token: string): Promise<void> {
+  await db.deleteFrom('session').where('token', '=', token).execute();
+}
