@@ -43,33 +43,53 @@ const grantable = computed<WorkspaceRole[]>(() => {
 });
 
 const tableError = ref<'last_owner' | 'network' | null>(null);
+const notice = ref('');
+const table = useTemplateRef<{ focusHeading: () => void }>('table');
 const statusOf = (failure: unknown) => (failure instanceof FetchError ? failure.status : undefined);
 
-/** Sends a change, then reads the members again; a refusal is said above the table. */
-const change = async (request: () => Promise<unknown>) => {
-  // Emptied first, so the same refusal twice is announced again.
+/**
+ * Sends a change, then reads the members again and says what changed; a refusal is said above the table. When the
+ * change removed the row (or the list) that had the focus, the focus goes to the members' heading.
+ */
+const change = async (request: () => Promise<unknown>, done: string, { removesRow = false } = {}) => {
+  // Emptied first, so the same message twice is announced again.
   tableError.value = null;
+  notice.value = '';
   try {
     await request();
     await refresh();
   } catch (failure) {
     await nextTick();
     tableError.value = statusOf(failure) === 409 ? 'last_owner' : 'network';
+    return false;
   }
+  notice.value = done;
+  if (removesRow) {
+    await nextTick();
+    table.value?.focusHeading();
+  }
+  return true;
 };
 const base = computed(() => `/api/workspaces/${workspace.value?.id ?? ''}`);
-const changeRole = (userId: string, role: WorkspaceRole) =>
-  change(() => $fetch(`${base.value}/members/${userId}`, { method: 'PATCH', body: { role } }));
+const nameOf = (userId: string) => data.value?.members.find((member) => member.userId === userId)?.name ?? '';
+const changeRole = (userId: string, role: WorkspaceRole) => change(
+  () => $fetch(`${base.value}/members/${userId}`, { method: 'PATCH', body: { role } }),
+  t('members.roleChanged', { name: nameOf(userId), role: t(`workspace.role.${role}`) }),
+);
 const remove = async (userId: string) => {
-  await change(() => $fetch(`${base.value}/members/${userId}`, { method: 'DELETE' }));
+  const name = nameOf(userId);
+  const removed = await change(() => $fetch(`${base.value}/members/${userId}`, { method: 'DELETE' }), t('members.removed', { name }), { removesRow: true });
   // Left: the workspace is no longer theirs.
-  if (userId === session.value?.user.id && !tableError.value) {
+  if (removed && userId === session.value?.user.id) {
     await refreshNuxtData('workspaces');
     await navigateTo('/graph');
   }
 };
-const revoke = (invitationId: string) =>
-  change(() => $fetch(`${base.value}/invitations/${invitationId}`, { method: 'DELETE' }));
+const revoke = (invitationId: string) => change(
+  () => $fetch(`${base.value}/invitations/${invitationId}`, { method: 'DELETE' }),
+  t('members.revoked'),
+  { removesRow: true },
+);
 
 const inviting = ref(false);
 const inviteError = ref<'already_member' | 'network' | null>(null);
@@ -156,7 +176,14 @@ const retry = async () => {
         :created="created"
         @submit="invite"
       />
+      <p
+        role="status"
+        class="sr-only"
+      >
+        {{ notice }}
+      </p>
       <MembersTable
+        ref="table"
         :members="data.members"
         :invitations="data.invitations"
         :me="session.user.id"
@@ -173,7 +200,7 @@ const retry = async () => {
       role="status"
       class="text-muted"
     >
-      {{ t('traffic.loading') }}
+      {{ t('members.loading') }}
     </p>
   </AppShell>
 </template>

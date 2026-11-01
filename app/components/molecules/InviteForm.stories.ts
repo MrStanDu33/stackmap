@@ -125,7 +125,8 @@ export const CopyFails: Story = {
 
     await userEvent.click(canvas.getByRole('button', { name: t('invite.copy') }));
 
-    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent(t('invite.copyManual')));
+    // Normalised as the page text is: French puts a non-breaking space before its colon.
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent(t('invite.copyManual').replace(/\s+/g, ' ')));
     await expect(link).toHaveFocus();
     await expect([link.selectionStart, link.selectionEnd]).toEqual([0, LINK.length]);
     writeText.mockRestore();

@@ -6,6 +6,7 @@ import { DIALECTS } from '../../../../../tests/support/databases';
 import { serveRoute } from '../../../../../tests/support/requests';
 import { useTestWorkspaces } from '../../../../../tests/support/workspaces';
 import { createInvitation, findInvitation } from '../../../../repositories/invitations';
+import { addMember } from '../../../../repositories/members';
 import { setDatabase } from '../../../../utils/database';
 import { setSessionResolver } from '../../../../utils/session';
 
@@ -20,6 +21,8 @@ describe.each(DIALECTS)('DELETE /api/workspaces/:workspaceId/invitations/:invita
   const db = () => workspaces.db as unknown as Kysely<Database>;
   const setUp = async () => {
     const admin = await createMember(db(), workspaces.a.workspace.id, 'admin', { name: 'Ada', email: 'ada@homelab.example' });
+    // An admin of B too, so that B's invitation stands.
+    await addMember(db(), { workspaceId: workspaces.b.workspace.id, userId: admin.user.id, role: 'admin' });
     setSessionResolver(() => Promise.resolve(admin));
     const invite = (workspaceId: string) => createInvitation(db(), {
       workspaceId, email: 'alan@homelab.example', role: 'viewer', invitedById: admin.user.id,

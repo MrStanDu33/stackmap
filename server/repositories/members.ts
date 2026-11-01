@@ -2,6 +2,7 @@ import { inTransaction } from './entity-repository';
 import { createWorkspace, toWorkspace, WORKSPACE_COLUMNS } from './workspaces';
 import { MAX_WORKSPACES } from '../../shared/contracts/workspaces';
 import { fromTimestamp, toTimestamp } from '../database/serialize';
+import { canManage } from '../domain/member-rules';
 
 import type { WorkspaceRole } from '../../shared/contracts/contract';
 import type { Workspace, WorkspaceInput } from '../../shared/workspace';
@@ -121,13 +122,21 @@ function changeMember(
   db: Kysely<Database>,
   workspaceId: string,
   userId: string,
-  { keepsOwner, apply }: { keepsOwner: boolean; apply: (trx: Kysely<Database>) => Promise<unknown> },
+  { keepsOwner, allowed, apply }: {
+    keepsOwner: boolean;
+    /** Whether the caller may make this change to a member with this role, as read under the lock. */
+    allowed: (role: WorkspaceRole) => boolean;
+    apply: (trx: Kysely<Database>) => Promise<unknown>;
+  },
 ): Promise<MemberChange> {
   return inTransaction(db, async (trx) => {
     await trx.updateTable('workspace').set((update) => ({ id: update.ref('id') })).where('id', '=', workspaceId).execute();
     const member = await selectMembers(trx, workspaceId).where('member.userId', '=', userId).executeTakeFirst();
     if (!member) {
       return 'member_not_found';
+    }
+    if (!allowed(member.role)) {
+      return 'forbidden';
     }
     if (member.role === 'owner' && !keepsOwner) {
       const owners = await trx.selectFrom('member').select((count) => count.fn.countAll<number | string>().as('n'))
@@ -141,31 +150,39 @@ function changeMember(
   });
 }
 
-/** Changes a member's role, unless it would leave the workspace without an owner. */
+/**
+ * Changes a member's role, as the actor's role allows (any change without an actor), unless it would leave the
+ * workspace without an owner.
+ */
 export async function setMemberRole(
   db: Kysely<Database>,
   workspaceId: string,
   userId: string,
   role: WorkspaceRole,
-  _options: { actor?: WorkspaceRole } = {},
+  { actor }: { actor?: WorkspaceRole } = {},
 ): Promise<MemberChange> {
   const change = await changeMember(db, workspaceId, userId, {
     keepsOwner: role === 'owner',
+    allowed: (current) => !actor || canManage(actor, current, role),
     apply: (trx) => trx.updateTable('member').set({ role })
       .where('workspaceId', '=', workspaceId).where('userId', '=', userId).execute(),
   });
   return typeof change === 'string' ? change : { ...change, role };
 }
 
-/** Removes a member, unless it would leave the workspace without an owner. */
+/**
+ * Removes a member, as the actor's role allows (anyone without an actor, and themselves always), unless it would
+ * leave the workspace without an owner.
+ */
 export function removeMember(
   db: Kysely<Database>,
   workspaceId: string,
   userId: string,
-  _options: { actor?: WorkspaceRole; self?: boolean } = {},
+  { actor, self = false }: { actor?: WorkspaceRole; self?: boolean } = {},
 ): Promise<MemberChange> {
   return changeMember(db, workspaceId, userId, {
     keepsOwner: false,
+    allowed: (current) => !actor || self || canManage(actor, current),
     apply: (trx) => trx.deleteFrom('member').where('workspaceId', '=', workspaceId).where('userId', '=', userId).execute(),
   });
 }

@@ -251,7 +251,13 @@
     },
     "notFound": "Workspace not found",
     "notFoundHint": "It doesn’t exist, or you aren’t a member.",
-    "goToFirst": "Go to {name}"
+    "goToFirst": "Go to {name}",
+    "roleLabel": {
+      "owner": "Owner",
+      "admin": "Administrator",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    }
   },
   "members": {
     "title": "Members",
@@ -274,7 +280,12 @@
     "lastOwner": "A workspace needs at least one owner.",
     "error": "The members could not be loaded.",
     "changeError": "The change could not be saved. Try again.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "invitedByDeleted": "Deleted account",
+    "loading": "Loading the members…",
+    "removed": "{name} removed",
+    "revoked": "Invitation revoked",
+    "roleChanged": "{name} is now {role}"
   },
   "invite": {
     "title": "Invite someone",
@@ -282,30 +293,28 @@
     "role": "Role",
     "submit": "Create the invitation link",
     "link": "Invitation link",
-    "linkHint": "Send this link to {email}. It works once, for 7 days.",
+    "linkHint": "Send this link to {email}. It works once, for {days} days.",
     "copy": "Copy",
-    "copied": "Copied",
+    "copied": "Link copied",
     "created": "Invitation link created for {email}",
     "error": {
       "alreadyMember": "This person is already a member.",
       "email": "Enter an email address, such as {example}."
-    }
+    },
+    "copyManual": "The link is selected: press Ctrl+C, or ⌘C on a Mac, to copy it."
   },
   "invitation": {
-    "title": "Invitation to {workspace}",
-    "offer": "{inviter} invited you to {workspace} as {role}.",
-    "offerAnonymous": "You are invited to {workspace} as {role}.",
+    "title": "Invitation to join {workspace}",
+    "offer": "{inviter} invited you to {workspace} with the {role} role.",
+    "offerAnonymous": "You are invited to {workspace} with the {role} role.",
     "for": "This invitation is for {email}.",
-    "newAccount": "New to Stackmap?",
-    "register": "Create an account",
-    "haveAccount": "Already have an account?",
     "signIn": "Sign in to accept",
-    "registered": "If {email} had no account, it has one now. Sign in to accept the invitation.",
     "accept": "Accept the invitation",
     "wrongAccount": "You are signed in as {email}. Sign out, then sign in as {invited} to accept.",
     "signOut": "Sign out",
     "notFound": "Invitation not found",
     "notFoundHint": "It may have expired or been used already.",
-    "error": "The invitation could not be accepted. Try again."
+    "error": "The invitation could not be accepted. Try again.",
+    "signInHint": "Sign in with {email} to accept. No account yet? Ask an administrator to create one."
   }
 }

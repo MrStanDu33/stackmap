@@ -193,13 +193,16 @@ same for existing instances. They read other workspaces only with `INSTANCE_ADMI
 
 People join through **invitations** (`invitation` table, `server/repositories/invitations.ts`): a workspace admin or
 owner creates a link, `/invite/<token>`, valid 7 days and once. It is shown once and only its SHA-256 hash is stored;
-inviting the same email again replaces it. Opening the link tells the workspace, the role, the email and the inviter,
-and nothing about whether that email has an account: registering through it creates the account when there is none
-and answers the same `202` either way (the password is hashed either way, so the time says nothing either). The person
-then signs in, and accepting needs the invited email. Admins invite, re-role and remove editors and viewers; owners
-anyone (`server/domain/member-rules.ts`); every member may leave. No change leaves a workspace without an owner: each
-one locks the workspace's row before counting its owners, so two owners demoting each other at once cannot both go
-through (`409 last_owner`). Accepting and registering are limited per address like sign-in. An entitlements service, `can(workspace, feature)`, allows
+inviting the same email again replaces it. An invitation stands only while its inviter may still grant its role:
+demoted, gone from the workspace or deleted, the link answers like an unknown one. Opening it tells the workspace,
+the role, the email and the inviter. Links **create no accounts**: without proof that someone owns an email, whoever
+holds a link could claim that address, and a sign-in afterwards would tell whether it had an account. So accepting
+needs the invited account signed in, and accounts are created by the instance administrator _(phase 4c′)_; open
+registration waits for email verification. Admins invite, re-role, revoke and remove for editors and viewers only;
+owners for anyone (`server/domain/member-rules.ts`); every member may leave. Role changes and removals check these
+rules on the member's role as read after locking the workspace's row, and never leave a workspace without an owner:
+two owners demoting each other at once cannot both go through (`409 last_owner`). Accepting is limited per address
+like sign-in. An entitlements service, `can(workspace, feature)`, allows
 everything in v1 and prepares paid plans _(planned)_.
 
 ## Extensions
@@ -355,7 +358,7 @@ healthcheck calls it. The database error goes to the logs, never to the response
 - `/w/<slug>/members` lists the members (`MembersTable`) for everyone, with the controls the caller's role allows and
   a confirmation before removing, leaving or revoking; admins and owners also invite (`InviteForm`, the link shown
   once with Copy) and see the pending invitations. `/invite/<token>` (open signed out, `InvitationCard`) offers to
-  create an account or to sign in, then to accept with the invited account.
+  sign in with the invited account, then to accept.
 - The Traffic view (`/w/<slug>/graph`) draws `GET /api/workspaces/:workspaceId/traffic` with Vue Flow:
   hosts hold their services, services list their ports, and each flow ends on its port. ELK lays it out in a web
   worker (`app/composables/useTrafficLayout.ts`, from the pure helpers in `app/utils/traffic-graph.ts`). Nodes are

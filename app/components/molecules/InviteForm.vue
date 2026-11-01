@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { WorkspaceRole } from '#shared/contracts/contract';
 
+import { INVITATION_DAYS } from '#shared/contracts/invitations';
+
 /** Invites someone by email with a role; once created, shows the link once, to copy and send. */
 const props = defineProps<{
   /** The roles the caller may grant, lowest first. */
@@ -19,7 +21,7 @@ const role = ref<WorkspaceRole>('viewer');
 const emailError = ref<string>();
 const status = ref('');
 
-const roleItems = computed(() => props.roles.map((value) => ({ label: t(`workspace.role.${value}`), value })));
+const roleItems = computed(() => props.roles.map((value) => ({ label: t(`workspace.roleLabel.${value}`), value })));
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // A parameter: vue-i18n reads `@` in a message as a link to another message.
@@ -31,10 +33,13 @@ const focusEmail = async () => {
   form.value?.querySelector<HTMLInputElement>('[name="email"]')?.focus();
 };
 
-watch(() => props.error, (error) => {
+watch(() => props.error, async (error) => {
   if (error === 'already_member') {
     emailError.value = t('invite.error.alreadyMember');
-    void focusEmail();
+    await focusEmail();
+  } else if (error === 'network') {
+    await nextTick();
+    form.value?.querySelector<HTMLElement>('[role="alert"]')?.focus();
   }
 }, { immediate: true });
 
@@ -67,15 +72,19 @@ const copy = async () => {
   if (!props.created) {
     return;
   }
+  let said = 'invite.copied';
   try {
     await navigator.clipboard.writeText(props.created.url);
   } catch {
-    linkField.value?.querySelector('input')?.select();
-    return;
+    // Selected and focused, to copy by hand; and said, since nothing else shows that the copy failed.
+    const input = linkField.value?.querySelector('input');
+    input?.focus();
+    input?.select();
+    said = 'invite.copyManual';
   }
   status.value = '';
   await nextTick();
-  status.value = t('invite.copied');
+  status.value = t(said);
 };
 </script>
 
@@ -96,6 +105,7 @@ const copy = async () => {
     <UAlert
       v-if="error === 'network'"
       role="alert"
+      tabindex="-1"
       color="error"
       variant="outline"
       :title="t('auth.error.network')"
@@ -146,7 +156,7 @@ const copy = async () => {
     >
       <UFormField
         :label="t('invite.link')"
-        :description="t('invite.linkHint', { email: created.email })"
+        :description="t('invite.linkHint', { email: created.email, days: INVITATION_DAYS })"
         name="link"
         class="min-w-64 flex-1"
       >

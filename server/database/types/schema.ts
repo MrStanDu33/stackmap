@@ -11,7 +11,6 @@ export interface Database {
   invitation: InvitationTable;
   derived_flow: DerivedFlowTable;
   user: UserTable;
-  session: SessionTable;
   rateLimit: RateLimitTable;
 }
 
@@ -25,13 +24,6 @@ export interface UserTable {
   name: string;
   /** The instance role, from Better Auth's admin plugin: `admin` or `user`. */
   role: string | null;
-}
-
-/** Better Auth's sessions: the app only removes one it did not want (registration through an invitation). */
-export interface SessionTable {
-  id: string;
-  token: string;
-  userId: string;
 }
 
 /** A pending invitation to a workspace: the link's token is never stored, only its SHA-256 hash. */

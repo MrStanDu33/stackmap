@@ -19,10 +19,9 @@ const title = computed(() => (invitation.value
   : t('invitation.notFound')));
 useHead({ title: () => `${title.value} · ${t('app.name')}` });
 
-const registered = ref(false);
 const state = computed(() => {
   if (!session.value) {
-    return registered.value ? 'registered' : 'signedOut';
+    return 'signedOut';
   }
   return session.value.user.email.toLowerCase() === invitation.value?.email ? 'accept' : 'wrongAccount';
 });
@@ -44,10 +43,6 @@ const send = async (request: () => Promise<void>) => {
   }
 };
 
-const register = (account: { name: string; password: string }) => send(async () => {
-  await $fetch(`/api/invitations/${token.value}/register`, { method: 'POST', body: account });
-  registered.value = true;
-});
 const accept = () => send(async () => {
   const { slug } = await $fetch<{ slug: string }>(`/api/invitations/${token.value}/accept`, { method: 'POST' });
   await refreshNuxtData('workspaces');
@@ -64,7 +59,6 @@ const accept = () => send(async () => {
       :sign-in-to="signInTo"
       :busy="busy"
       :error="error"
-      @register="register"
       @accept="accept"
       @sign-out="signOut({ stay: true })"
     />

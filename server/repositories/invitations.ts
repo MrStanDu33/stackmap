@@ -4,6 +4,7 @@ import { inTransaction } from './entity-repository';
 import { INVITATION_DAYS } from '../../shared/contracts/invitations';
 import { newId } from '../database/ids';
 import { fromTimestamp, toTimestamp } from '../database/serialize';
+import { canManage } from '../domain/member-rules';
 
 import type { WorkspaceRole } from '../../shared/contracts/contract';
 import type { Database } from '../database/types/schema';
@@ -32,15 +33,26 @@ const DAY = 24 * 60 * 60 * 1000;
 
 const hashOf = (token: string) => createHash('sha256').update(token).digest('hex');
 
-/** An invitation's columns, with its inviter's name. */
+/** An invitation's columns, with its inviter's name and current role in the workspace. */
 const selectInvitations = (db: Kysely<Database>) => db.selectFrom('invitation')
   .leftJoin('user', 'user.id', 'invitation.invitedById')
+  .leftJoin('member as inviter', (join) => join
+    .onRef('inviter.workspaceId', '=', 'invitation.workspaceId')
+    .onRef('inviter.userId', '=', 'invitation.invitedById'))
   .select([
     'invitation.id', 'invitation.workspaceId', 'invitation.email', 'invitation.role', 'invitation.expiresAt',
-    'user.name as invitedBy',
+    'user.name as invitedBy', 'inviter.role as inviterRole',
   ]);
 
-const toInvitation = ({ expiresAt, ...row }: Omit<Invitation, 'expiresAt'> & { expiresAt: string }): Invitation =>
+type InvitationRow = Omit<Invitation, 'expiresAt'> & { expiresAt: string; inviterRole: WorkspaceRole | null };
+
+/**
+ * Whether the invitation still stands: its inviter must still be allowed to grant its role. Demoted, gone from the
+ * workspace or deleted, they no longer vouch for it.
+ */
+const stands = ({ inviterRole, role }: InvitationRow) => inviterRole !== null && canManage(inviterRole, null, role);
+
+const toInvitation = ({ expiresAt, inviterRole: _inviterRole, ...row }: InvitationRow): Invitation =>
   ({ ...row, expiresAt: fromTimestamp(expiresAt, 'invitation.expiresAt') });
 
 /** Creates an invitation, replacing a pending one for the same email and workspace; answers it and its token. */
@@ -68,7 +80,7 @@ export function createInvitation(
   });
 }
 
-/** The invitation of a link's token, or undefined when there is none or it has expired. */
+/** The invitation of a link's token, or undefined when there is none, it has expired or no longer stands. */
 export async function findInvitation(
   db: Kysely<Database>,
   token: string,
@@ -80,7 +92,7 @@ export async function findInvitation(
     .where('invitation.tokenHash', '=', hashOf(token))
     .where('invitation.expiresAt', '>', toTimestamp(now))
     .executeTakeFirst();
-  if (!row) {
+  if (!row || !stands(row)) {
     return undefined;
   }
   const { workspaceName, workspaceSlug, ...invitation } = row;
@@ -115,7 +127,7 @@ export async function revokeInvitation(
   return numDeletedRows > 0n;
 }
 
-/** A workspace's invitations that have not expired, by email. */
+/** A workspace's invitations that have not expired and still stand, by email. */
 export async function pendingInvitations(
   db: Kysely<Database>,
   workspaceId: string,
@@ -126,5 +138,5 @@ export async function pendingInvitations(
     .where('invitation.expiresAt', '>', toTimestamp(now))
     .orderBy('invitation.email')
     .execute();
-  return rows.map(toInvitation);
+  return rows.filter(stands).map(toInvitation);
 }

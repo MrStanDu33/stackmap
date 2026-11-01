@@ -37,7 +37,8 @@ export const SignedOut: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.getByText(offer())).toBeVisible();
-    await expect(canvas.getByText(t('invitation.signInHint', { email: 'alan@homelab.example' }))).toBeVisible();
+    // Matched as the page shows it: Testing Library reads a non-breaking space (French punctuation) as a space.
+    await expect(canvas.getByText(t('invitation.signInHint', { email: 'alan@homelab.example' }).replace(/\s+/g, ' '))).toBeVisible();
     await expect(canvas.getByRole('link', { name: t('invitation.signIn') })).toHaveAttribute('href', '/login?redirect=/invite/token');
     await expect(canvas.queryAllByRole('textbox')).toEqual([]);
   },

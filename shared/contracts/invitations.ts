@@ -1,7 +1,7 @@
 import { entityId } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
-import { email, password, problem, tooMany } from './auth';
+import { email, problem, tooMany } from './auth';
 import { defineContract, WORKSPACE_ROLES } from './contract';
 import { KEBAB_CASE, line } from './formats';
 import { PendingInvitation } from './members';
@@ -78,6 +78,7 @@ export const revokeInvitation = defineContract({
   }),
   responses: {
     204: { description: 'Revoked', schema: z.null(), examples: { revoked: { summary: 'Revoked', value: null } } },
+    403: problem('The caller may not revoke an invitation for this role', 'forbidden', 'Admins revoke invitations for editors and viewers only.', `${INVITATIONS_PATH}/${INVITATION_ID}`),
     404: notFound(`${INVITATIONS_PATH}/${INVITATION_ID}`),
   },
 });
@@ -122,7 +123,7 @@ export const acceptInvitation = defineContract({
   operationId: 'acceptInvitation',
   summary: 'Accept an invitation',
   description: 'Adds the signed-in account to the workspace with the invitation\'s role, and uses the link up. The '
-    + 'account\'s email must be the invited one.',
+    + 'account\'s email must be the invited one: links create no accounts, since whoever holds one could claim its email.',
   tags: ['Accounts'],
   requiredRole: 'signedIn',
   params: tokenParams,
@@ -137,30 +138,5 @@ export const acceptInvitation = defineContract({
     403: problem('The invitation is for another email', 'invitation_email_mismatch', 'This invitation is for another email.', `${TOKEN_PATH}/accept`),
     404: notFound(`${TOKEN_PATH}/accept`),
     429: tooMany(`${TOKEN_PATH}/accept`),
-  },
-});
-
-export const registerWithInvitation = defineContract({
-  method: 'post',
-  path: '/api/invitations/:token/register',
-  operationId: 'registerWithInvitation',
-  summary: 'Create an account from an invitation',
-  description: 'Creates an account with the invited email when it has none, then the person signs in and accepts. '
-    + 'The answer is the same whether the email had an account or not: it reveals nothing about it.',
-  tags: ['Accounts'],
-  requiredRole: 'public',
-  params: tokenParams,
-  body: z.strictObject({
-    name: line(100).min(1).meta({ description: 'Their name', examples: ['Alan'] }),
-    password: password(),
-  }).meta({ description: 'The new account' }),
-  responses: {
-    202: {
-      description: 'Done, if the email had no account: sign in to accept',
-      schema: z.null(),
-      examples: { done: { summary: 'Sign in next', value: null } },
-    },
-    404: notFound(`${TOKEN_PATH}/register`),
-    429: tooMany(`${TOKEN_PATH}/register`),
   },
 });
