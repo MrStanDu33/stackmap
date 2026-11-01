@@ -33,6 +33,12 @@ export const Default: Story = {
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).not.toHaveAttribute('aria-current');
     await expect(canvas.getByText(t('app.name'))).toBeVisible();
     await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
+    // In strict mode, the links get the 44 px targets buttons have.
+    if (document.documentElement.getAttribute('data-contrast') === 'strict') {
+      for (const link of within(navigation).getAllByRole('link')) {
+        await expect(link.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+      }
+    }
   },
 };
 

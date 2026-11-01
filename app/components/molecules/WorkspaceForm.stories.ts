@@ -31,6 +31,10 @@ export const SlugFollowsName: Story = {
 
     await expect(form.name).toBeRequired();
     await expect(form.slug).toBeRequired();
+    // Empty, the hint shows an example in the reader's language.
+    await expect(form.slug).toHaveAccessibleDescription(
+      t('workspace.new.slugHint', { slug: t('workspace.new.slugExample') }),
+    );
     await userEvent.type(form.name, 'Réseau d’été');
     await expect(form.slug).toHaveValue('reseau-d-ete');
     await expect(form.slug).toHaveAccessibleDescription(t('workspace.new.slugHint', { slug: 'reseau-d-ete' }));
@@ -66,6 +70,8 @@ export const Invalid: Story = {
     await expect(form.slug).toHaveAccessibleDescription(expect.stringContaining(t('workspace.error.slug')) as string);
     await expect(form.name).toHaveAttribute('aria-invalid', 'true');
     await expect(args.onSubmit).not.toHaveBeenCalled();
+    // Read once, with the focused field: no status region says it again.
+    await expect(within(canvasElement).queryByRole('status')).toBeNull();
   },
 };
 

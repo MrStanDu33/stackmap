@@ -47,8 +47,15 @@ test.describe('workspaces', () => {
   });
 
   test('given a slug that is unknown or not theirs, the page says Workspace not found and links to their first workspace (21)', async ({ page }) => {
-    await page.goto('/w/nowhere/graph');
+    await page.goto('/w/nowhere/trace');
+    await expect(page).toHaveTitle('Workspace not found · Stackmap');
+    await expect(page.getByRole('heading', { name: 'Workspace not found' })).toBeFocused();
+    // No control that could do nothing here.
+    await expect(page.getByRole('combobox', { name: 'Hostname' })).toHaveCount(0);
 
+    await page.goto('/w/nowhere/graph');
+    await expect(page.getByRole('heading', { name: 'Workspace not found' })).toBeFocused();
+    await expect(page.getByRole('radiogroup')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Workspace not found' })).toBeVisible();
     await expect(page.getByText('It doesn’t exist, or you aren’t a member.')).toBeVisible();
     await page.getByRole('link', { name: 'Go to Demo' }).click();
@@ -81,6 +88,8 @@ test.describe('workspaces', () => {
     await page.getByRole('button', { name: 'Create workspace' }).click();
 
     await expect(page).toHaveURL(`${DEMO_URL}/w/${slug}/graph`);
+    // Said by a toast, which outlives the page that created the workspace.
+    await expect(page.getByText(`Workspace “Home ${slug.slice(5)}” created`)).toBeVisible();
     await expect(page.getByText('Nothing to draw yet')).toBeVisible();
     await expect(switcher(page, `Home ${slug.slice(5)}`)).toBeVisible();
   });
@@ -130,5 +139,32 @@ test.describe('workspaces, without one', () => {
     await expect(page.getByRole('heading', { name: 'No workspace yet' })).toBeVisible();
     await expect(page.getByText('Ask an administrator to invite you to a workspace.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Create a workspace' })).toHaveCount(0);
+  });
+
+  test('given no workspace, a workspace link says how to get one rather than a dead end', async ({ page }) => {
+    await signInTo(page, EMPTY_URL);
+    await page.goto('/w/demo/graph');
+
+    await expect(page.getByRole('heading', { name: 'No workspace yet' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Create a workspace' })).toBeVisible();
+  });
+
+  test('given the workspaces cannot be loaded, /graph says so; Try again loads them and focus goes to the heading', async ({ page }) => {
+    await signInTo(page, EMPTY_URL);
+    let failures = 1;
+    await page.route('**/api/workspaces', async (route) => {
+      if (failures > 0) {
+        failures -= 1;
+        await route.abort();
+        return;
+      }
+      await route.fallback();
+    });
+    await page.goto('/graph');
+
+    await expect(page.getByRole('alert')).toHaveText(/Your workspaces could not be loaded\./);
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.getByRole('heading', { name: 'No workspace yet' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   });
 });

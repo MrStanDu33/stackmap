@@ -41,12 +41,18 @@ export const Default: Story = {
 
     const items = menu.getAllByRole('menuitem');
     await expect(items).toHaveLength(2);
-    await expect(items[0]).toHaveTextContent(t('workspace.withRole', { name: 'Demo', role: role('owner') }));
-    await expect(items[0]).toHaveTextContent(t('workspace.current'));
+    // One message, which translators can word as their language needs.
+    await expect(items[0]).toHaveTextContent(t('workspace.withRoleCurrent', { name: 'Demo', role: role('owner') }));
     await expect(items[0]).toHaveAttribute('aria-current', 'page');
     await expect(items[1]).toHaveTextContent(t('workspace.withRole', { name: 'Homelab', role: role('viewer') }));
     await expect(items[1]).toHaveAttribute('href', '/w/homelab/graph');
     await expect(menu.queryByRole('menuitem', { name: t('workspace.create') })).toBeNull();
+    // In strict mode, the links get the 44 px targets buttons have.
+    if (document.documentElement.getAttribute('data-contrast') === 'strict') {
+      for (const item of items) {
+        await expect(item.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+      }
+    }
 
     await userEvent.keyboard('{Escape}');
     const button = within(canvasElement).getByRole('button', { name: t('workspace.switcher', { name: 'Demo' }) });
@@ -74,12 +80,15 @@ export const AdminCanCreate: Story = {
   },
 };
 
-/** While the list loads: "Workspace", busy. */
+/** While the list loads: "Workspace", disabled, so it cannot open an empty menu. */
 export const Loading: Story = {
   args: { workspaces: null, current: 'demo' },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('button', { name: t('workspace.switcherLoading') }))
-      .toHaveAttribute('aria-busy', 'true');
+    const button = within(canvasElement).getByRole('button', { name: t('workspace.switcherLoading') });
+
+    await expect(button).toBeDisabled();
+    await userEvent.click(button, { pointerEventsCheck: 0 });
+    await expect(document.querySelector('[role="menu"]')).toBeNull();
   },
 };
 

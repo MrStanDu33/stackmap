@@ -95,11 +95,13 @@ describe('workspace roles', () => {
       .map(({ operationId }) => operationId);
     expect(withoutWorkspace).toEqual([]);
 
-    // Routes reach the workspace through input.workspace, which only the membership check creates.
+    // Routes reach the workspace through input.workspace, which only the membership check creates, and build its
+    // repositories with workspaceRepositories(), which takes nothing else.
     const readers = [];
     for (const file of routeFiles) {
       const source = await readFile(file, 'utf8');
-      if (/params\.workspaceId|params:\s*\{[^}]*\bworkspaceId\b/.test(source)) {
+      if (/params\.workspaceId|params\[['"]workspaceId['"]\]|params:\s*\{[^}]*\bworkspaceId\b|getRouterParams?\(|createWorkspaceRepositories\(/
+        .test(source)) {
         readers.push(relative(API_DIR, file));
       }
     }
