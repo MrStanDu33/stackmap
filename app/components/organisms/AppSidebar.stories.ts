@@ -33,6 +33,12 @@ export const Default: Story = {
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).not.toHaveAttribute('aria-current');
     await expect(canvas.getByText(t('app.name'))).toBeVisible();
     await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
+    // In strict mode, the links get the 44 px targets buttons have.
+    if (document.documentElement.getAttribute('data-contrast') === 'strict') {
+      for (const link of within(navigation).getAllByRole('link')) {
+        await expect(link.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+      }
+    }
   },
 };
 
@@ -75,5 +81,32 @@ export const SignedInCollapsed: Story = {
 
     await userEvent.click(signOut);
     await expect(args.onSignOut).toHaveBeenCalledOnce();
+  },
+};
+
+/** In a workspace: the switcher names it, and the links stay in it (22). */
+export const WithWorkspaces: Story = {
+  args: {
+    user: { name: 'Ada' },
+    workspaces: [{ name: 'Demo', slug: 'demo', role: 'owner' }, { name: 'Homelab', slug: 'homelab', role: 'viewer' }],
+    current: 'demo',
+    canCreate: true,
+  },
+  beforeEach: async () => {
+    await router.push('/w/demo/graph');
+  },
+  render: (args) => ({
+    components: { AppSidebar },
+    setup: () => ({ args }),
+    template: '<UDashboardGroup><AppSidebar v-bind="args" /></UDashboardGroup>',
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const navigation = canvas.getByRole('navigation');
+
+    await expect(canvas.getByRole('button', { name: t('workspace.switcher', { name: 'Demo' }) })).toBeVisible();
+    await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('href', '/w/demo/graph');
+    await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('aria-current', 'page');
+    await expect(within(navigation).getByRole('link', { name: t('trace.title') })).toHaveAttribute('href', '/w/demo/trace');
   },
 };

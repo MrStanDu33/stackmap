@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ADMIN, cookieOf, useTestAccounts } from '../../tests/support/accounts';
+import { ADMIN, cookieOf, membersOf, useTestAccounts } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 import { markServerStart } from '../auth/setup-window';
 import { claimSetup, releaseUnusedSetupClaim } from '../repositories/accounts';
@@ -140,5 +140,26 @@ describe.each(DIALECTS)('POST /api/setup on %s', (dialect: Dialect) => {
     const { status, json } = await accounts.setUp();
     expect(status).toBe(201);
     expect(json).toMatchObject({ user: { role: 'admin' } });
+  });
+});
+
+describe.each(DIALECTS)('POST /api/setup and workspace ownership on %s', (dialect: Dialect) => {
+  const accounts = useTestAccounts(dialect);
+  const adminId = (json: unknown) => (json as { user: { id: string } }).user.id;
+
+  it('given the demo checked, the administrator owns the demo workspace (4)', async () => {
+    const { json } = await accounts.setUp({ demo: true });
+
+    const demo = await accounts.db().selectFrom('workspace').select('id').where('slug', '=', 'demo').executeTakeFirstOrThrow();
+    expect(await membersOf(accounts.db(), demo.id)).toEqual({ [adminId(json)]: 'owner' });
+  });
+
+  it('given workspaces seeded before setup, the administrator becomes owner of each (5)', async () => {
+    const { json } = await accounts.setUp();
+
+    // The test database holds workspaces A and B before setup, as STACKMAP_DEMO would seed the demo at boot.
+    for (const { id } of await accounts.db().selectFrom('workspace').select('id').execute()) {
+      expect(await membersOf(accounts.db(), id)).toEqual({ [adminId(json)]: 'owner' });
+    }
   });
 });

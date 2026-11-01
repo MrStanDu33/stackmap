@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import handler from './trace.get';
 import { DIALECTS } from '../../../../tests/support/databases';
-import { useSignedIn } from '../../../../tests/support/sessions';
+import { useMemberOf } from '../../../../tests/support/sessions';
 import { BUILTIN_REGISTRY, useTestWorkspaces } from '../../../../tests/support/workspaces';
 import { seedDemoStack } from '../../../demo/demo-stack';
 import { setDatabase } from '../../../utils/database';
@@ -14,8 +14,6 @@ import type { Dialect } from '../../../../tests/support/databases';
 import type { Database } from '../../../database/types/schema';
 import type { SeededDemoStack } from '../../../demo/demo-stack';
 import type { Kysely } from 'kysely';
-
-useSignedIn();
 
 const get = async (workspaceId: string, query: string) => {
   const app = createApp().use(createRouter().get('/api/workspaces/:workspaceId/trace', handler));
@@ -43,6 +41,7 @@ afterEach(() => {
 
 describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/trace on %s', (dialect: Dialect) => {
   const workspaces = useTestWorkspaces(dialect);
+  useMemberOf(workspaces);
 
   const seed = async () => {
     setDatabase(Promise.resolve(workspaces.db as unknown as Kysely<Database>));
@@ -104,12 +103,29 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/trace on %s', (dialect
       .toMatchObject({ status: 200, json: { hostname: 'app.homelab.example', port: 443 } });
   });
 
-  it('given an unknown workspace, returns 404 workspace_not_found', async () => {
+  it('given an unknown workspace or a malformed id, returns 404 workspace_not_found', async () => {
     await seed();
 
     expect(await get('0199d6a0-0000-7000-8000-000000000999', 'hostname=app.homelab.example'))
       .toMatchObject({ status: 404, json: { code: 'workspace_not_found', status: 404 } });
+    // The membership is checked before the input: a malformed id is a workspace the caller cannot open.
     expect(await get('not-an-id', 'hostname=app.homelab.example'))
-      .toMatchObject({ status: 400, json: { code: 'validation_failed', issues: [{ path: 'params.workspaceId' }] } });
+      .toMatchObject({ status: 404, json: { code: 'workspace_not_found', status: 404 } });
+  });
+});
+
+describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/trace as a member of one workspace on %s', (dialect: Dialect) => {
+  const workspaces = useTestWorkspaces(dialect);
+  useMemberOf(workspaces, { of: ['a'] });
+
+  it('given a member of A only, answers 404 for B and A\'s data for A (12)', async () => {
+    setDatabase(Promise.resolve(workspaces.db as unknown as Kysely<Database>));
+    setExtensionRegistry(BUILTIN_REGISTRY);
+    await seedDemoStack(workspaces.a.repos);
+    await seedDemoStack(workspaces.b.repos);
+
+    expect(await get(workspaces.b.workspace.id, 'hostname=app.homelab.example'))
+      .toMatchObject({ status: 404, json: { code: 'workspace_not_found' } });
+    expect((await get(workspaces.a.workspace.id, 'hostname=app.homelab.example')).status).toBe(200);
   });
 });

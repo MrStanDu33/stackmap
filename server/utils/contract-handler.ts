@@ -4,17 +4,23 @@ import {
   getRequestHeader,
   getRequestURL,
   getRequestWebStream,
+  getRouterParam,
   getRouterParams,
   setResponseHeader,
   setResponseStatus,
 } from 'h3';
 
 import { authUrl } from './auth';
+import { useDatabase } from './database';
+import { isOn } from './flags';
 import { getRequestSession } from './session';
+import { WORKSPACE_ROLES } from '../../shared/contracts/contract';
 import { MAX_ISSUES, Problem, problemOf } from '../../shared/contracts/errors';
+import { roleIn } from '../repositories/members';
+import { getWorkspace } from '../repositories/workspaces';
 
 import type { Session } from '../../shared/contracts/auth';
-import type { Contract } from '../../shared/contracts/contract';
+import type { Contract, Role, WorkspaceRole } from '../../shared/contracts/contract';
 import type { ProblemCode } from '../../shared/contracts/errors';
 import type { EventHandler, H3Event } from 'h3';
 import type { z } from 'zod';
@@ -26,12 +32,22 @@ export const MAX_BODY_BYTES = 1024 * 1024;
 
 type Parsed<S> = S extends z.ZodType ? z.output<S> : undefined;
 
-/** The validated input of a contract's operation, and who calls it: always someone, unless the operation is public. */
+declare const authorized: unique symbol;
+
+/** A workspace the caller may open, with their role in it: only the membership check creates one. */
+export type AuthorizedWorkspace
+  = { readonly id: string; readonly role: WorkspaceRole } & { readonly [authorized]: true };
+
+/**
+ * The validated input of a contract's operation, and who calls it: always someone, unless the operation is public;
+ * for a workspace role, the workspace of the path once the caller's membership is checked.
+ */
 export interface ContractInput<C extends Contract> {
   params: Parsed<C['params']>;
   query: Parsed<C['query']>;
   body: Parsed<C['body']>;
   session: C['requiredRole'] extends 'public' ? null : Session;
+  workspace: C['requiredRole'] extends WorkspaceRole ? AuthorizedWorkspace : null;
 }
 
 /** One of the responses the contract declares: its status and a body matching that status's schema. */
@@ -203,21 +219,41 @@ function checkOrigin(contract: Contract, event: H3Event): void {
   }
 }
 
-/** The caller's session, checked against the contract's role; null for public operations. */
-async function authorize(contract: Contract, event: H3Event): Promise<Session | null> {
+const isWorkspaceRole = (role: Role): role is WorkspaceRole => (WORKSPACE_ROLES as readonly Role[]).includes(role);
+
+/** The caller and, for a workspace role, the workspace of the path, checked against the contract's role. */
+async function authorize(
+  contract: Contract,
+  event: H3Event,
+): Promise<{ session: Session | null; workspace: AuthorizedWorkspace | null }> {
   if (contract.requiredRole === 'public') {
-    return null;
+    return { session: null, workspace: null };
   }
   const session = await getRequestSession(event);
   if (!session) {
     throw new ApiFailure('unauthenticated', 'Sign in to use this operation.');
   }
-  // shortcut: workspace roles (viewer, editor) only need a session until memberships exist (phase 4b); admin and
-  // owner need the instance administrator.
-  if ((contract.requiredRole === 'admin' || contract.requiredRole === 'owner') && session.user.role !== 'admin') {
-    throw new ApiFailure('forbidden', `This operation needs the ${contract.requiredRole} role.`);
+  const { requiredRole } = contract;
+  if (requiredRole === 'instanceAdmin' && session.user.role !== 'admin') {
+    throw new ApiFailure('forbidden', 'This operation needs the instance administrator.');
   }
-  return session;
+  if (!isWorkspaceRole(requiredRole)) {
+    return { session, workspace: null };
+  }
+  // Read raw, before the input is validated: a malformed id is a workspace nobody can open.
+  const workspaceId = getRouterParam(event, 'workspaceId', { decode: true }) ?? '';
+  const db = await useDatabase();
+  const role = session.user.role === 'admin' && isOn(process.env.INSTANCE_ADMIN_ALL_WORKSPACES)
+    ? (await getWorkspace(db, workspaceId) && 'owner')
+    : await roleIn(db, session.user.id, workspaceId);
+  // The same answer whether the workspace is missing or not theirs: ids cannot be probed.
+  if (!role) {
+    throw new ApiFailure('workspace_not_found', 'No workspace with this id that you can open.');
+  }
+  if (WORKSPACE_ROLES.indexOf(role) < WORKSPACE_ROLES.indexOf(requiredRole)) {
+    throw new ApiFailure('forbidden', `This operation needs the ${requiredRole} role in the workspace.`);
+  }
+  return { session, workspace: { id: workspaceId, role } as AuthorizedWorkspace };
 }
 
 /** A route handler that implements a contract: validated input in, a declared response out. */
@@ -232,8 +268,8 @@ export function defineContractHandler<C extends Contract, const R extends Contra
       setResponseHeader(event, 'cache-control', 'no-store');
       checkOrigin(contract, event);
       // Who calls comes first: someone signed out cannot have a body read or an input checked.
-      const session = await authorize(contract, event);
-      const input = { ...await parseInput(contract, event), session } as ContractInput<C>;
+      const caller = await authorize(contract, event);
+      const input = { ...await parseInput(contract, event), ...caller } as ContractInput<C>;
       const result: { status: number; body: unknown } = await handler(input, event);
       const body = responseBody(contract, result);
       setResponseStatus(event, result.status);

@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import type { Trace } from '#shared/contracts/traces';
 import type { Traffic } from '#shared/contracts/traffic';
-import type { WorkspaceSummary } from '#shared/contracts/workspaces';
 import type { TraceSelection } from '~/utils/trace-index';
 import type { TraceQuery } from '~/utils/trace-query';
 
 import { MAX_TRACE_NODES, MAX_TRACE_STEPS } from '#shared/contracts/traces';
-import { DEMO_WORKSPACE_SLUG } from '#shared/contracts/workspaces';
 import { traceElkToVueFlow, traceToElk } from '~/utils/trace-graph';
 import { indexTrace, listenerName, stepName } from '~/utils/trace-index';
 import { parseTraceQuery } from '~/utils/trace-query';
@@ -16,8 +14,6 @@ const { t, n, locale } = useI18n();
 const { session, signOut } = useAccount();
 const route = useRoute();
 const router = useRouter();
-
-useHead({ title: () => `${t('trace.title')} · ${t('app.name')}` });
 
 // The URL is the source of truth: the form writes it, and it decides what is traced.
 const raw = computed(() => ({
@@ -47,14 +43,33 @@ const submit = (next: TraceQuery) => {
   });
 };
 
-// On the client only, as the Traffic view.
-const {
-  data: workspaces, error: workspaceError, refresh: refreshWorkspaces,
-} = useFetch<{ workspaces: WorkspaceSummary[] }>('/api/workspaces', {
-  query: { slug: DEMO_WORKSPACE_SLUG },
-  server: false,
+// On the client only, so a failing request can be shown and retried.
+const { workspaces, error: workspaceError, refresh: refreshWorkspaces, remembered } = useWorkspaces();
+const workspace = computed(() => workspaces.value?.find(({ slug }) => slug === route.params.slug));
+// No workspace at all: the page says how to get one rather than leading nowhere.
+const noWorkspace = computed(() => workspaces.value?.length === 0);
+// The same page whether the workspace does not exist or is not the user's.
+const notFound = computed(() => Boolean(workspaces.value?.length) && !workspace.value);
+// It appears once the list arrives: focus goes to it, so it is heard.
+const notFoundHeading = useTemplateRef<HTMLElement>('notFoundHeading');
+watch(notFound, async (missing) => {
+  if (missing) {
+    await nextTick();
+    notFoundHeading.value?.focus();
+  }
 });
-const workspace = computed(() => workspaces.value?.workspaces[0]);
+const canCreate = computed(() => session.value?.user.role === 'admin');
+watch(workspace, (opened) => {
+  if (opened) {
+    remembered.value = opened.slug;
+  }
+}, { immediate: true });
+
+useHead({
+  title: () => (notFound.value
+    ? [t('workspace.notFound'), t('app.name')]
+    : [t('trace.title'), workspace.value?.name, t('app.name')]).filter(Boolean).join(' · '),
+});
 
 // The workspace's names, suggested in the form; if they cannot be read, the form works without them.
 const trafficUrl = computed(() => (workspace.value ? `/api/workspaces/${workspace.value.id}/traffic` : ''));
@@ -104,7 +119,6 @@ const { layout, error: layoutError, retry: relayout } = useElkLayout(shown, {
 watch(locale, relayout);
 
 const failed = computed(() => Boolean(workspaceError.value ?? traceError.value));
-const noWorkspace = computed(() => workspaces.value !== undefined && !workspace.value);
 const otherClient = computed(() => (query.value?.client === 'public' ? 'internal' : 'public'));
 
 const heading = useTemplateRef<HTMLElement>('heading');
@@ -244,6 +258,10 @@ watch(selection, (selected) => {
 <template>
   <AppShell
     :user="session?.user"
+    :workspaces="workspaces"
+    :current="workspace?.slug"
+    :can-create="canCreate"
+    view="trace"
     @sign-out="signOut"
   >
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -257,6 +275,7 @@ watch(selection, (selected) => {
     </div>
 
     <TraceForm
+      v-if="!notFound && !noWorkspace"
       :query="raw"
       :errors="parsed.errors"
       :suggestions="suggestions"
@@ -284,16 +303,32 @@ watch(selection, (selected) => {
       </UButton>
     </div>
 
-    <div
+    <NoWorkspace
       v-else-if="noWorkspace"
-      class="flex flex-col gap-1 rounded-md border border-default p-6"
+      :can-create="canCreate"
+    />
+
+    <div
+      v-else-if="notFound"
+      class="flex flex-col items-start gap-2 rounded-md border border-default p-6"
     >
-      <h2 class="text-lg font-semibold">
-        {{ t('traffic.noWorkspace') }}
+      <h2
+        ref="notFoundHeading"
+        tabindex="-1"
+        class="text-lg font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        {{ t('workspace.notFound') }}
       </h2>
       <p class="text-muted">
-        {{ t('traffic.noWorkspaceHint') }}
+        {{ t('workspace.notFoundHint') }}
       </p>
+      <ULink
+        v-if="workspaces?.[0]"
+        :to="`/w/${workspaces[0].slug}/trace`"
+        class="text-primary underline"
+      >
+        {{ t('workspace.goToFirst', { name: workspaces[0].name }) }}
+      </ULink>
     </div>
 
     <p

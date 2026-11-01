@@ -10,11 +10,13 @@ import setupGet from '../../server/api/setup.get';
 import setupPost from '../../server/api/setup.post';
 import listWorkspaces from '../../server/api/workspaces/index.get';
 import { markServerStart } from '../../server/auth/setup-window';
+import { useAuth } from '../../server/utils/auth';
 import { setDatabase } from '../../server/utils/database';
 import { setExtensionRegistry } from '../../server/utils/extensions';
 
 import type { Dialect } from './databases';
 import type { Database } from '../../server/database/types/schema';
+import type { Session } from '../../shared/contracts/auth';
 import type { Kysely } from 'kysely';
 
 /** The first administrator, as the tests set them up. */
@@ -102,4 +104,27 @@ export function useTestAccounts(dialect: Dialect) {
   const hasDemo = async () => (await db().selectFrom('workspace').select('id').where('slug', '=', 'demo').execute()).length === 1;
 
   return { db, call, setUp, signedIn, count, hasDemo };
+}
+
+/**
+ * An account created by Better Auth, as setup creates one (and, from 4c, registration): an instance administrator or
+ * a plain user. Answers its session, for `setSessionResolver`.
+ */
+export async function createAccount(
+  db: Kysely<Database>,
+  { name, email, admin = false }: { name: string; email: string; admin?: boolean },
+): Promise<Session> {
+  setDatabase(Promise.resolve(db));
+  const auth = await useAuth();
+  const { user } = await auth.api.signUpEmail({ body: { name, email, password: ADMIN.password } });
+  // The first account becomes administrator on its own: set the role the test asks for either way.
+  const role = admin ? 'admin' : 'user';
+  await db.updateTable('user').set({ role }).where('id', '=', user.id).execute();
+  return { user: { id: user.id, name, email, role } };
+}
+
+/** Each member of a workspace with their role, by user id. */
+export async function membersOf(db: Kysely<Database>, workspaceId: string): Promise<Record<string, string>> {
+  const rows = await db.selectFrom('member').select(['userId', 'role']).where('workspaceId', '=', workspaceId).execute();
+  return Object.fromEntries(rows.map(({ userId, role }) => [userId, role]));
 }

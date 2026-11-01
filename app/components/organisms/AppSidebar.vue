@@ -1,14 +1,25 @@
 <script setup lang="ts">
+import type { WorkspaceRole } from '#shared/contracts/contract';
+
 /** The app's navigation: only the sections that exist, and the display preferences in its footer. */
-defineProps<{ user?: { name: string } | null }>();
+const props = defineProps<{
+  user?: { name: string } | null;
+  workspaces?: { name: string; slug: string; role: WorkspaceRole }[] | null;
+  current?: string;
+  canCreate?: boolean;
+  /** The page's view, which the switcher's links keep. */
+  view?: 'graph' | 'trace';
+}>();
 const emit = defineEmits<{ signOut: [] }>();
 
 const { t } = useI18n();
 
+// The views of the current workspace; outside one, the paths that lead to the last one used.
+const base = computed(() => (props.current ? `/w/${props.current}` : ''));
 // Named on the link too: collapsed, the menu shows the icons alone.
 const items = computed(() => [
-  { label: t('traffic.title'), 'aria-label': t('traffic.title'), icon: 'i-lucide-waypoints', to: '/graph' },
-  { label: t('trace.title'), 'aria-label': t('trace.title'), icon: 'i-lucide-route', to: '/trace' },
+  { label: t('traffic.title'), 'aria-label': t('traffic.title'), icon: 'i-lucide-waypoints', to: `${base.value}/graph` },
+  { label: t('trace.title'), 'aria-label': t('trace.title'), icon: 'i-lucide-route', to: `${base.value}/trace` },
 ]);
 </script>
 
@@ -34,6 +45,14 @@ const items = computed(() => [
     </template>
 
     <template #default="{ collapsed }">
+      <WorkspaceSwitcher
+        v-if="workspaces !== undefined"
+        :workspaces="workspaces"
+        :current="current"
+        :view="view ?? 'graph'"
+        :can-create="canCreate"
+        :collapsed="collapsed"
+      />
       <UNavigationMenu
         :collapsed="collapsed"
         :items="items"

@@ -87,8 +87,8 @@ describe('GET /api/extensions/diagnostics', () => {
     expect((await get()).json.languages).toEqual(extensionLocales.languages);
   });
 
-  it('requires the admin role', () => {
-    expect(handler.contract.requiredRole).toBe('admin');
+  it('requires the instance administrator', () => {
+    expect(handler.contract.requiredRole).toBe('instanceAdmin');
   });
 
   type Diagnosed = { id: string; errors: string[]; hooks: { handles: string[] } };

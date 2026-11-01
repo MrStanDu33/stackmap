@@ -57,7 +57,12 @@ export const PROBLEMS = {
   workspace_not_found: {
     status: 404,
     title: 'The workspace does not exist',
-    description: 'No workspace has this id.',
+    description: 'No workspace has this id, or the caller is not one of its members.',
+  },
+  workspace_slug_taken: {
+    status: 409,
+    title: 'The slug is taken',
+    description: 'Another workspace already uses this slug.',
   },
   internal_error: {
     status: 500,

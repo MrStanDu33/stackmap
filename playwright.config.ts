@@ -4,7 +4,17 @@ import { join } from 'node:path';
 
 import { defineConfig, devices } from '@playwright/test';
 
-import { DEMO_SESSION, DEMO_URL } from './tests/e2e/support/accounts';
+import { dataDirVariable, DEMO_SESSION, DEMO_URL } from './tests/e2e/support/accounts';
+
+/**
+ * Each server's data directory: made once by the runner and inherited by the workers through the environment, so the
+ * global setup reaches the same databases.
+ */
+const dataDir = (port: number): string => {
+  const key = dataDirVariable(port);
+  process.env[key] ??= mkdtempSync(join(tmpdir(), 'stackmap-e2e-'));
+  return process.env[key];
+};
 
 const server = (port: number, env: Record<string, string> = {}) => ({
   command: 'node .output/server/index.mjs',
@@ -19,7 +29,7 @@ const server = (port: number, env: Record<string, string> = {}) => ({
     PORT: String(port),
     // Where the browser reaches it: changes sent from another origin are refused.
     BETTER_AUTH_URL: `http://127.0.0.1:${String(port)}`,
-    DATA_DIR: mkdtempSync(join(tmpdir(), 'stackmap-e2e-')),
+    DATA_DIR: dataDir(port),
     ...env,
   },
   reuseExistingServer: false,

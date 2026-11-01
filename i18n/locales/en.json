@@ -110,7 +110,7 @@
     "empty": "Nothing to draw yet",
     "emptyHint": "Hosts, services and their flows will appear here.",
     "noWorkspace": "No workspace yet",
-    "noWorkspaceHint": "Restart Stackmap with STACKMAP_DEMO=true in its environment to add the demo workspace.",
+    "noWorkspaceHint": "Create one, or add the demo workspace by restarting Stackmap with STACKMAP_DEMO=true.",
     "error": "The traffic could not be loaded.",
     "layoutError": "The graph could not be laid out.",
     "truncated": "Only part of this workspace is shown: it is too large to draw at once.",
@@ -158,7 +158,8 @@
       "host": "host",
       "service": "service",
       "flow": "flow"
-    }
+    },
+    "noWorkspaceMember": "Ask an administrator to invite you to a workspace."
   },
   "detail": {
     "close": "Close details",
@@ -219,5 +220,37 @@
     },
     "signOut": "Sign out",
     "signOutOf": "Sign out ({name})"
+  },
+  "workspace": {
+    "switcher": "Workspace: {name}",
+    "switcherLoading": "Workspace",
+    "withRole": "{name}, {role}",
+    "withRoleCurrent": "{name}, {role} (current)",
+    "role": {
+      "owner": "owner",
+      "admin": "administrator",
+      "editor": "editor",
+      "viewer": "viewer"
+    },
+    "create": "Create a workspace",
+    "new": {
+      "title": "New workspace",
+      "name": "Name",
+      "slug": "Short name",
+      "slugHint": "Used in links: /w/{slug}/graph",
+      "submit": "Create workspace",
+      "created": "Workspace “{name}” created",
+      "forbidden": "Only an administrator can create workspaces.",
+      "slugExample": "my-homelab"
+    },
+    "error": {
+      "name": "Enter a name of up to 100 characters.",
+      "slug": "Use lowercase letters, digits and hyphens, up to 48 characters.",
+      "slugTaken": "Another workspace already uses this short name.",
+      "load": "Your workspaces could not be loaded."
+    },
+    "notFound": "Workspace not found",
+    "notFoundHint": "It doesn’t exist, or you aren’t a member.",
+    "goToFirst": "Go to {name}"
   }
 }

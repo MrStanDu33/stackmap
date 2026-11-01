@@ -1,11 +1,12 @@
 import { createDocument } from 'zod-openapi';
 
+import { WORKSPACE_ROLES } from './contract';
 import { Problem, PROBLEMS, problemOf } from './errors';
 import { CONTRACTS } from './index';
 import { SESSION_COOKIE } from './security';
 import { TAGS } from './tags';
 
-import type { Contract, ContractResponse, Role } from './contract';
+import type { Contract, ContractResponse, Role, WorkspaceRole } from './contract';
 import type { ProblemCode } from './errors';
 import type { TagDocs } from './tags';
 import type { z } from 'zod';
@@ -29,13 +30,14 @@ Translate errors with \`code\`, not with \`title\` or \`detail\`.
 
 ## Authentication
 
-Operations need the session cookie (\`${SESSION_COOKIE}\`) that signing in sets, except public ones. Accounts arrive in
-a later version of Stackmap: until then, every operation is open.
+Operations need the session cookie (\`${SESSION_COOKIE}\`) that signing in sets, except public ones.
 
 ## Roles
 
-Each operation states the role it needs (\`x-required-role\`): \`viewer\`, \`editor\`, \`admin\` or \`owner\` in a
-workspace, or \`public\`. It is checked before the input: \`401\` without a session, \`403\` below the role.
+Each operation states the role it needs (\`x-required-role\`): \`public\`, \`signedIn\` (any session),
+\`instanceAdmin\`, or a role in the workspace of its path, \`viewer\` < \`editor\` < \`admin\` < \`owner\`. It is
+checked before the input: \`401\` without a session, \`403\` below the role, and \`404\` for a workspace the caller is
+not a member of, the same answer as for one that does not exist.
 
 ## Strings
 
@@ -45,7 +47,20 @@ Names and labels in responses are i18n keys, such as \`extensions.core.name\`: t
 
 \`info.version\` is the version of the API, raised on breaking changes, not with every release of Stackmap.`;
 
-const roleSentence = (role: Role) => (role === 'public' ? 'Public: anyone can call it.' : `Requires the ${role} role.`);
+const isWorkspaceRole = (role: Role): role is WorkspaceRole => (WORKSPACE_ROLES as readonly Role[]).includes(role);
+
+const roleSentence = (role: Role) => {
+  if (role === 'public') {
+    return 'Public: anyone can call it.';
+  }
+  if (role === 'signedIn') {
+    return 'Requires a session.';
+  }
+  if (role === 'instanceAdmin') {
+    return 'Requires the instance administrator.';
+  }
+  return `Requires the ${role} role.`;
+};
 
 /** `/api/things/:id` → `/api/things/{id}` */
 const toOpenApiPath = (path: string) => path.replace(/:(\w+)/g, '{$1}');
@@ -89,7 +104,11 @@ const PROBLEM_RESPONSES = {
   }]),
   forbidden: problemResponse('Forbidden', PROBLEMS.forbidden.description, [{
     code: 'forbidden',
-    detail: 'This operation needs the admin role.',
+    detail: 'This operation needs the editor role in the workspace.',
+  }]),
+  workspaceNotFound: problemResponse('WorkspaceNotFound', PROBLEMS.workspace_not_found.description, [{
+    code: 'workspace_not_found',
+    detail: 'No workspace with this id that you can open.',
   }]),
   internalError: problemResponse('InternalError', 'An unexpected error or, outside production, a response that does '
   + 'not match its contract', [
@@ -141,7 +160,13 @@ function toOperation(contract: Contract): ZodOpenApiOperationObject {
       ...(hasInput ? { 400: PROBLEM_RESPONSES.validationFailed } : {}),
       // Checked before the input: a caller without a session, or below the role, learns nothing more.
       ...(contract.requiredRole === 'public' ? {} : { 401: PROBLEM_RESPONSES.unauthenticated }),
-      ...(contract.requiredRole === 'admin' || contract.requiredRole === 'owner' ? { 403: PROBLEM_RESPONSES.forbidden } : {}),
+      ...(contract.requiredRole === 'public' || contract.requiredRole === 'signedIn' || contract.requiredRole === 'viewer'
+        ? {}
+        : { 403: PROBLEM_RESPONSES.forbidden }),
+      // A workspace the caller is not a member of answers like one that does not exist.
+      ...(isWorkspaceRole(contract.requiredRole) && !(404 in contract.responses)
+        ? { 404: PROBLEM_RESPONSES.workspaceNotFound }
+        : {}),
       ...(contract.body === undefined
         ? {}
         : { 413: PROBLEM_RESPONSES.payloadTooLarge, 415: PROBLEM_RESPONSES.unsupportedMediaType }),

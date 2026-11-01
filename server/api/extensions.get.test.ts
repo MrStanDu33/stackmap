@@ -108,8 +108,8 @@ describe('GET /api/extensions', () => {
     expect(warned).toHaveBeenCalledWith(expect.stringMatching(/i-lucide-nope/));
   });
 
-  it('requires the viewer role', () => {
-    expect(handler.contract.requiredRole).toBe('viewer');
+  it('requires a session', () => {
+    expect(handler.contract.requiredRole).toBe('signedIn');
   });
 });
 
