@@ -10,6 +10,7 @@ import setupGet from '../../server/api/setup.get';
 import setupPost from '../../server/api/setup.post';
 import listWorkspaces from '../../server/api/workspaces/index.get';
 import { markServerStart } from '../../server/auth/setup-window';
+import { addMember } from '../../server/repositories/members';
 import { useAuth } from '../../server/utils/auth';
 import { setDatabase } from '../../server/utils/database';
 import { setExtensionRegistry } from '../../server/utils/extensions';
@@ -17,6 +18,7 @@ import { setExtensionRegistry } from '../../server/utils/extensions';
 import type { Dialect } from './databases';
 import type { Database } from '../../server/database/types/schema';
 import type { Session } from '../../shared/contracts/auth';
+import type { WorkspaceRole } from '../../shared/contracts/contract';
 import type { Kysely } from 'kysely';
 
 /** The first administrator, as the tests set them up. */
@@ -127,4 +129,16 @@ export async function createAccount(
 export async function membersOf(db: Kysely<Database>, workspaceId: string): Promise<Record<string, string>> {
   const rows = await db.selectFrom('member').select(['userId', 'role']).where('workspaceId', '=', workspaceId).execute();
   return Object.fromEntries(rows.map(({ userId, role }) => [userId, role]));
+}
+
+/** A new account, member of the workspace with the role. */
+export async function createMember(
+  db: Kysely<Database>,
+  workspaceId: string,
+  role: WorkspaceRole,
+  account: { name: string; email: string },
+): Promise<Session> {
+  const session = await createAccount(db, account);
+  await addMember(db, { workspaceId, userId: session.user.id, role });
+  return session;
 }

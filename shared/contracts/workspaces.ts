@@ -16,7 +16,7 @@ export const DEMO_WORKSPACE_SLUG = 'demo';
 export const WORKSPACE_COOKIE = 'stackmap-workspace';
 
 /** An ISO 8601 UTC timestamp, such as 2026-10-31T09:00:00.000Z. */
-const timestamp = () => z.iso.datetime().max(30);
+export const timestamp = () => z.iso.datetime().max(30);
 
 const workspace = {
   id: id(1),

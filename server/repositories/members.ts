@@ -87,3 +87,34 @@ export async function makeAdminsOwners(db: Kysely<Database>, workspaceIds?: read
     })
     .execute();
 }
+
+export interface WorkspaceMember {
+  userId: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  joinedAt: Date;
+}
+
+/** The workspace's members, by name. */
+export function listMembers(_db: Kysely<Database>, _workspaceId: string): Promise<WorkspaceMember[]> {
+  throw new Error('Not implemented');
+}
+
+/** The member, or why the change was refused: not a member, or it would leave the workspace without an owner. */
+export type MemberChange = WorkspaceMember | 'member_not_found' | 'last_owner';
+
+/** Changes a member's role, unless it would leave the workspace without an owner (checked in the same transaction). */
+export function setMemberRole(
+  _db: Kysely<Database>,
+  _workspaceId: string,
+  _userId: string,
+  _role: WorkspaceRole,
+): Promise<MemberChange> {
+  throw new Error('Not implemented');
+}
+
+/** Removes a member, unless it would leave the workspace without an owner (checked in the same transaction). */
+export function removeMember(_db: Kysely<Database>, _workspaceId: string, _userId: string): Promise<MemberChange> {
+  throw new Error('Not implemented');
+}

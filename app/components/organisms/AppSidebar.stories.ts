@@ -108,5 +108,6 @@ export const WithWorkspaces: Story = {
     await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('href', '/w/demo/graph');
     await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('aria-current', 'page');
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).toHaveAttribute('href', '/w/demo/trace');
+    await expect(within(navigation).getByRole('link', { name: t('members.title') })).toHaveAttribute('href', '/w/demo/members');
   },
 };

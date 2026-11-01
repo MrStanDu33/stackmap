@@ -26,18 +26,23 @@ export type Session = z.infer<typeof Session>;
 export const MIN_PASSWORD = 12;
 export const MAX_PASSWORD = 128;
 
-const email = () => z.email().max(254).meta({ description: 'Its email; compared without case', examples: [admin.email] });
-const password = () => text(MAX_PASSWORD).min(MIN_PASSWORD).meta({
+export const email = () => z.email().max(254).meta({ description: 'Its email; compared without case', examples: [admin.email] });
+export const password = () => text(MAX_PASSWORD).min(MIN_PASSWORD).meta({
   description: `${String(MIN_PASSWORD)} to ${String(MAX_PASSWORD)} characters`,
   examples: ['correct horse battery'],
 });
 
-const problem = (description: string, code: Parameters<typeof problemOf>[0], detail: string, instance: string) => ({
+export const problem = (
+  description: string,
+  code: Parameters<typeof problemOf>[0],
+  detail: string,
+  instance: string,
+) => ({
   description,
   schema: Problem,
   examples: { [code]: { summary: description, value: problemOf(code, { detail, instance }) } },
 });
-const tooMany = (instance: string) => problem(
+export const tooMany = (instance: string) => problem(
   'Too many attempts from this address; `Retry-After` says when to try again',
   'too_many_requests',
   'Too many attempts. Try again in 42 seconds.',

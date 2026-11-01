@@ -2,7 +2,9 @@ import { sql } from 'kysely';
 import { describe, expect, it } from 'vitest';
 
 import { EntityConflictError } from './errors';
-import { addMember, createOwnedWorkspace, roleIn, workspacesOf } from './members';
+import {
+  addMember, createOwnedWorkspace, listMembers, removeMember, roleIn, setMemberRole, workspacesOf,
+} from './members';
 import { createAccount, membersOf } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 import { createWorkspace, useTestWorkspaces } from '../../tests/support/workspaces';
@@ -65,5 +67,53 @@ describe.each(DIALECTS)('workspace members on %s', (dialect: Dialect) => {
     await expect(createOwnedWorkspace(db(), { name: 'Other', slug: 'homelab' }, user.id))
       .rejects.toBeInstanceOf(EntityConflictError);
     expect(await workspacesOf(db(), user.id)).toHaveLength(1);
+  });
+
+  it('lists a workspace\'s members by name, with their email, role and when they joined (13)', async () => {
+    const workspaceId = workspaces.a.workspace.id;
+    const editor = await grace();
+    const owner = await ada();
+    await addMember(db(), { workspaceId, userId: editor.user.id, role: 'editor' });
+    await addMember(db(), { workspaceId, userId: owner.user.id, role: 'owner' });
+
+    const members = await listMembers(db(), workspaceId);
+
+    expect(members.map(({ name, email, role }) => [name, email, role])).toEqual([
+      ['Ada', 'ada@homelab.example', 'owner'],
+      ['Grace', 'grace@homelab.example', 'editor'],
+    ]);
+    expect(members[0]?.joinedAt).toBeInstanceOf(Date);
+  });
+
+  it('refuses to demote or remove the last owner, and allows it with two; a stranger is not found (16, 17)', async () => {
+    const workspaceId = workspaces.a.workspace.id;
+    const owner = await ada();
+    const other = await grace();
+    await addMember(db(), { workspaceId, userId: owner.user.id, role: 'owner' });
+
+    expect(await setMemberRole(db(), workspaceId, owner.user.id, 'admin')).toBe('last_owner');
+    expect(await removeMember(db(), workspaceId, owner.user.id)).toBe('last_owner');
+    expect(await setMemberRole(db(), workspaceId, other.user.id, 'viewer')).toBe('member_not_found');
+    expect(await removeMember(db(), workspaceId, other.user.id)).toBe('member_not_found');
+
+    await addMember(db(), { workspaceId, userId: other.user.id, role: 'owner' });
+    expect(await setMemberRole(db(), workspaceId, owner.user.id, 'admin')).toMatchObject({ role: 'admin' });
+    expect(await removeMember(db(), workspaceId, other.user.id)).toBe('last_owner');
+  });
+
+  it('given two owners demoting each other at once, keeps one owner (16)', async () => {
+    const workspaceId = workspaces.a.workspace.id;
+    const first = await ada();
+    const second = await grace();
+    await addMember(db(), { workspaceId, userId: first.user.id, role: 'owner' });
+    await addMember(db(), { workspaceId, userId: second.user.id, role: 'owner' });
+
+    const results = await Promise.all([
+      setMemberRole(db(), workspaceId, first.user.id, 'viewer'),
+      setMemberRole(db(), workspaceId, second.user.id, 'viewer'),
+    ]);
+
+    expect(results.filter((result) => result === 'last_owner')).toHaveLength(1);
+    expect(Object.values(await membersOf(db(), workspaceId)).filter((role) => role === 'owner')).toHaveLength(1);
   });
 });

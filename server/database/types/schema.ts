@@ -8,6 +8,7 @@ export interface Database {
   appSetting: AppSettingTable;
   workspace: WorkspaceTable;
   member: MemberTable;
+  invitation: InvitationTable;
   derived_flow: DerivedFlowTable;
   user: UserTable;
   rateLimit: RateLimitTable;
@@ -20,8 +21,22 @@ export interface Database {
 export interface UserTable {
   id: string;
   email: string;
+  name: string;
   /** The instance role, from Better Auth's admin plugin: `admin` or `user`. */
   role: string | null;
+}
+
+/** A pending invitation to a workspace: the link's token is never stored, only its SHA-256 hash. */
+export interface InvitationTable {
+  id: string;
+  workspaceId: string;
+  /** Lower case. */
+  email: string;
+  role: WorkspaceRole;
+  tokenHash: string;
+  invitedById: string | null;
+  createdAt: string;
+  expiresAt: string;
 }
 
 /** Who belongs to a workspace, and with which role. */
