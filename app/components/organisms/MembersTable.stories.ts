@@ -70,7 +70,8 @@ export const AsAdmin: Story = {
 
     await expect(canvas.queryByRole('combobox', { name: t('members.roleOf', { name: 'Ada' }) })).toBeNull();
     await expect(canvas.queryByRole('button', { name: t('members.remove', { name: 'Ada' }) })).toBeNull();
-    await expect(canvas.getByRole('row', { name: new RegExp('Ada') })).toHaveTextContent(role('owner'));
+    const members = within(canvas.getByRole('table', { name: t('members.title') }));
+    await expect(members.getByRole('row', { name: /^Ada/ })).toHaveTextContent(role('owner'));
 
     await userEvent.click(canvas.getByRole('combobox', { name: t('members.roleOf', { name: 'Grace' }) }));
     const options = await waitFor(() => {
@@ -81,6 +82,9 @@ export const AsAdmin: Story = {
       return found;
     });
     await expect(options).toEqual([role('viewer'), role('editor')]);
+    // Closed again, as a user would: an open list hides the rest of the page from assistive technologies.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(document.querySelector('[role="listbox"]')).toBeNull());
   },
 };
 

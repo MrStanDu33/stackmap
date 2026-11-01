@@ -252,5 +252,60 @@
     "notFound": "Espace de travail introuvable",
     "notFoundHint": "Il n’existe pas, ou vous n’en êtes pas membre.",
     "goToFirst": "Aller à {name}"
+  },
+  "members": {
+    "title": "Membres",
+    "name": "Nom",
+    "email": "E-mail",
+    "role": "Rôle",
+    "actions": "Actions",
+    "you": "(vous)",
+    "roleOf": "Rôle de {name}",
+    "remove": "Retirer {name}",
+    "leave": "Quitter cet espace de travail",
+    "removeQuestion": "Retirer {name} de cet espace de travail ? Cette personne perd l’accès à ses données.",
+    "leaveQuestion": "Quitter cet espace de travail ? Il faudra une nouvelle invitation pour revenir.",
+    "invitations": "Invitations en attente",
+    "invitedBy": "Invitée par",
+    "expires": "Expire le",
+    "revoke": "Révoquer l’invitation de {email}",
+    "revokeConfirm": "Révoquer l’invitation",
+    "revokeQuestion": "Révoquer l’invitation de {email} ? Son lien cessera de fonctionner.",
+    "lastOwner": "Un espace de travail doit garder au moins un propriétaire.",
+    "error": "Les membres n’ont pas pu être chargés.",
+    "changeError": "La modification n’a pas pu être enregistrée. Réessayez.",
+    "cancel": "Annuler"
+  },
+  "invite": {
+    "title": "Inviter quelqu’un",
+    "email": "E-mail",
+    "role": "Rôle",
+    "submit": "Créer le lien d’invitation",
+    "link": "Lien d’invitation",
+    "linkHint": "Envoyez ce lien à {email}. Il fonctionne une fois, pendant 7 jours.",
+    "copy": "Copier",
+    "copied": "Copié",
+    "created": "Lien d’invitation créé pour {email}",
+    "error": {
+      "alreadyMember": "Cette personne est déjà membre.",
+      "email": "Saisissez une adresse e-mail, par exemple {example}."
+    }
+  },
+  "invitation": {
+    "title": "Invitation à {workspace}",
+    "offer": "{inviter} vous invite dans {workspace} en tant que {role}.",
+    "offerAnonymous": "Vous êtes invité dans {workspace} en tant que {role}.",
+    "for": "Cette invitation est destinée à {email}.",
+    "newAccount": "Nouveau sur Stackmap ?",
+    "register": "Créer un compte",
+    "haveAccount": "Vous avez déjà un compte ?",
+    "signIn": "Se connecter pour accepter",
+    "registered": "Si {email} n’avait pas de compte, il en a un désormais. Connectez-vous pour accepter l’invitation.",
+    "accept": "Accepter l’invitation",
+    "wrongAccount": "Vous êtes connecté en tant que {email}. Déconnectez-vous, puis connectez-vous en tant que {invited} pour accepter.",
+    "signOut": "Se déconnecter",
+    "notFound": "Invitation introuvable",
+    "notFoundHint": "Elle a peut-être expiré ou déjà servi.",
+    "error": "L’invitation n’a pas pu être acceptée. Réessayez."
   }
 }

@@ -19,11 +19,14 @@ export function useAccount() {
     setUp.value = true;
   };
 
-  const signOut = async () => {
+  /** Signs out, then goes to the sign-in page, or stays where it is (an invitation offers to sign in again). */
+  const signOut = async ({ stay = false }: { stay?: boolean } = {}) => {
     // Signed out on the client whatever the server answers: an expired session is gone already.
     await $fetch('/api/session', { method: 'DELETE' }).catch(() => undefined);
     session.value = null;
-    await navigateTo('/login', { replace: true });
+    if (!stay) {
+      await navigateTo('/login', { replace: true });
+    }
   };
 
   return { session, setUp, load, signedIn, signOut };

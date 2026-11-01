@@ -85,13 +85,12 @@ export const WrongAccount: Story = {
   },
 };
 
-/** An unknown, expired or used link (7). */
+/** An unknown, expired or used link: why, with nothing to press. The page's heading says it is not found (7). */
 export const NotFound: Story = {
   args: { invitation: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByRole('heading', { name: t('invitation.notFound') })).toBeVisible();
     await expect(canvas.getByText(t('invitation.notFoundHint'))).toBeVisible();
     await expect(canvas.queryByRole('button')).toBeNull();
   },

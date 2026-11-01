@@ -252,5 +252,60 @@
     "notFound": "Workspace not found",
     "notFoundHint": "It doesn’t exist, or you aren’t a member.",
     "goToFirst": "Go to {name}"
+  },
+  "members": {
+    "title": "Members",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "actions": "Actions",
+    "you": "(you)",
+    "roleOf": "Role of {name}",
+    "remove": "Remove {name}",
+    "leave": "Leave this workspace",
+    "removeQuestion": "Remove {name} from this workspace? They lose access to its data.",
+    "leaveQuestion": "Leave this workspace? You will need a new invitation to come back.",
+    "invitations": "Pending invitations",
+    "invitedBy": "Invited by",
+    "expires": "Expires",
+    "revoke": "Revoke the invitation for {email}",
+    "revokeConfirm": "Revoke the invitation",
+    "revokeQuestion": "Revoke the invitation for {email}? Its link stops working.",
+    "lastOwner": "A workspace needs at least one owner.",
+    "error": "The members could not be loaded.",
+    "changeError": "The change could not be saved. Try again.",
+    "cancel": "Cancel"
+  },
+  "invite": {
+    "title": "Invite someone",
+    "email": "Email",
+    "role": "Role",
+    "submit": "Create the invitation link",
+    "link": "Invitation link",
+    "linkHint": "Send this link to {email}. It works once, for 7 days.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "created": "Invitation link created for {email}",
+    "error": {
+      "alreadyMember": "This person is already a member.",
+      "email": "Enter an email address, such as {example}."
+    }
+  },
+  "invitation": {
+    "title": "Invitation to {workspace}",
+    "offer": "{inviter} invited you to {workspace} as {role}.",
+    "offerAnonymous": "You are invited to {workspace} as {role}.",
+    "for": "This invitation is for {email}.",
+    "newAccount": "New to Stackmap?",
+    "register": "Create an account",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign in to accept",
+    "registered": "If {email} had no account, it has one now. Sign in to accept the invitation.",
+    "accept": "Accept the invitation",
+    "wrongAccount": "You are signed in as {email}. Sign out, then sign in as {invited} to accept.",
+    "signOut": "Sign out",
+    "notFound": "Invitation not found",
+    "notFoundHint": "It may have expired or been used already.",
+    "error": "The invitation could not be accepted. Try again."
   }
 }

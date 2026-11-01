@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { ADMIN, DEMO_URL, signInTo } from './support/accounts';
+import { hydrated } from './support/hydration';
 
 import type { Page } from '@playwright/test';
 
@@ -38,6 +39,7 @@ test.describe('members and invitations', () => {
     const context = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });
     const visitor = await context.newPage();
     await visitor.goto(link);
+    await hydrated(visitor);
     await expect(visitor).toHaveTitle(/^Invitation to Team /);
     await expect(visitor.getByText(/^Ada invited you to Team .* as editor\.$/)).toBeVisible();
     await expect(visitor.getByRole('link', { name: 'Sign in to accept' })).toBeVisible();
@@ -46,7 +48,7 @@ test.describe('members and invitations', () => {
     await visitor.getByRole('textbox', { name: /^Name/ }).fill('Alan');
     await visitor.getByLabel(/^Password/).fill(PASSWORD);
     await visitor.getByRole('button', { name: 'Create an account' }).click();
-    await expect(visitor.getByRole('status')).toContainText('Sign in to accept the invitation');
+    await expect(visitor.getByRole('status').filter({ hasText: 'Sign in to accept the invitation' })).toHaveCount(1);
 
     await visitor.getByRole('link', { name: 'Sign in to accept' }).click();
     await visitor.getByRole('textbox', { name: 'Email' }).fill(email);
@@ -82,8 +84,9 @@ test.describe('members and invitations', () => {
 
     await viewer.goto(`/w/${workspace.slug}/members`);
 
-    await expect(viewer.getByRole('table', { name: 'Members' })).toContainText('Ada');
-    await expect(viewer.getByRole('combobox')).toHaveCount(0);
+    const members = viewer.getByRole('table', { name: 'Members' });
+    await expect(members).toContainText('Ada');
+    await expect(members.getByRole('combobox')).toHaveCount(0);
     await expect(viewer.getByRole('button', { name: 'Leave this workspace' })).toBeVisible();
     await expect(viewer.getByRole('form', { name: 'Invite someone' })).toHaveCount(0);
     await expectNoAxeViolation(viewer);
@@ -93,6 +96,7 @@ test.describe('members and invitations', () => {
   test('given an owner, the page invites, manages roles and removes members, with no axe violation (18)', async ({ page }) => {
     const workspace = await createWorkspace(page);
     await page.goto(`/w/${workspace.slug}/members`);
+    await hydrated(page);
     await expect(page.getByRole('heading', { level: 1, name: 'Members' })).toBeVisible();
     await expectNoAxeViolation(page);
 
@@ -109,6 +113,7 @@ test.describe('members and invitations', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     const workspace = await createWorkspace(page);
     await page.goto(`/w/${workspace.slug}/members`);
+    await hydrated(page);
 
     await page.getByRole('textbox', { name: /^Email/ }).fill(uniqueEmail('alan'));
     await page.getByRole('button', { name: 'Create the invitation link' }).click();
@@ -125,6 +130,7 @@ test.describe('members and invitations', () => {
   test('given the last owner, leaving or demoting themselves is refused with an explanation (16)', async ({ page }) => {
     const workspace = await createWorkspace(page);
     await page.goto(`/w/${workspace.slug}/members`);
+    await hydrated(page);
 
     await page.getByRole('button', { name: 'Leave this workspace' }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Leave this workspace' }).click();

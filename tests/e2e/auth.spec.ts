@@ -123,6 +123,7 @@ test.describe('sign-in', () => {
 
     await fillSignIn(page);
 
-    await expect(page).toHaveURL(new RegExp(`^${FRESH_URL}/graph$`));
+    // `/`, then the workspace's own page (4b).
+    await expect(page).toHaveURL(new RegExp(`^${FRESH_URL}/w/demo/graph$`));
   });
 });

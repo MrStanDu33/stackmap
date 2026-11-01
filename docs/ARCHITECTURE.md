@@ -352,6 +352,10 @@ healthcheck calls it. The database error goes to the logs, never to the response
   opened in the `stackmap-workspace` cookie (its slug only). `/`, `/graph` and `/trace` lead to that one, or the first
   by name, with the same query; without any, they say how to get one. A slug that is unknown or not the user's shows
   the same "Workspace not found" page.
+- `/w/<slug>/members` lists the members (`MembersTable`) for everyone, with the controls the caller's role allows and
+  a confirmation before removing, leaving or revoking; admins and owners also invite (`InviteForm`, the link shown
+  once with Copy) and see the pending invitations. `/invite/<token>` (open signed out, `InvitationCard`) offers to
+  create an account or to sign in, then to accept with the invited account.
 - The Traffic view (`/w/<slug>/graph`) draws `GET /api/workspaces/:workspaceId/traffic` with Vue Flow:
   hosts hold their services, services list their ports, and each flow ends on its port. ELK lays it out in a web
   worker (`app/composables/useTrafficLayout.ts`, from the pure helpers in `app/utils/traffic-graph.ts`). Nodes are

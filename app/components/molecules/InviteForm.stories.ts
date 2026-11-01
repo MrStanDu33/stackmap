@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fn, spyOn, userEvent, waitFor, within } from 'storybook/test';
 
 import InviteForm from './InviteForm.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
@@ -76,8 +76,12 @@ export const Created: Story = {
     await expect(link).toHaveAccessibleDescription(t('invite.linkHint', { email: 'alan@homelab.example' }));
     await expect(canvas.getByRole('status')).toHaveTextContent(t('invite.created', { email: 'alan@homelab.example' }));
 
+    // The test browser has no clipboard permission: the copy itself is what is checked.
+    const writeText = spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
     await userEvent.click(canvas.getByRole('button', { name: t('invite.copy') }));
+    await expect(writeText).toHaveBeenCalledWith(LINK);
     await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent(t('invite.copied')));
+    writeText.mockRestore();
   },
 };
 
@@ -94,6 +98,9 @@ export const AdminRoles: Story = {
       return found;
     });
     await expect(options).toEqual([t('workspace.role.viewer'), t('workspace.role.editor')]);
+    // Closed again, as a user would: an open list hides the rest of the page from assistive technologies.
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(document.querySelector('[role="listbox"]')).toBeNull());
   },
 };
 

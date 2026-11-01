@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
 import { DEMO_URL, EMPTY_URL, signInTo, USER } from './support/accounts';
+import { hydrated } from './support/hydration';
 
 import type { Page } from '@playwright/test';
 
@@ -80,6 +81,7 @@ test.describe('workspaces', () => {
   test('given /workspaces/new, a name fills the slug, and creating leads to the new empty workspace, with no axe violation (23)', async ({ page }) => {
     const slug = `home-${String(Date.now())}`;
     await page.goto('/workspaces/new');
+    await hydrated(page);
     await expect(page.getByRole('heading', { level: 1, name: 'New workspace' })).toBeVisible();
     await expectNoAxeViolation(page);
 
@@ -96,6 +98,7 @@ test.describe('workspaces', () => {
 
   test('given a taken slug, the form shows the error on the slug field and focuses it (24)', async ({ page }) => {
     await page.goto('/workspaces/new');
+    await hydrated(page);
     await page.getByRole('textbox', { name: /^Name/ }).fill('Demo');
     await page.getByRole('button', { name: 'Create workspace' }).click();
 
