@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { ADMIN, DEMO_URL, signInTo } from './support/accounts';
+import { ADMIN, DEMO_URL, signInTo, USER } from './support/accounts';
 import { hydrated } from './support/hydration';
 
 import type { Page } from '@playwright/test';
@@ -28,33 +28,29 @@ const invite = async (page: Page, workspaceId: string, email: string, role = 'ed
 };
 
 const uniqueEmail = (name: string) => `${name}-${String(Date.now())}-${String(Math.floor(Math.random() * 1000))}@homelab.example`;
-const PASSWORD = 'correct horse battery';
 
 test.describe('members and invitations', () => {
-  test('given /invite/<token> signed out, the page offers to create an account or sign in; registering then signing in accepts it and leads to the workspace (12)', async ({ page, browser }) => {
+  test('given /invite/<token> signed out, the page offers to sign in with the invited account, then accepts it and leads to the workspace (12)', async ({ page, browser }) => {
     const workspace = await createWorkspace(page);
-    const email = uniqueEmail('alan');
-    const link = await invite(page, workspace.id, email);
+    const link = await invite(page, workspace.id, USER.email);
 
     const context = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });
     const visitor = await context.newPage();
     await visitor.goto(link);
     await hydrated(visitor);
-    await expect(visitor).toHaveTitle(/^Invitation to Team /);
-    await expect(visitor.getByText(/^Ada invited you to Team .* as editor\.$/)).toBeVisible();
-    await expect(visitor.getByRole('link', { name: 'Sign in to accept' })).toBeVisible();
+    await expect(visitor).toHaveTitle(/^Invitation to join Team /);
+    await expect(visitor.getByText(/^Ada invited you to Team .* with the editor role\.$/)).toBeVisible();
+    await expect(visitor.getByText(`Sign in with ${USER.email}`, { exact: false })).toBeVisible();
+    await expect(visitor.getByRole('textbox')).toHaveCount(0);
     await expectNoAxeViolation(visitor);
 
-    await visitor.getByRole('textbox', { name: /^Name/ }).fill('Alan');
-    await visitor.getByLabel(/^Password/).fill(PASSWORD);
-    await visitor.getByRole('button', { name: 'Create an account' }).click();
-    await expect(visitor.getByRole('status').filter({ hasText: 'Sign in to accept the invitation' })).toHaveCount(1);
-
     await visitor.getByRole('link', { name: 'Sign in to accept' }).click();
-    await visitor.getByRole('textbox', { name: 'Email' }).fill(email);
-    await visitor.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await hydrated(visitor);
+    await visitor.getByRole('textbox', { name: 'Email' }).fill(USER.email);
+    await visitor.getByLabel('Password', { exact: true }).fill(USER.password);
     await visitor.getByRole('button', { name: 'Sign in' }).click();
     await expect(visitor).toHaveURL(`${DEMO_URL}${link}`);
+    await hydrated(visitor);
     await visitor.getByRole('button', { name: 'Accept the invitation' }).click();
 
     await expect(visitor).toHaveURL(`${DEMO_URL}/w/${workspace.slug}/graph`);
@@ -64,23 +60,27 @@ test.describe('members and invitations', () => {
   test('given /invite/<token> signed in with another email, the page says whom it is for and offers Sign out (12)', async ({ page }) => {
     const workspace = await createWorkspace(page);
     const link = await invite(page, workspace.id, 'someone.else@homelab.example');
+    // A session of its own: signing out below must not end the one the other tests share.
+    await signInTo(page, DEMO_URL);
 
     await page.goto(link);
 
     await expect(page.getByText(`You are signed in as ${ADMIN.email}.`, { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Accept the invitation' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Sign out' }).last()).toBeVisible();
+
+    // Signed out, the page stays, and focus goes to what to do next.
+    await hydrated(page);
+    await page.getByRole('main').getByRole('button', { name: 'Sign out' }).click();
+    await expect(page.getByRole('link', { name: 'Sign in to accept' })).toBeFocused();
   });
 
   test('given /w/<slug>/members, a viewer sees the members and Leave on their own row only (18)', async ({ page, browser }) => {
     const workspace = await createWorkspace(page);
-    const email = uniqueEmail('grace');
-    const link = await invite(page, workspace.id, email, 'viewer');
+    const link = await invite(page, workspace.id, USER.email, 'viewer');
     const context = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });
     const viewer = await context.newPage();
-    await viewer.request.post(`${DEMO_URL}/api${link.replace('/invite/', '/invitations/')}/register`, { data: { name: 'Grace', password: PASSWORD } });
-    await signInTo(viewer, DEMO_URL, { email, password: PASSWORD });
-    await viewer.request.post(`${DEMO_URL}/api${link.replace('/invite/', '/invitations/')}/accept`);
+    await signInTo(viewer, DEMO_URL, USER);
+    expect((await viewer.request.post(`${DEMO_URL}/api${link.replace('/invite/', '/invitations/')}/accept`)).status()).toBe(200);
 
     await viewer.goto(`/w/${workspace.slug}/members`);
 
@@ -107,6 +107,9 @@ test.describe('members and invitations', () => {
     await pending.getByRole('button', { name: /^Revoke the invitation for/ }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Revoke the invitation' }).click();
     await expect(page.getByRole('table', { name: 'Pending invitations' })).toHaveCount(0);
+    // Its row is gone with the button that had focus: focus goes to the members' heading, and the change is said.
+    await expect(page.getByRole('heading', { level: 2, name: 'Members' })).toBeFocused();
+    await expect(page.getByRole('status').filter({ hasText: 'Invitation revoked' })).toHaveCount(1);
   });
 
   test('given a new invitation, the page shows its link once with Copy, focused and announced (19)', async ({ page, context }) => {
@@ -136,6 +139,7 @@ test.describe('members and invitations', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Leave this workspace' }).click();
 
     await expect(page.getByRole('alert')).toHaveText(/A workspace needs at least one owner\./);
+    await expect(page.getByRole('alert')).toBeFocused();
     await expect(page.getByRole('table', { name: 'Members' })).toContainText('Ada');
   });
 });

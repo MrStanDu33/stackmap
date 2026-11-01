@@ -50,4 +50,16 @@ describe.each(DIALECTS)('DELETE /api/workspaces/:workspaceId/invitations/:invita
       .toMatchObject({ status: 404, json: { code: 'invitation_not_found' } });
     expect(await findInvitation(db(), b.token)).toBeDefined();
   });
+
+  it('given an admin and an invitation as owner, answers 403 and keeps it (security review)', async () => {
+    const owner = await createMember(db(), workspaces.a.workspace.id, 'owner', { name: 'Alan', email: 'alan@homelab.example' });
+    const { invitation, token } = await createInvitation(db(), {
+      workspaceId: workspaces.a.workspace.id, email: 'linus@homelab.example', role: 'owner', invitedById: owner.user.id,
+    });
+    await setUp();
+
+    expect(await remove(`/api/workspaces/${workspaces.a.workspace.id}/invitations/${invitation.id}`))
+      .toMatchObject({ status: 403, json: { code: 'forbidden' } });
+    expect(await findInvitation(db(), token)).toBeDefined();
+  });
 });

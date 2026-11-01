@@ -111,7 +111,7 @@ export async function listMembers(db: Kysely<Database>, workspaceId: string): Pr
 }
 
 /** The member, or why the change was refused: not a member, or it would leave the workspace without an owner. */
-export type MemberChange = WorkspaceMember | 'member_not_found' | 'last_owner';
+export type MemberChange = WorkspaceMember | 'member_not_found' | 'last_owner' | 'forbidden';
 
 /**
  * Runs a change to a member with the workspace's row locked, so that two changes at once see each other: two owners
@@ -147,6 +147,7 @@ export async function setMemberRole(
   workspaceId: string,
   userId: string,
   role: WorkspaceRole,
+  _options: { actor?: WorkspaceRole } = {},
 ): Promise<MemberChange> {
   const change = await changeMember(db, workspaceId, userId, {
     keepsOwner: role === 'owner',
@@ -157,7 +158,12 @@ export async function setMemberRole(
 }
 
 /** Removes a member, unless it would leave the workspace without an owner. */
-export function removeMember(db: Kysely<Database>, workspaceId: string, userId: string): Promise<MemberChange> {
+export function removeMember(
+  db: Kysely<Database>,
+  workspaceId: string,
+  userId: string,
+  _options: { actor?: WorkspaceRole; self?: boolean } = {},
+): Promise<MemberChange> {
   return changeMember(db, workspaceId, userId, {
     keepsOwner: false,
     apply: (trx) => trx.deleteFrom('member').where('workspaceId', '=', workspaceId).where('userId', '=', userId).execute(),

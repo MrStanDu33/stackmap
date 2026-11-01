@@ -31,7 +31,7 @@ export const Default: Story = {
   play: async ({ canvasElement, args }) => {
     const form = fields(canvasElement);
 
-    await expect(form.role).toHaveTextContent(t('workspace.role.viewer'));
+    await expect(form.role).toHaveTextContent(t('workspace.roleLabel.viewer'));
     await userEvent.type(form.email, 'alan@homelab.example');
     await userEvent.click(form.submit);
     await expect(args.onSubmit).toHaveBeenCalledWith({ email: 'alan@homelab.example', role: 'viewer' });
@@ -73,7 +73,7 @@ export const Created: Story = {
     await waitFor(() => expect(link).toHaveFocus());
     await expect(link).toHaveValue(LINK);
     await expect(link).toHaveAttribute('readonly');
-    await expect(link).toHaveAccessibleDescription(t('invite.linkHint', { email: 'alan@homelab.example' }));
+    await expect(link).toHaveAccessibleDescription(t('invite.linkHint', { email: 'alan@homelab.example', days: 7 }));
     await expect(canvas.getByRole('status')).toHaveTextContent(t('invite.created', { email: 'alan@homelab.example' }));
 
     // The test browser has no clipboard permission: the copy itself is what is checked.
@@ -97,7 +97,7 @@ export const AdminRoles: Story = {
       }
       return found;
     });
-    await expect(options).toEqual([t('workspace.role.viewer'), t('workspace.role.editor')]);
+    await expect(options).toEqual([t('workspace.roleLabel.viewer'), t('workspace.roleLabel.editor')]);
     // Closed again, as a user would: an open list hides the rest of the page from assistive technologies.
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(document.querySelector('[role="listbox"]')).toBeNull());
@@ -112,5 +112,33 @@ export const Sending: Story = {
 
     await expect(form.email).toHaveAttribute('readonly');
     await expect(form.submit).toHaveAttribute('aria-busy', 'true');
+  },
+};
+
+/** The clipboard refused: the link is focused and selected, and the reader is told to copy it by hand. */
+export const CopyFails: Story = {
+  args: { created: { url: LINK, email: 'alan@homelab.example' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const link = canvas.getByRole<HTMLInputElement>('textbox', { name: t('invite.link') });
+    const writeText = spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('Not allowed'));
+
+    await userEvent.click(canvas.getByRole('button', { name: t('invite.copy') }));
+
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent(t('invite.copyManual')));
+    await expect(link).toHaveFocus();
+    await expect([link.selectionStart, link.selectionEnd]).toEqual([0, LINK.length]);
+    writeText.mockRestore();
+  },
+};
+
+/** Stackmap could not be reached: the alert takes the focus. */
+export const NetworkError: Story = {
+  args: { error: 'network' },
+  play: async ({ canvasElement }) => {
+    const alert = within(canvasElement).getByRole('alert');
+
+    await expect(alert).toHaveTextContent(t('auth.error.network'));
+    await waitFor(() => expect(alert).toHaveFocus());
   },
 };

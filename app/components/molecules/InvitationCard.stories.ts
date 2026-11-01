@@ -20,7 +20,6 @@ const meta = {
     signInTo: '/login?redirect=/invite/token',
     busy: false,
     error: null,
-    onRegister: fn(),
     onAccept: fn(),
     onSignOut: fn(),
   },
@@ -32,33 +31,15 @@ type Story = StoryObj<typeof meta>;
 const { t } = i18n.global;
 const offer = () => t('invitation.offer', { inviter: 'Ada', workspace: 'Demo', role: t('workspace.role.editor') });
 
-/** Signed out: what the invitation offers, the registration form with the email fixed, and Sign in to accept (12). */
+/** Signed out: what it offers, and Sign in to accept with the invited account; no way to create one here (12). */
 export const SignedOut: Story = {
-  play: async ({ canvasElement, args }) => {
-    const canvas = within(canvasElement);
-
-    await expect(canvas.getByText(offer())).toBeVisible();
-    await expect(canvas.getByRole('link', { name: t('invitation.signIn') })).toHaveAttribute('href', '/login?redirect=/invite/token');
-    const email = canvas.getByRole('textbox', { name: new RegExp(`^${t('auth.field.email')}`) });
-    await expect(email).toHaveValue('alan@homelab.example');
-    await expect(email).toHaveAttribute('readonly');
-
-    await userEvent.type(canvas.getByRole('textbox', { name: new RegExp(`^${t('auth.field.name')}`) }), 'Alan');
-    await userEvent.type(canvas.getByLabelText(new RegExp(`^${t('auth.field.password')}`), { selector: 'input' }), 'correct horse battery');
-    await userEvent.click(canvas.getByRole('button', { name: t('invitation.register') }));
-    await expect(args.onRegister).toHaveBeenCalledWith({ name: 'Alan', password: 'correct horse battery' });
-  },
-};
-
-/** After registering: whatever happened, the same next step, without saying whether the account existed (8, 9). */
-export const Registered: Story = {
-  args: { state: 'registered' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent(t('invitation.registered', { email: 'alan@homelab.example' })));
-    await expect(canvas.getByRole('link', { name: t('invitation.signIn') })).toBeVisible();
-    await expect(canvas.queryByRole('button', { name: t('invitation.register') })).toBeNull();
+    await expect(canvas.getByText(offer())).toBeVisible();
+    await expect(canvas.getByText(t('invitation.signInHint', { email: 'alan@homelab.example' }))).toBeVisible();
+    await expect(canvas.getByRole('link', { name: t('invitation.signIn') })).toHaveAttribute('href', '/login?redirect=/invite/token');
+    await expect(canvas.queryAllByRole('textbox')).toEqual([]);
   },
 };
 
@@ -82,6 +63,17 @@ export const WrongAccount: Story = {
     await expect(canvas.queryByRole('button', { name: t('invitation.accept') })).toBeNull();
     await userEvent.click(canvas.getByRole('button', { name: t('invitation.signOut') }));
     await expect(args.onSignOut).toHaveBeenCalledOnce();
+  },
+};
+
+/** A failure, said in an alert that takes the focus. */
+export const AcceptFailed: Story = {
+  args: { state: 'accept', signedInAs: 'alan@homelab.example', error: 'invitation.error' },
+  play: async ({ canvasElement }) => {
+    const alert = within(canvasElement).getByRole('alert');
+
+    await expect(alert).toHaveTextContent(t('invitation.error'));
+    await waitFor(() => expect(alert).toHaveFocus());
   },
 };
 

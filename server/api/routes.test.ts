@@ -108,3 +108,10 @@ describe('workspace roles', () => {
     expect(readers).toEqual([]);
   });
 });
+
+describe('accounts', () => {
+  it('creates no account from an invitation link: whoever holds one could claim its email (security review of 4c)', () => {
+    expect(CONTRACTS.filter(({ path }) => path.startsWith('/api/invitations/')).map(({ method, path }) => `${method} ${path}`).sort())
+      .toEqual(['get /api/invitations/:token', 'post /api/invitations/:token/accept']);
+  });
+});

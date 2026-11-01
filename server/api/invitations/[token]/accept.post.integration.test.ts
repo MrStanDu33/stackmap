@@ -67,6 +67,16 @@ describe.each(DIALECTS)('POST /api/invitations/:token/accept on %s', (dialect: D
     expect((await membersOf(db(), workspaces.a.workspace.id))[alan.user.id]).toBe('admin');
   });
 
+  it('given an inviter who can no longer grant the role, answers 404 and adds no one (security review)', async () => {
+    const { token } = await invite();
+    await db().updateTable('member').set({ role: 'viewer' }).where('workspaceId', '=', workspaces.a.workspace.id).execute();
+    const alan = await createAccount(db(), { name: 'Alan', email: 'alan@homelab.example' });
+    signInAs(alan);
+
+    expect(await post(`/api/invitations/${token}/accept`)).toMatchObject({ status: 404, json: { code: 'invitation_not_found' } });
+    expect(await membersOf(db(), workspaces.a.workspace.id)).not.toHaveProperty(alan.user.id);
+  });
+
   it('given 5 attempts from one address within a minute, answers the 6th 429 (11)', async () => {
     signInAs(await createAccount(db(), { name: 'Grace', email: 'grace@homelab.example' }));
     const attempt = () => post(`/api/invitations/${'A'.repeat(43)}/accept`, { ip: '192.0.2.78' });

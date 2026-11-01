@@ -116,4 +116,17 @@ describe.each(DIALECTS)('workspace members on %s', (dialect: Dialect) => {
     expect(results.filter((result) => result === 'last_owner')).toHaveLength(1);
     expect(Object.values(await membersOf(db(), workspaceId)).filter((role) => role === 'owner')).toHaveLength(1);
   });
+
+  it('checks the actor\'s rights on the role read under the lock: an admin cannot change or remove someone made owner meanwhile (security review)', async () => {
+    const workspaceId = workspaces.a.workspace.id;
+    const target = await grace();
+    await addMember(db(), { workspaceId, userId: target.user.id, role: 'editor' });
+    await addMember(db(), { workspaceId, userId: (await ada()).user.id, role: 'owner' });
+    // Promoted by an owner after the admin's page showed an editor.
+    await db().updateTable('member').set({ role: 'owner' }).where('userId', '=', target.user.id).execute();
+
+    expect(await setMemberRole(db(), workspaceId, target.user.id, 'viewer', { actor: 'admin' })).toBe('forbidden');
+    expect(await removeMember(db(), workspaceId, target.user.id, { actor: 'admin' })).toBe('forbidden');
+    expect(await setMemberRole(db(), workspaceId, target.user.id, 'viewer', { actor: 'owner' })).toMatchObject({ role: 'viewer' });
+  });
 });

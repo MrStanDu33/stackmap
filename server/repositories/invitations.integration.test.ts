@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createInvitation, findInvitation, pendingInvitations, useInvitation } from './invitations';
 import { addMember } from './members';
-import { createAccount, membersOf } from '../../tests/support/accounts';
+import { createAccount, createMember, membersOf } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 import { useTestWorkspaces } from '../../tests/support/workspaces';
 
@@ -17,7 +17,7 @@ const DAY = 24 * 60 * 60 * 1000;
 describe.each(DIALECTS)('workspace invitations on %s', (dialect: Dialect) => {
   const workspaces = useTestWorkspaces(dialect);
   const db = () => workspaces.db as unknown as Kysely<Database>;
-  const ada = () => createAccount(db(), { name: 'Ada', email: 'ada@homelab.example', admin: true });
+  const ada = () => createMember(db(), workspaces.a.workspace.id, 'owner', { name: 'Ada', email: 'ada@homelab.example' });
   const invite = async (email = 'Alan@Homelab.example', now = new Date()) => {
     const { user } = await ada();
     return createInvitation(db(), { workspaceId: workspaces.a.workspace.id, email, role: 'editor', invitedById: user.id }, now);
@@ -41,7 +41,7 @@ describe.each(DIALECTS)('workspace invitations on %s', (dialect: Dialect) => {
 
   it('replaces a pending invitation for the same email and workspace: the old token stops working (4)', async () => {
     const first = await invite();
-    const { user } = await createAccount(db(), { name: 'Alan', email: 'alan.turing@homelab.example' });
+    const { user } = await createMember(db(), workspaces.a.workspace.id, 'admin', { name: 'Alan', email: 'alan.turing@homelab.example' });
     const second = await createInvitation(db(), {
       workspaceId: workspaces.a.workspace.id, email: 'alan@homelab.example', role: 'viewer', invitedById: user.id,
     });
@@ -51,14 +51,32 @@ describe.each(DIALECTS)('workspace invitations on %s', (dialect: Dialect) => {
     expect(await pendingInvitations(db(), workspaces.a.workspace.id)).toHaveLength(1);
   });
 
-  it('deletes an invitation with its workspace, and keeps it without an inviter when the inviter is removed', async () => {
-    const { token, invitation } = await invite();
-
-    await db().deleteFrom('user').where('email', '=', 'ada@homelab.example').execute();
-    expect(await findInvitation(db(), token)).toMatchObject({ id: invitation.id, invitedBy: null });
+  it('deletes an invitation with its workspace', async () => {
+    const { token } = await invite();
 
     await db().deleteFrom('workspace').where('id', '=', workspaces.a.workspace.id).execute();
     expect(await findInvitation(db(), token)).toBeUndefined();
+  });
+
+  it('keeps an invitation only while its inviter may still grant its role: demoted, gone from the workspace or deleted, it is no longer found (security review)', async () => {
+    const workspaceId = workspaces.a.workspace.id;
+    const admin = await createMember(db(), workspaceId, 'admin', { name: 'Grace', email: 'grace@homelab.example' });
+    const viaAdmin = (email: string) => createInvitation(db(), { workspaceId, email, role: 'viewer', invitedById: admin.user.id });
+
+    const demoted = await viaAdmin('one@homelab.example');
+    await db().updateTable('member').set({ role: 'editor' }).where('userId', '=', admin.user.id).execute();
+    expect(await findInvitation(db(), demoted.token)).toBeUndefined();
+    expect(await pendingInvitations(db(), workspaceId)).toEqual([]);
+
+    await db().updateTable('member').set({ role: 'admin' }).where('userId', '=', admin.user.id).execute();
+    const left = await viaAdmin('two@homelab.example');
+    await db().deleteFrom('member').where('userId', '=', admin.user.id).execute();
+    expect(await findInvitation(db(), left.token)).toBeUndefined();
+
+    const owner = await ada();
+    const deleted = await createInvitation(db(), { workspaceId, email: 'three@homelab.example', role: 'owner', invitedById: owner.user.id });
+    await db().deleteFrom('user').where('id', '=', owner.user.id).execute();
+    expect(await findInvitation(db(), deleted.token)).toBeUndefined();
   });
 
   it('uses an invitation once: of two acceptances at once, one adds the member', async () => {
@@ -69,7 +87,7 @@ describe.each(DIALECTS)('workspace invitations on %s', (dialect: Dialect) => {
     const results = await Promise.all([accept(), accept()]);
 
     expect(results.filter(Boolean)).toHaveLength(1);
-    expect(await membersOf(db(), workspaces.a.workspace.id)).toEqual({ [alan.user.id]: 'editor' });
+    expect((await membersOf(db(), workspaces.a.workspace.id))[alan.user.id]).toBe('editor');
     expect(await findInvitation(db(), token)).toBeUndefined();
   });
 
@@ -79,6 +97,6 @@ describe.each(DIALECTS)('workspace invitations on %s', (dialect: Dialect) => {
     await addMember(db(), { workspaceId: workspaces.a.workspace.id, userId: alan.user.id, role: 'owner' });
 
     expect(await useInvitation(db(), invitation.id, alan.user.id)).toBe(true);
-    expect(await membersOf(db(), workspaces.a.workspace.id)).toEqual({ [alan.user.id]: 'owner' });
+    expect((await membersOf(db(), workspaces.a.workspace.id))[alan.user.id]).toBe('owner');
   });
 });

@@ -5,7 +5,7 @@ import { createMember } from '../../../../../tests/support/accounts';
 import { DIALECTS } from '../../../../../tests/support/databases';
 import { serveRoute } from '../../../../../tests/support/requests';
 import { useTestWorkspaces } from '../../../../../tests/support/workspaces';
-import { findInvitation } from '../../../../repositories/invitations';
+import { createInvitation, findInvitation, pendingInvitations } from '../../../../repositories/invitations';
 import { setDatabase } from '../../../../utils/database';
 import { setSessionResolver } from '../../../../utils/session';
 
@@ -78,5 +78,15 @@ describe.each(DIALECTS)('POST /api/workspaces/:workspaceId/invitations on %s', (
     expect((await post(`/api/workspaces/${workspaces.b.workspace.id}/invitations`, {
       body: { email: 'alan@homelab.example', role: 'viewer' },
     })).status).toBe(404);
+  });
+
+  it('given an owner\'s invitation as admin or owner, refuses to let an admin replace it: 403 (security review)', async () => {
+    const owner = await createMember(db(), workspaces.a.workspace.id, 'owner', { name: 'Alan', email: 'alan@homelab.example' });
+    await createInvitation(db(), { workspaceId: workspaces.a.workspace.id, email: 'linus@homelab.example', role: 'owner', invitedById: owner.user.id });
+    await signInAs('admin');
+
+    expect(await post(path(), { body: { email: 'linus@homelab.example', role: 'viewer' } }))
+      .toMatchObject({ status: 403, json: { code: 'forbidden' } });
+    expect(await pendingInvitations(db(), workspaces.a.workspace.id)).toMatchObject([{ role: 'owner' }]);
   });
 });

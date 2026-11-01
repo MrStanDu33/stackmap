@@ -9,6 +9,7 @@ const ADA = { userId: '0199d6a0-0000-7000-8000-000000000101', name: 'Ada', email
 const GRACE = { userId: '0199d6a0-0000-7000-8000-000000000102', name: 'Grace', email: 'grace@homelab.example', role: 'editor' as const, joinedAt: '2026-11-01T09:00:00.000Z' };
 const ALAN = { userId: '0199d6a0-0000-7000-8000-000000000103', name: 'Alan', email: 'alan@homelab.example', role: 'admin' as const, joinedAt: '2026-11-01T10:00:00.000Z' };
 const PENDING = { id: '0199d6a0-0000-7000-8000-000000000201', email: 'linus@homelab.example', role: 'viewer' as const, invitedBy: 'Ada', expiresAt: '2026-11-08T09:00:00.000Z' };
+const ORPHAN = { ...PENDING, id: '0199d6a0-0000-7000-8000-000000000202', email: 'ken@homelab.example', invitedBy: null };
 
 const meta = {
   title: 'Organisms/MembersTable',
@@ -29,7 +30,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const { t } = i18n.global;
-const role = (key: string) => t(`workspace.role.${key}`);
+const role = (key: string) => t(`workspace.roleLabel.${key}`);
 
 /** Opens the confirmation and answers it; the dialog is rendered outside the canvas. */
 const confirm = async (name: string) => {
@@ -47,6 +48,9 @@ const confirm = async (name: string) => {
 export const AsOwner: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
+    // Headings, so heading navigation finds both lists.
+    await expect(canvas.getByRole('heading', { level: 2, name: t('members.title') })).toBeVisible();
+    await expect(canvas.getByRole('heading', { level: 2, name: t('members.invitations') })).toBeVisible();
     const table = canvas.getByRole('table', { name: t('members.title') });
 
     await expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent.trim()))
@@ -111,10 +115,13 @@ export const Leave: Story = {
   },
 };
 
-/** Pending invitations, each with its expiry and a Revoke that names the email (13). */
+/** Pending invitations, with expiry and a Revoke naming the email; a deleted inviter is said in words (13). */
 export const Invitations: Story = {
+  args: { invitations: [PENDING, ORPHAN] },
   play: async ({ canvasElement, args }) => {
     const table = within(canvasElement).getByRole('table', { name: t('members.invitations') });
+
+    await expect(within(table).getByRole('row', { name: /^ken@/ })).toHaveTextContent(t('members.invitedByDeleted'));
 
     await expect(table).toHaveTextContent('linus@homelab.example');
     await expect(table).toHaveTextContent(role('viewer'));
@@ -124,10 +131,13 @@ export const Invitations: Story = {
   },
 };
 
-/** A refusal to leave the workspace without an owner, said in an alert (16). */
+/** A refusal to leave the workspace without an owner, said in an alert that takes the focus (16). */
 export const LastOwnerRefused: Story = {
   args: { error: 'last_owner' },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('alert')).toHaveTextContent(t('members.lastOwner'));
+    const alert = within(canvasElement).getByRole('alert');
+
+    await expect(alert).toHaveTextContent(t('members.lastOwner'));
+    await waitFor(() => expect(alert).toHaveFocus());
   },
 };

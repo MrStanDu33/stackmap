@@ -25,6 +25,9 @@ export default defineContractHandler(updateMember, async ({ params: { userId }, 
   if (changed === 'member_not_found') {
     return { status: 404, body: problemOf('member_not_found', { detail: 'No member with this id in the workspace.', instance }) };
   }
+  if (changed === 'forbidden') {
+    return { status: 403, body: problemOf('forbidden', { detail: `A ${workspace.role} cannot make a ${current} ${role}.`, instance }) };
+  }
   if (changed === 'last_owner') {
     return { status: 409, body: problemOf('last_owner', { detail: 'A workspace needs at least one owner.', instance }) };
   }
