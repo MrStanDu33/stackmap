@@ -9,6 +9,7 @@ const { t } = useI18n();
 const { session, signOut } = useAccount();
 const route = useRoute();
 const { workspaces, error, refresh, remembered } = useWorkspaces();
+const heading = useTemplateRef<HTMLElement>('heading');
 
 const view = computed(() => (route.path === '/trace' ? 'trace' : 'graph'));
 const title = computed(() => t(view.value === 'trace' ? 'trace.title' : 'traffic.title'));
@@ -20,6 +21,13 @@ watch(workspaces, async (list) => {
     await navigateTo(target, { replace: true });
   }
 }, { immediate: true });
+
+// The retry button goes away with the error: focus moves to the heading rather than being lost.
+const retry = async () => {
+  await refresh();
+  await nextTick();
+  heading.value?.focus();
+};
 </script>
 
 <template>
@@ -30,7 +38,11 @@ watch(workspaces, async (list) => {
     :view="view"
     @sign-out="signOut"
   >
-    <h1 class="text-2xl font-semibold">
+    <h1
+      ref="heading"
+      tabindex="-1"
+      class="text-2xl font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+    >
       {{ title }}
     </h1>
     <div
@@ -38,10 +50,10 @@ watch(workspaces, async (list) => {
       role="alert"
       class="flex flex-col items-start gap-3 rounded-md border border-error p-4"
     >
-      <p>{{ t('traffic.error') }}</p>
+      <p>{{ t('workspace.error.load') }}</p>
       <UButton
         icon="i-lucide-refresh-cw"
-        @click="refresh()"
+        @click="retry"
       >
         {{ t('common.retry') }}
       </UButton>

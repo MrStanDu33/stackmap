@@ -224,12 +224,12 @@
   "workspace": {
     "switcher": "Espace de travail : {name}",
     "switcherLoading": "Espace de travail",
-    "current": "(actuel)",
     "withRole": "{name}, {role}",
+    "withRoleCurrent": "{name}, {role} (actuel)",
     "role": {
       "owner": "propriétaire",
       "admin": "administrateur",
-      "editor": "éditeur",
+      "editor": "rédacteur",
       "viewer": "lecteur"
     },
     "create": "Créer un espace de travail",
@@ -239,13 +239,15 @@
       "slug": "Nom court",
       "slugHint": "Utilisé dans les liens : /w/{slug}/graph",
       "submit": "Créer l’espace de travail",
-      "created": "Espace de travail {name} créé",
-      "forbidden": "Seul un administrateur peut créer des espaces de travail."
+      "created": "Espace de travail « {name} » créé",
+      "forbidden": "Seuls les administrateurs peuvent créer des espaces de travail.",
+      "slugExample": "mon-homelab"
     },
     "error": {
       "name": "Saisissez un nom de 100 caractères au plus.",
-      "slug": "Utilisez des minuscules, des chiffres et des tirets, 48 caractères au plus.",
-      "slugTaken": "Un autre espace de travail utilise déjà ce nom court."
+      "slug": "Utilisez des lettres minuscules, des chiffres et des tirets, 48 caractères au plus.",
+      "slugTaken": "Un autre espace de travail utilise déjà ce nom court.",
+      "load": "Vos espaces de travail n’ont pas pu être chargés."
     },
     "notFound": "Espace de travail introuvable",
     "notFoundHint": "Il n’existe pas, ou vous n’en êtes pas membre.",

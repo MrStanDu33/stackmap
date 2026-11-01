@@ -17,10 +17,12 @@ const SELECTED_STEP = /[?&]selected=step(:|%3A)/;
 test.describe('trace view', () => {
   test('given the sidebar, Trace opens /trace with the form focused on the hostname and a hint, with no axe violation', async ({ page }) => {
     await page.goto('/graph');
+    // /graph leads to the workspace's own page first: the sidebar's links then stay in it.
+    await expect(page).toHaveURL(/\/w\/demo\/graph$/);
 
     await page.getByRole('link', { name: 'Trace' }).click();
 
-    await expect(page).toHaveURL(/\/trace$/);
+    await expect(page).toHaveURL(/\/w\/demo\/trace$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Trace' })).toBeVisible();
     await expect(hostname(page)).toBeFocused();
     await expect(page.getByText('Enter a hostname to see how a request reaches it.')).toBeVisible();

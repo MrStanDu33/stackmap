@@ -55,7 +55,7 @@ test.describe('workspaces', () => {
 
     await page.goto('/w/nowhere/graph');
     await expect(page.getByRole('heading', { name: 'Workspace not found' })).toBeFocused();
-    await expect(page.getByRole('radiogroup')).toHaveCount(0);
+    await expect(page.getByRole('radiogroup', { name: 'View' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Workspace not found' })).toBeVisible();
     await expect(page.getByText('It doesn’t exist, or you aren’t a member.')).toBeVisible();
     await page.getByRole('link', { name: 'Go to Demo' }).click();
@@ -89,7 +89,7 @@ test.describe('workspaces', () => {
 
     await expect(page).toHaveURL(`${DEMO_URL}/w/${slug}/graph`);
     // Said by a toast, which outlives the page that created the workspace.
-    await expect(page.getByText(`Workspace “Home ${slug.slice(5)}” created`)).toBeVisible();
+    await expect(page.getByText(`Workspace “Home ${slug.slice(5)}” created`, { exact: true })).toBeVisible();
     await expect(page.getByText('Nothing to draw yet')).toBeVisible();
     await expect(switcher(page, `Home ${slug.slice(5)}`)).toBeVisible();
   });
@@ -151,18 +151,15 @@ test.describe('workspaces, without one', () => {
 
   test('given the workspaces cannot be loaded, /graph says so; Try again loads them and focus goes to the heading', async ({ page }) => {
     await signInTo(page, EMPTY_URL);
-    let failures = 1;
+    // Every request fails until Try again: the client retries a failed request once by itself.
+    let failing = true;
     await page.route('**/api/workspaces', async (route) => {
-      if (failures > 0) {
-        failures -= 1;
-        await route.abort();
-        return;
-      }
-      await route.fallback();
+      await (failing ? route.abort() : route.fallback());
     });
     await page.goto('/graph');
 
     await expect(page.getByRole('alert')).toHaveText(/Your workspaces could not be loaded\./);
+    failing = false;
     await page.getByRole('button', { name: 'Try again' }).click();
     await expect(page.getByRole('heading', { name: 'No workspace yet' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused();

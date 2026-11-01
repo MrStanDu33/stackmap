@@ -30,7 +30,7 @@
 }
 
 /* Strict mode: larger targets (WCAG 2.5.5, 44 × 44 px). */
-[data-contrast='strict'] :where(button, [role='button'], input, select, textarea, summary) {
+[data-contrast='strict'] :where(button, [role='button'], [role='menuitem'], nav a, input, select, textarea, summary) {
   min-block-size: 44px;
   min-inline-size: 44px;
 }

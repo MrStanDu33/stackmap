@@ -224,8 +224,8 @@
   "workspace": {
     "switcher": "Workspace: {name}",
     "switcherLoading": "Workspace",
-    "current": "(current)",
     "withRole": "{name}, {role}",
+    "withRoleCurrent": "{name}, {role} (current)",
     "role": {
       "owner": "owner",
       "admin": "administrator",
@@ -239,13 +239,15 @@
       "slug": "Short name",
       "slugHint": "Used in links: /w/{slug}/graph",
       "submit": "Create workspace",
-      "created": "Workspace {name} created",
-      "forbidden": "Only an administrator can create workspaces."
+      "created": "Workspace “{name}” created",
+      "forbidden": "Only an administrator can create workspaces.",
+      "slugExample": "my-homelab"
     },
     "error": {
       "name": "Enter a name of up to 100 characters.",
       "slug": "Use lowercase letters, digits and hyphens, up to 48 characters.",
-      "slugTaken": "Another workspace already uses this short name."
+      "slugTaken": "Another workspace already uses this short name.",
+      "load": "Your workspaces could not be loaded."
     },
     "notFound": "Workspace not found",
     "notFoundHint": "It doesn’t exist, or you aren’t a member.",

@@ -46,8 +46,18 @@ const submit = (next: TraceQuery) => {
 // On the client only, so a failing request can be shown and retried.
 const { workspaces, error: workspaceError, refresh: refreshWorkspaces, remembered } = useWorkspaces();
 const workspace = computed(() => workspaces.value?.find(({ slug }) => slug === route.params.slug));
+// No workspace at all: the page says how to get one rather than leading nowhere.
+const noWorkspace = computed(() => workspaces.value?.length === 0);
 // The same page whether the workspace does not exist or is not the user's.
-const notFound = computed(() => workspaces.value !== null && !workspace.value);
+const notFound = computed(() => Boolean(workspaces.value?.length) && !workspace.value);
+// It appears once the list arrives: focus goes to it, so it is heard.
+const notFoundHeading = useTemplateRef<HTMLElement>('notFoundHeading');
+watch(notFound, async (missing) => {
+  if (missing) {
+    await nextTick();
+    notFoundHeading.value?.focus();
+  }
+});
 const canCreate = computed(() => session.value?.user.role === 'admin');
 watch(workspace, (opened) => {
   if (opened) {
@@ -56,7 +66,9 @@ watch(workspace, (opened) => {
 }, { immediate: true });
 
 useHead({
-  title: () => [t('trace.title'), workspace.value?.name, t('app.name')].filter(Boolean).join(' · '),
+  title: () => (notFound.value
+    ? [t('workspace.notFound'), t('app.name')]
+    : [t('trace.title'), workspace.value?.name, t('app.name')]).filter(Boolean).join(' · '),
 });
 
 // The workspace's names, suggested in the form; if they cannot be read, the form works without them.
@@ -263,6 +275,7 @@ watch(selection, (selected) => {
     </div>
 
     <TraceForm
+      v-if="!notFound && !noWorkspace"
       :query="raw"
       :errors="parsed.errors"
       :suggestions="suggestions"
@@ -290,11 +303,20 @@ watch(selection, (selected) => {
       </UButton>
     </div>
 
+    <NoWorkspace
+      v-else-if="noWorkspace"
+      :can-create="canCreate"
+    />
+
     <div
       v-else-if="notFound"
       class="flex flex-col items-start gap-2 rounded-md border border-default p-6"
     >
-      <h2 class="text-lg font-semibold">
+      <h2
+        ref="notFoundHeading"
+        tabindex="-1"
+        class="text-lg font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      >
         {{ t('workspace.notFound') }}
       </h2>
       <p class="text-muted">

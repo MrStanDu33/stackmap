@@ -183,8 +183,9 @@ plugin, which would write the `workspace` table itself, with its own column type
 the same way on both databases. Each contract states who may call it (`requiredRole`): `public`, `signedIn`,
 `instanceAdmin`, or a workspace role, which needs a `:workspaceId` in its path. For a workspace role,
 `defineContractHandler` looks up the caller's membership before reading the input and hands the route
-`input.workspace`, an `AuthorizedWorkspace` only that check can create; routes build the repositories from it and
-never from the path (`server/api/routes.test.ts` fails on `params.workspaceId`). A workspace that does not exist and
+`input.workspace`, an `AuthorizedWorkspace` only that check can create; routes build its repositories with
+`workspaceRepositories(input.workspace)` (`server/utils/workspace.ts`), which takes nothing else, and never from the
+path (`server/api/routes.test.ts` fails on a route that reads the id or builds repositories itself). A workspace that does not exist and
 one the caller is not a member of give the same `404 workspace_not_found`, so ids cannot be probed; a member below
 the role gets `403`. The instance administrator creates workspaces (`POST /api/workspaces`) and owns the ones they
 create; setup makes them owner of every workspace that exists then, and the migration that added memberships did the

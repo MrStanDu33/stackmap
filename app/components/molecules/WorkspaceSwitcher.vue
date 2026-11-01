@@ -22,10 +22,9 @@ const label = computed(() => (currentName.value
 const items = computed<DropdownMenuItem[][]>(() => [
   (props.workspaces ?? []).map(({ name, slug, role }) => {
     const current = slug === props.current;
-    const named = t('workspace.withRole', { name, role: t(`workspace.role.${role}`) });
     return {
       // Said in words, not by the check mark alone.
-      label: current ? `${named} ${t('workspace.current')}` : named,
+      label: t(current ? 'workspace.withRoleCurrent' : 'workspace.withRole', { name, role: t(`workspace.role.${role}`) }),
       to: `/w/${slug}/${props.view}`,
       icon: current ? 'i-lucide-check' : 'i-lucide-layers',
       ...(current ? { 'aria-current': 'page' as const } : {}),
@@ -46,13 +45,14 @@ const items = computed<DropdownMenuItem[][]>(() => [
     :modal="false"
     :portal="false"
   >
+    <!-- Disabled while the list loads, so it cannot open an empty menu. -->
     <UTooltip
       :text="label"
       :disabled="!collapsed"
     >
       <UButton
         :aria-label="label"
-        :aria-busy="workspaces === null ? 'true' : undefined"
+        :disabled="workspaces === null"
         :label="collapsed ? undefined : currentName ?? t('workspace.switcherLoading')"
         icon="i-lucide-layers"
         :trailing-icon="collapsed ? undefined : 'i-lucide-chevrons-up-down'"

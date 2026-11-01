@@ -10,7 +10,7 @@ useHead({ title: () => `${t('workspace.new.title')} · ${t('app.name')}` });
 const canCreate = computed(() => session.value?.user.role === 'admin');
 const busy = ref(false);
 const error = ref<'taken' | 'network' | null>(null);
-const announcement = ref('');
+const toast = useToast();
 
 const create = async (input: { name: string; slug: string }) => {
   busy.value = true;
@@ -18,8 +18,9 @@ const create = async (input: { name: string; slug: string }) => {
   error.value = null;
   try {
     const created = await $fetch<MemberWorkspace>('/api/workspaces', { method: 'POST', body: input });
-    announcement.value = t('workspace.new.created', { name: created.name });
     await refreshNuxtData('workspaces');
+    // A toast outlives this page: a status region here would go before it is read.
+    toast.add({ title: t('workspace.new.created', { name: created.name }), color: 'success', icon: 'i-lucide-check' });
     await navigateTo(`/w/${created.slug}/graph`);
   } catch (failure) {
     await nextTick();
@@ -40,12 +41,6 @@ const create = async (input: { name: string; slug: string }) => {
     <h1 class="text-2xl font-semibold">
       {{ t('workspace.new.title') }}
     </h1>
-    <p
-      role="status"
-      class="sr-only"
-    >
-      {{ announcement }}
-    </p>
     <WorkspaceForm
       v-if="canCreate"
       class="max-w-md"

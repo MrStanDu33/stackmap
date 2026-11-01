@@ -18,7 +18,6 @@ const name = ref('');
 const slug = ref('');
 const slugEdited = ref(false);
 const fieldErrors = ref<Partial<Record<Field, string>>>({});
-const announcement = ref('');
 
 watch(name, (value) => {
   if (!slugEdited.value) {
@@ -36,10 +35,8 @@ async function focusFirstError() {
   if (!first) {
     return;
   }
-  // Emptied first, so the same error said twice is still announced.
-  announcement.value = '';
+  // The field's error is tied to it, so focusing it reads the error.
   await nextTick();
-  announcement.value = t(fieldErrors.value[first] ?? '');
   form.value?.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus();
 }
 
@@ -108,7 +105,7 @@ const submit = async () => {
     </UFormField>
     <UFormField
       :label="t('workspace.new.slug')"
-      :description="t('workspace.new.slugHint', { slug: slug || 'my-homelab' })"
+      :description="t('workspace.new.slugHint', { slug: slug || t('workspace.new.slugExample') })"
       :error="fieldErrors.slug && t(fieldErrors.slug)"
       name="slug"
       required
@@ -126,12 +123,6 @@ const submit = async () => {
         @update:model-value="editSlug(String($event))"
       />
     </UFormField>
-    <p
-      role="status"
-      class="sr-only"
-    >
-      {{ announcement }}
-    </p>
     <UButton
       type="submit"
       :icon="busy ? 'i-lucide-loader-circle' : undefined"
