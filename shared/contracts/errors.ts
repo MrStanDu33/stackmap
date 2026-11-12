@@ -89,6 +89,36 @@ export const PROBLEMS = {
     title: 'A workspace needs an owner',
     description: 'The change would leave a workspace without an owner.',
   },
+  user_not_found: {
+    status: 404,
+    title: 'The account does not exist',
+    description: 'No account has this id.',
+  },
+  email_taken: {
+    status: 409,
+    title: 'The email is taken',
+    description: 'An account already uses this email.',
+  },
+  last_admin: {
+    status: 409,
+    title: 'The instance needs an administrator',
+    description: 'The change would leave the instance without an administrator.',
+  },
+  cannot_demote_self: {
+    status: 409,
+    title: 'Administrators cannot demote themselves',
+    description: 'Another administrator has to change this account\'s role.',
+  },
+  cannot_reset_self: {
+    status: 409,
+    title: 'Administrators cannot reset their own password here',
+    description: 'Another administrator has to give this account a temporary password.',
+  },
+  cannot_remove_self: {
+    status: 409,
+    title: 'Administrators cannot remove themselves',
+    description: 'Another administrator has to remove this account.',
+  },
   internal_error: {
     status: 500,
     title: 'Something went wrong',

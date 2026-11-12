@@ -8,10 +8,7 @@ export const FRESH_URL = 'http://127.0.0.1:3102';
 /** The administrator the global setup creates on the first two. */
 export const ADMIN = { name: 'Ada', email: 'ada@homelab.example', password: 'correct horse battery' };
 
-/**
- * An account that is not the instance administrator. Stackmap creates such accounts only through invitations (phase
- * 4c): the global setup writes it into the demo and empty servers' databases.
- */
+/** An account that is not the instance administrator: the global setup creates it on the demo and empty servers. */
 export const USER = { name: 'Grace', email: 'grace@homelab.example', password: 'correct horse battery' };
 
 /** The environment variable holding a server's data directory (playwright.config.ts). */

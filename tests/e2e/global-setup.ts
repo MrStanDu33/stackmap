@@ -1,31 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
-
 import { request } from '@playwright/test';
-import { hashPassword } from 'better-auth/crypto';
-import Database from 'better-sqlite3';
 
-import { ADMIN, dataDirVariable, DEMO_SESSION, DEMO_URL, EMPTY_URL, USER } from './support/accounts';
-
-/** Writes the plain user into a server's database, as Better Auth stores an email and password account on SQLite. */
-async function addPlainUser(url: string): Promise<void> {
-  const dir = process.env[dataDirVariable(new URL(url).port)];
-  if (!dir) {
-    throw new Error(`No data directory for ${url}.`);
-  }
-  const db = new Database(join(dir, 'stackmap.sqlite'));
-  try {
-    const now = new Date().toISOString();
-    const id = randomUUID();
-    db.prepare('insert into "user" (id, name, email, "emailVerified", "createdAt", "updatedAt", role) values (?, ?, ?, 0, ?, ?, ?)')
-      .run(id, USER.name, USER.email, now, now, 'user');
-    db.prepare('insert into account (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt") '
-      + 'values (?, ?, ?, ?, ?, ?, ?)')
-      .run(randomUUID(), id, 'credential', id, await hashPassword(USER.password), now, now);
-  } finally {
-    db.close();
-  }
-}
+import { ADMIN, DEMO_SESSION, DEMO_URL, EMPTY_URL, USER } from './support/accounts';
 
 /**
  * Sets up the administrator on the demo and empty servers, adds the plain user there, and keeps the demo server's
@@ -39,7 +14,11 @@ export default async function globalSetup(): Promise<void> {
     if (response.status() !== 201) {
       throw new Error(`Setup of ${url} failed: ${String(response.status())} ${await response.text()}`);
     }
-    await addPlainUser(url);
+    // As the administrator creates accounts (4c′), signed in by the setup.
+    const created = await context.post('/api/users', { data: USER });
+    if (created.status() !== 201) {
+      throw new Error(`Creating the plain user on ${url} failed: ${String(created.status())} ${await created.text()}`);
+    }
     if (url === DEMO_URL) {
       await context.storageState({ path: DEMO_SESSION });
     }

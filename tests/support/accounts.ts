@@ -8,6 +8,11 @@ import sessionGet from '../../server/api/session.get';
 import sessionPost from '../../server/api/session.post';
 import setupGet from '../../server/api/setup.get';
 import setupPost from '../../server/api/setup.post';
+import userPasswordPut from '../../server/api/users/[userId]/password.put';
+import userDelete from '../../server/api/users/[userId].delete';
+import userPatch from '../../server/api/users/[userId].patch';
+import usersGet from '../../server/api/users/index.get';
+import usersPost from '../../server/api/users/index.post';
 import listWorkspaces from '../../server/api/workspaces/index.get';
 import { markServerStart } from '../../server/auth/setup-window';
 import { addMember } from '../../server/repositories/members';
@@ -33,7 +38,7 @@ export interface Call {
   ip?: string;
 }
 
-/** The account routes and one workspace route, served as the app serves them. */
+/** The account routes (setup, session, users) and one workspace route, served as the app serves them. */
 const serve = () => {
   const router = createRouter()
     .get('/api/setup', setupGet)
@@ -41,7 +46,12 @@ const serve = () => {
     .get('/api/session', sessionGet)
     .post('/api/session', sessionPost)
     .delete('/api/session', sessionDelete)
-    .get('/api/workspaces', listWorkspaces);
+    .get('/api/workspaces', listWorkspaces)
+    .get('/api/users', usersGet)
+    .post('/api/users', usersPost)
+    .patch('/api/users/:userId', userPatch)
+    .put('/api/users/:userId/password', userPasswordPut)
+    .delete('/api/users/:userId', userDelete);
   return toWebHandler(createApp().use(router));
 };
 
@@ -105,7 +115,19 @@ export function useTestAccounts(dialect: Dialect) {
   /** Whether the demo workspace exists (the test database also holds workspaces A and B). */
   const hasDemo = async () => (await db().selectFrom('workspace').select('id').where('slug', '=', 'demo').execute()).length === 1;
 
-  return { db, call, setUp, signedIn, count, hasDemo };
+  let signIns = 0;
+  /** The session cookie of an existing account, signed in from an address of its own (attempts are limited). */
+  const signInAs = async (email: string, password = ADMIN.password) => {
+    signIns += 1;
+    const response = await call('POST', '/api/session', { body: { email, password }, ip: `192.0.2.${String(100 + signIns)}` });
+    const cookie = cookieOf(response.setCookie);
+    if (response.status !== 200 || !cookie) {
+      throw new Error(`Sign-in failed: ${String(response.status)} ${JSON.stringify(response.json)}`);
+    }
+    return cookie;
+  };
+
+  return { db, workspaces, call, setUp, signedIn, signInAs, count, hasDemo };
 }
 
 /**

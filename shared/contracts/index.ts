@@ -5,6 +5,7 @@ import { listMembers, removeMember, updateMember } from './members';
 import { getHealth, getOpenApiDocument } from './system';
 import { getTrace } from './traces';
 import { getTraffic } from './traffic';
+import { createUser, listUsers, removeUser, setUserPassword, updateUser } from './users';
 import { createWorkspace, listWorkspaces } from './workspaces';
 
 import type { Contract } from './contract';
@@ -13,5 +14,5 @@ import type { Contract } from './contract';
 export const CONTRACTS: readonly Contract[] = [
   getHealth, getOpenApiDocument, getSetup, setUp, getSession, signIn, signOut, listExtensions, getExtensionDiagnostics,
   listWorkspaces, createWorkspace, getTrace, getTraffic, listMembers, updateMember, removeMember, createInvitation,
-  revokeInvitation, getInvitation, acceptInvitation,
+  revokeInvitation, getInvitation, acceptInvitation, listUsers, createUser, updateUser, setUserPassword, removeUser,
 ];
