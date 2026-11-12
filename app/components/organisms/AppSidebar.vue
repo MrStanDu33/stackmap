@@ -6,6 +6,7 @@ const props = defineProps<{
   user?: { name: string } | null;
   workspaces?: { name: string; slug: string; role: WorkspaceRole }[] | null;
   current?: string;
+  /** The instance administrator: creates workspaces and manages accounts. */
   canCreate?: boolean;
   /** The page's view, which the switcher's links keep. */
   view?: 'graph' | 'trace';
@@ -23,6 +24,10 @@ const items = computed(() => [
   // A workspace's own page: only inside one.
   ...(props.current
     ? [{ label: t('members.title'), 'aria-label': t('members.title'), icon: 'i-lucide-users', to: `${base.value}/members` }]
+    : []),
+  // Only the instance administrator can create workspaces, and manage accounts.
+  ...(props.canCreate
+    ? [{ label: t('users.title'), 'aria-label': t('users.title'), icon: 'i-lucide-user-cog', to: '/admin/users' }]
     : []),
 ]);
 </script>

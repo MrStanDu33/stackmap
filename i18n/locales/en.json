@@ -316,5 +316,45 @@
     "notFoundHint": "It may have expired or been used already.",
     "error": "The invitation could not be accepted. Try again.",
     "signInHint": "Sign in with {email} to accept. No account yet? Ask an administrator to create one."
+  },
+  "users": {
+    "title": "Users",
+    "accounts": "Accounts",
+    "name": "Name",
+    "email": "Email",
+    "role": "Instance role",
+    "created": "Account created. Send the password to {email} privately.",
+    "actions": "Actions",
+    "you": "You",
+    "roleOf": "Instance role of {name}",
+    "roleLabel": {
+      "admin": "Administrator",
+      "user": "User"
+    },
+    "onlyYou": "You are the only account. Create one for each person who needs Stackmap, then invite them to a workspace.",
+    "newPassword": "New temporary password",
+    "newPasswordFor": "New temporary password for {name}",
+    "remove": "Remove {name}",
+    "removeQuestion": "Remove {name}? Their sessions and workspace memberships go with the account.",
+    "cancel": "Cancel",
+    "close": "Close",
+    "lastAdmin": "Stackmap needs at least one administrator.",
+    "lastOwner": "{name} is the only owner of {workspaces}. Add another owner first.",
+    "createTitle": "Create an account",
+    "create": "Create the account",
+    "temporaryPassword": "Temporary password",
+    "passwordRule": "At least 12 characters. Send it to the person privately; they can change it later.",
+    "setPassword": "Set the password",
+    "passwordSet": "{name} was signed out everywhere. Send the new password privately.",
+    "error": {
+      "emailTaken": "An account already uses this email.",
+      "load": "The accounts could not be loaded.",
+      "change": "The change could not be saved. Try again."
+    },
+    "loading": "Loading the accounts…",
+    "removed": "{name} removed",
+    "roleChanged": "{name} is now {role}",
+    "forAdmins": "This page is for administrators.",
+    "home": "Back to Stackmap"
   }
 }

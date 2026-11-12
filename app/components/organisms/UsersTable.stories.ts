@@ -87,6 +87,9 @@ export const ChangeRole: Story = {
     await userEvent.click(option);
 
     await expect(args.onChangeRole).toHaveBeenCalledWith(GRACE.id, 'admin');
+    // Closed for good before the accessibility check: an open list hides the rest of the page.
+    await waitFor(() => expect(document.querySelector('[role="listbox"]')).toBeNull());
+    await waitFor(() => expect(document.querySelector('[data-aria-hidden]')).toBeNull());
   },
 };
 
@@ -96,7 +99,8 @@ export const Remove: Story = {
     await userEvent.click(within(canvasElement).getByRole('button', { name: t('users.remove', { name: 'Grace' }) }));
     const confirm = await dialog();
 
-    await expect(confirm).toHaveTextContent(t('users.removeQuestion', { name: 'Grace' }));
+    // Spaces normalised, as toHaveTextContent does to the text it reads (French has non-breaking ones).
+    await expect(confirm).toHaveTextContent(t('users.removeQuestion', { name: 'Grace' }).replace(/\s+/g, ' '));
     await userEvent.click(within(confirm).getByRole('button', { name: t('users.remove', { name: 'Grace' }) }));
     await expect(args.onRemove).toHaveBeenCalledWith(GRACE.id);
   },
@@ -107,7 +111,10 @@ export const RemoveCancelled: Story = {
   play: async ({ canvasElement, args }) => {
     const remove = within(canvasElement).getByRole('button', { name: t('users.remove', { name: 'Grace' }) });
     await userEvent.click(remove);
-    await userEvent.click(within(await dialog()).getByRole('button', { name: t('users.cancel') }));
+    const confirm = await dialog();
+    // Once the dialog has the focus, as a user who reads it before answering.
+    await waitFor(() => expect(confirm.contains(document.activeElement)).toBe(true));
+    await userEvent.click(within(confirm).getByRole('button', { name: t('users.cancel') }));
 
     await waitFor(() => expect(remove).toHaveFocus());
     await expect(args.onRemove).not.toHaveBeenCalled();

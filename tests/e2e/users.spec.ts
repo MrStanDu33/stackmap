@@ -37,7 +37,8 @@ test.describe('users page', () => {
     await page.getByLabel(/^Temporary password/).fill(PASSWORD);
     await page.getByRole('button', { name: 'Create the account' }).click();
 
-    await expect(page.getByRole('status')).toContainText(`Send the password to ${email}`);
+    await expect(page.getByRole('region', { name: 'Create an account' }).getByRole('status'))
+      .toContainText(`Send the password to ${email}`);
     await expect(page.getByRole('table', { name: 'Accounts' }).getByRole('row', { name: new RegExp(`^${name}`) })).toBeVisible();
 
     const context = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });

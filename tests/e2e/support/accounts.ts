@@ -18,8 +18,9 @@ export const dataDirVariable = (port: number | string) => `STACKMAP_E2E_DATA_DIR
 export const DEMO_SESSION = 'tests/e2e/.auth/demo.json';
 
 /**
- * Signs in to a server, as the administrator unless told otherwise. Cookies are kept per host, not per port, so the
- * demo server's cookie is replaced for the rest of the test.
+ * Signs in to a server, as the administrator unless told otherwise, from an address of its own (the servers trust
+ * X-Forwarded-For). Cookies are kept per host, not per port, so the demo server's cookie is replaced for the rest of
+ * the test.
  */
 export async function signInTo(
   page: Page,
@@ -28,6 +29,8 @@ export async function signInTo(
 ): Promise<void> {
   const response = await page.request.post(`${url}/api/session`, {
     data: { email: account.email, password: account.password },
+    // A documentation address (RFC 5737) of its own: attempts are limited per address, 5 a minute.
+    headers: { 'x-forwarded-for': `198.51.100.${String(1 + Math.floor(Math.random() * 254))}` },
   });
   if (!response.ok()) {
     throw new Error(`Sign-in to ${url} failed: ${String(response.status())}`);
