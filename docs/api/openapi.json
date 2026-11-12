@@ -2579,12 +2579,12 @@
                     }
                   },
                   "last_owner": {
-                    "summary": "Grace is the only owner of Home lab. Add another owner first.",
+                    "summary": "This account is the only owner of Home lab. Add another owner first.",
                     "value": {
                       "type": "urn:stackmap:problem:last_owner",
                       "title": "A workspace needs an owner",
                       "status": 409,
-                      "detail": "Grace is the only owner of Home lab. Add another owner first.",
+                      "detail": "This account is the only owner of Home lab. Add another owner first.",
                       "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102",
                       "code": "last_owner"
                     }
@@ -2881,6 +2881,21 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProblemIssue"
+            }
+          },
+          "workspaces": {
+            "description": "For `last_owner` when removing an account: the workspaces it is the only owner of, by name",
+            "examples": [
+              [
+                "Home lab"
+              ]
+            ],
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
             }
           }
         },

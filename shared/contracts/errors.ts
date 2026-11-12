@@ -181,6 +181,10 @@ export const Problem = z.object({
   issues: z.array(ProblemIssue).max(MAX_ISSUES).optional().meta({
     description: `The invalid values (at most ${String(MAX_ISSUES)}), for \`validation_failed\` and \`invalid_response\``,
   }),
+  workspaces: z.array(text(100)).max(MAX_ISSUES).optional().meta({
+    description: 'For `last_owner` when removing an account: the workspaces it is the only owner of, by name',
+    examples: [['Home lab']],
+  }),
 }).meta({
   id: 'Problem',
   description: 'An API error, as RFC 9457 Problem Details (`application/problem+json`)',
@@ -200,7 +204,12 @@ export type Problem = z.infer<typeof Problem>;
 /** The Problem Details of one occurrence of a problem. */
 export const problemOf = (
   code: ProblemCode,
-  { detail, instance, issues }: { detail: string; instance: string; issues?: Problem['issues'] },
+  { detail, instance, issues, workspaces }: {
+    detail: string;
+    instance: string;
+    issues?: Problem['issues'];
+    workspaces?: Problem['workspaces'];
+  },
 ): Problem => ({
   type: `urn:stackmap:problem:${code}`,
   title: PROBLEMS[code].title,
@@ -209,4 +218,5 @@ export const problemOf = (
   instance,
   code,
   ...(issues === undefined ? {} : { issues }),
+  ...(workspaces === undefined ? {} : { workspaces }),
 });

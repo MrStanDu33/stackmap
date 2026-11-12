@@ -24,7 +24,8 @@ describe.each(DIALECTS)('DELETE /api/users/:userId on %s', (dialect: Dialect) =>
 
     expect(status).toBe(204);
     expect(await accounts.db().selectFrom('user').select('id').where('id', '=', user.id).execute()).toEqual([]);
-    expect(await membersOf(accounts.db(), workspaceId)).toEqual({});
+    // Setup made the administrator an owner of every workspace: only Grace's membership goes.
+    expect(await membersOf(accounts.db(), workspaceId)).not.toHaveProperty(user.id);
     expect((await accounts.call('GET', '/api/session', { cookie: graceCookie })).json).toBeNull();
   });
 
@@ -65,9 +66,7 @@ describe.each(DIALECTS)('DELETE /api/users/:userId on %s', (dialect: Dialect) =>
 
     expect(status).toBe(409);
     expect(json).toMatchObject({ type: 'urn:stackmap:problem:last_owner' });
-    for (const name of [a.workspace.name, b.workspace.name]) {
-      expect((json as { detail: string }).detail).toContain(name);
-    }
+    expect((json as { workspaces: string[] }).workspaces).toEqual([a.workspace.name, b.workspace.name].toSorted());
     expect(await membersOf(accounts.db(), a.workspace.id)).toEqual({ [user.id]: 'owner' });
   });
 

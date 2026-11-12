@@ -15,8 +15,9 @@ export interface Database {
 }
 
 /**
- * Better Auth's accounts (written by Better Auth only, through its adapter); the app reads whether any exists. Its
- * other tables (session, account, verification) are Better Auth's alone.
+ * Better Auth's accounts. Better Auth creates them and sets passwords; the app lists them, and changes the instance
+ * role or deletes one itself, so that its checks run in the same transaction (the users page). Deleting cascades to
+ * Better Auth's session and account rows. Its other tables (session, account, verification) are Better Auth's alone.
  */
 export interface UserTable {
   id: string;
@@ -24,6 +25,8 @@ export interface UserTable {
   name: string;
   /** The instance role, from Better Auth's admin plugin: `admin` or `user`. */
   role: string | null;
+  /** A Date from Postgres, an ISO string from SQLite. */
+  createdAt: Date | string;
 }
 
 /** A pending invitation to a workspace: the link's token is never stored, only its SHA-256 hash. */

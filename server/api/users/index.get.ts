@@ -1,6 +1,8 @@
-import { listUsers } from '../../../shared/contracts/users';
+import { listUsers as listUsersContract } from '../../../shared/contracts/users';
+import { listUsers } from '../../repositories/users';
 import { defineContractHandler } from '../../utils/contract-handler';
+import { useDatabase } from '../../utils/database';
 
-export default defineContractHandler(listUsers, () => {
-  throw new Error('Not implemented');
-});
+/** Every account, for the instance administrator's users page. */
+export default defineContractHandler(listUsersContract, async () =>
+  ({ status: 200, body: { users: await listUsers(await useDatabase()) } }));

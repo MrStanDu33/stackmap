@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createInvitation } from './invitations';
 import { addMember, setMemberRole } from './members';
-import { listUsers, removeAccount, setInstanceRole } from './users';
+import { findUser, findUserByEmail, listUsers, removeAccount, setInstanceRole } from './users';
 import { createAccount, membersOf } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 import { useTestWorkspaces } from '../../tests/support/workspaces';
@@ -29,6 +29,20 @@ describe.each(DIALECTS)('users repository on %s', (dialect: Dialect) => {
       { id: a.id, name: 'Ada', email: 'ada@homelab.example', role: 'admin', createdAt: expect.any(String) as unknown },
       { id: g.id, name: 'Grace', email: 'grace@homelab.example', role: 'user', createdAt: expect.any(String) as unknown },
     ]);
+  });
+
+  it('finds one account by id, or nothing (6, 7)', async () => {
+    const { user: g } = await grace();
+
+    expect(await findUser(db(), g.id)).toMatchObject({ id: g.id, name: 'Grace', role: 'user' });
+    expect(await findUser(db(), 'unknown-user')).toBeUndefined();
+  });
+
+  it('finds an account by email, whatever its case (3)', async () => {
+    const { user: g } = await grace();
+
+    expect(await findUserByEmail(db(), 'Grace@HomeLab.example')).toMatchObject({ id: g.id });
+    expect(await findUserByEmail(db(), 'alan@homelab.example')).toBeUndefined();
   });
 
   it('refuses to demote the last administrator, or the actor themselves (9, 10)', async () => {

@@ -150,7 +150,7 @@ export const removeUser = defineContract({
     404: notFound(USER_PATH),
     409: problems('The account is the caller\'s, or the only owner of a workspace', USER_PATH, {
       cannot_remove_self: 'Administrators cannot remove their own account.',
-      last_owner: 'Grace is the only owner of Home lab. Add another owner first.',
+      last_owner: 'This account is the only owner of Home lab. Add another owner first.',
     }),
   },
 });
