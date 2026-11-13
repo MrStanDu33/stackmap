@@ -53,9 +53,21 @@ describe.each(DIALECTS)('POST /api/users on %s', (dialect: Dialect) => {
       .toEqual([{ name: 'Grace' }]);
   });
 
+  it('given two creations of the same email at once, answers one 201 and one 409 email_taken (3, review)', async () => {
+    const cookie = await accounts.signedIn();
+
+    const answers = await Promise.all([
+      accounts.call('POST', '/api/users', { cookie, body: GRACE }),
+      accounts.call('POST', '/api/users', { cookie, body: { ...GRACE, name: 'Grace again' } }),
+    ]);
+
+    expect(answers.map(({ status }) => status).toSorted()).toEqual([201, 409]);
+  });
+
   it.each([
     ['an invalid email', { email: 'grace' }, 'body.email'],
     ['a name over the limit', { name: 'G'.repeat(101) }, 'body.name'],
+    ['a name of only spaces', { name: '   ' }, 'body.name'],
     ['a password under 12 characters', { password: 'short' }, 'body.password'],
     ['a password over 128 characters', { password: 'p'.repeat(129) }, 'body.password'],
   ])('given %s, answers 400 with the field\'s issue (4)', async (_case, change, path) => {

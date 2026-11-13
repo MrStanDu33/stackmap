@@ -49,7 +49,7 @@ test.describe('users page', () => {
     await context.close();
   });
 
-  test('the administrator promotes, gives a new temporary password to, and removes an account (8, 18, 19)', async ({ page }) => {
+  test('the administrator promotes, gives a new temporary password to, and deletes an account (8, 18, 19)', async ({ page }) => {
     const user = await createUser(page);
     await page.goto('/admin/users');
     await hydrated(page);
@@ -66,12 +66,12 @@ test.describe('users page', () => {
     await expect(dialog.getByRole('status')).toContainText('signed out everywhere');
     await page.keyboard.press('Escape');
 
-    await row.getByRole('button', { name: `Remove ${user.name}` }).click();
-    await page.getByRole('dialog').getByRole('button', { name: `Remove ${user.name}` }).click();
+    await row.getByRole('button', { name: `Delete ${user.name}` }).click();
+    await page.getByRole('dialog').getByRole('button', { name: `Delete ${user.name}` }).click();
     await expect(row).toHaveCount(0);
   });
 
-  test('removing the only owner of a workspace is refused and names the workspace (14, 20)', async ({ page, browser }) => {
+  test('deleting the only owner of a workspace is refused and names the workspace (14, 20)', async ({ page, browser }) => {
     const user = await createUser(page);
     const slug = unique('solo');
     const workspace = await page.request.post(`${DEMO_URL}/api/workspaces`, { data: { name: `Solo ${slug}`, slug } });
@@ -92,8 +92,8 @@ test.describe('users page', () => {
 
     await page.goto('/admin/users');
     await hydrated(page);
-    await page.getByRole('row', { name: new RegExp(`^${user.name}`) }).getByRole('button', { name: `Remove ${user.name}` }).click();
-    await page.getByRole('dialog').getByRole('button', { name: `Remove ${user.name}` }).click();
+    await page.getByRole('row', { name: new RegExp(`^${user.name}`) }).getByRole('button', { name: `Delete ${user.name}` }).click();
+    await page.getByRole('dialog').getByRole('button', { name: `Delete ${user.name}` }).click();
 
     await expect(page.getByRole('alert')).toContainText(`Solo ${slug}`);
     await expect(page.getByRole('row', { name: new RegExp(`^${user.name}`) })).toBeVisible();

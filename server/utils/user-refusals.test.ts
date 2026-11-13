@@ -17,4 +17,13 @@ describe('user refusals as problems', () => {
     // For the page to say in its own language.
     expect(body.workspaces).toEqual(['Home lab', 'Office']);
   });
+
+  it('keeps the detail within its limit for 100 long workspace names (review)', () => {
+    const workspaces = Array.from({ length: 100 }, (_, n) => `${'W'.repeat(97)}${String(n).padStart(3, '0')}`);
+
+    const { body } = refusal({ code: 'last_owner', workspaces }, '/api/users/x');
+
+    expect(body.detail.length).toBeLessThanOrEqual(2000);
+    expect(body.workspaces).toEqual(workspaces);
+  });
 });

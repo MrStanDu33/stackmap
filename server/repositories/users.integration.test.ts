@@ -6,7 +6,7 @@ import { addMember, setMemberRole } from './members';
 import { findUser, findUserByEmail, listUsers, removeAccount, setInstanceRole } from './users';
 import { createAccount, membersOf } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
-import { useTestWorkspaces } from '../../tests/support/workspaces';
+import { createWorkspace, useTestWorkspaces } from '../../tests/support/workspaces';
 import { useAuth } from '../utils/auth';
 
 import type { Dialect } from '../../tests/support/databases';
@@ -116,6 +116,56 @@ describe.each(DIALECTS)('users repository on %s', (dialect: Dialect) => {
     ]);
 
     expect(Object.values(await membersOf(db(), workspaceId))).toContain('owner');
+  });
+
+  it.runIf(dialect === 'postgres')(
+    'waits for a change in progress in any workspace the account is in, not only those it owns (14, review)',
+    async () => {
+      const { user: a } = await ada();
+      const { user: g } = await grace();
+      const workspaceId = workspaces.a.workspace.id;
+      await addMember(db(), { workspaceId, userId: g.id, role: 'editor' });
+      let release = () => {};
+      let locked = () => {};
+      const isLocked = new Promise<void>((resolve) => {
+        locked = resolve;
+      });
+      // A member change holding the workspace's lock, as one promoting Grace to owner would.
+      const change = db().transaction().execute(async (trx) => {
+        await trx.updateTable('workspace').set((update) => ({ id: update.ref('id') })).where('id', '=', workspaceId).execute();
+        locked();
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+      });
+      await isLocked;
+
+      let settled = false;
+      const removal = removeAccount(db(), g.id, { actorId: a.id }).finally(() => {
+        settled = true;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const waited = !settled;
+      release();
+      await change;
+      await removal;
+
+      expect(waited).toBe(true);
+    },
+  );
+
+  it('names at most 100 sole-owned workspaces, so the refusal fits its contract (14, review)', async () => {
+    const { user: a } = await ada();
+    const { user: g } = await grace();
+    for (let n = 0; n < 101; n += 1) {
+      const { id } = await createWorkspace(db(), { name: `Lab ${String(n).padStart(3, '0')}`, slug: `lab-${String(n)}` });
+      await addMember(db(), { workspaceId: id, userId: g.id, role: 'owner' });
+    }
+
+    const refused = await removeAccount(db(), g.id, { actorId: a.id });
+
+    expect(refused).toMatchObject({ code: 'last_owner' });
+    expect((refused as { workspaces: string[] }).workspaces).toHaveLength(100);
   });
 
   it('takes the account\'s sessions, credentials and memberships with it, and clears its invitations\' inviter (12)', async () => {

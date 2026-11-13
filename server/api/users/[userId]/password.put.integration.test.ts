@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createAccount, useTestAccounts } from '../../../../tests/support/accounts';
 import { DIALECTS } from '../../../../tests/support/databases';
+import { useAuth } from '../../../utils/auth';
 
 import type { Dialect } from '../../../../tests/support/databases';
 
@@ -31,6 +32,20 @@ describe.each(DIALECTS)('PUT /api/users/:userId/password on %s', (dialect: Diale
 
     expect((await accounts.call('GET', '/api/session', { cookie: graceCookie })).json).toBeNull();
     expect((await accounts.call('GET', '/api/session', { cookie })).json).not.toBeNull();
+  });
+
+  it('given setting the password fails, has already signed the account out (6, review)', async () => {
+    const cookie = await accounts.signedIn();
+    const { user } = await grace();
+    const graceCookie = await accounts.signInAs('grace@homelab.example');
+    // The only stand-in: a database failure in Better Auth, between revoking and setting.
+    vi.spyOn((await useAuth()).api, 'setUserPassword').mockRejectedValueOnce(new Error('database unavailable'));
+
+    const { status } = await accounts.call('PUT', `/api/users/${user.id}/password`, { cookie, body: { password: NEW_PASSWORD } });
+
+    expect(status).toBe(500);
+    expect((await accounts.call('GET', '/api/session', { cookie: graceCookie })).json).toBeNull();
+    vi.restoreAllMocks();
   });
 
   it('given the administrator\'s own id, answers 409 cannot_reset_self (7)', async () => {

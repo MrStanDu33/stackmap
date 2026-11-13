@@ -9,12 +9,14 @@ const props = defineProps<{
   busy?: boolean;
   /** The password was set. */
   done?: boolean;
+  /** Setting it failed. */
+  error?: 'network' | null;
 }>();
 const emit = defineEmits<{ submit: [password: string]; 'update:open': [open: boolean] }>();
 
 const { t } = useI18n();
 const password = ref('');
-const error = ref<string>();
+const fieldError = ref<string>();
 const form = useTemplateRef<HTMLFormElement>('form');
 
 const field = () => form.value?.querySelector<HTMLInputElement>('[name="password"]');
@@ -27,7 +29,7 @@ const onOpenAutoFocus = (event: Event) => {
 watch(() => props.open, (open) => {
   if (open) {
     password.value = '';
-    error.value = undefined;
+    fieldError.value = undefined;
   }
 });
 
@@ -35,8 +37,8 @@ const submit = async () => {
   if (props.busy) {
     return;
   }
-  error.value = password.value.length >= MIN_PASSWORD ? undefined : t('auth.error.password');
-  if (error.value) {
+  fieldError.value = password.value.length >= MIN_PASSWORD ? undefined : t('auth.error.password');
+  if (fieldError.value) {
     await nextTick();
     field()?.focus();
     return;
@@ -62,7 +64,7 @@ const submit = async () => {
         <UFormField
           :label="t('users.temporaryPassword')"
           :description="t('users.passwordRule')"
-          :error="error"
+          :error="fieldError"
           name="password"
           required
         >

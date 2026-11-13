@@ -42,7 +42,7 @@ export const Default: Story = {
     const table = canvas.getByRole('table', { name: t('users.accounts') });
 
     await expect(within(table).getAllByRole('columnheader').map((cell) => cell.textContent.trim()))
-      .toEqual([t('users.name'), t('users.email'), t('users.role'), t('users.created'), t('users.actions')]);
+      .toEqual([t('users.name'), t('users.email'), t('users.role'), t('users.createdAt'), t('users.actions')]);
     for (const name of ['Grace', 'Alan']) {
       await expect(canvas.getByRole('combobox', { name: t('users.roleOf', { name }) })).toBeEnabled();
       await expect(canvas.getByRole('button', { name: t('users.newPasswordFor', { name }) })).toBeVisible();
@@ -68,7 +68,11 @@ export const OwnRow: Story = {
 export const OnlyYou: Story = {
   args: { users: [ADA] },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(t('users.onlyYou'))).toBeVisible();
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText(t('users.onlyYou'))).toBeVisible();
+    // Read with the table, not only after it.
+    await expect(canvas.getByRole('table', { name: t('users.accounts') })).toHaveAccessibleDescription(t('users.onlyYou'));
   },
 };
 

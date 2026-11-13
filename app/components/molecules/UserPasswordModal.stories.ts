@@ -1,4 +1,5 @@
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { ref } from 'vue';
 
 import UserPasswordModal from './UserPasswordModal.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
@@ -8,7 +9,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 const meta = {
   title: 'Molecules/UserPasswordModal',
   component: UserPasswordModal,
-  args: { open: true, name: 'Grace', busy: false, done: false, onSubmit: fn(), 'onUpdate:open': fn() },
+  args: { open: true, name: 'Grace', busy: false, done: false, error: null, onSubmit: fn(), 'onUpdate:open': fn() },
 } satisfies Meta<typeof UserPasswordModal>;
 
 export default meta;
@@ -31,6 +32,7 @@ export const Default: Story = {
     const field = password(element);
 
     await expect(element).toHaveAccessibleName(t('users.newPasswordFor', { name: 'Grace' }));
+    await expect(element).toHaveAccessibleDescription(t('users.passwordRule'));
     await waitFor(() => expect(field).toHaveFocus());
     await expect(field).toHaveAttribute('autocomplete', 'new-password');
     await userEvent.type(field, 'brand new horse battery');
@@ -64,12 +66,44 @@ export const Saving: Story = {
   },
 };
 
-/** Done: says the account was signed out everywhere and to send the password privately (19). */
+/** Done: says the account was signed out everywhere, and the focus moves from the gone button to Close (19). */
 export const Done: Story = {
-  args: { done: true },
+  render: (args) => ({
+    components: { UserPasswordModal },
+    setup: () => {
+      const done = ref(false);
+      return { args, done };
+    },
+    template: '<UserPasswordModal v-bind="args" :done="done" @submit="done = true" />',
+  }),
   play: async () => {
     const element = await dialog();
+    await userEvent.type(password(element), 'brand new horse battery');
+    await userEvent.click(within(element).getByRole('button', { name: t('users.setPassword') }));
 
     await expect(within(element).getByRole('status')).toHaveTextContent(t('users.passwordSet', { name: 'Grace' }));
+    await waitFor(() => expect(within(element).getByRole('button', { name: t('users.close') })).toHaveFocus());
+  },
+};
+
+/** Failed: the dialog stays open, with an alert that takes the focus; the typed password is kept (review). */
+export const Failed: Story = {
+  render: (args) => ({
+    components: { UserPasswordModal },
+    setup: () => {
+      const error = ref<'network' | null>(null);
+      return { args, error };
+    },
+    template: '<UserPasswordModal v-bind="args" :error="error" @submit="error = \'network\'" />',
+  }),
+  play: async () => {
+    const element = await dialog();
+    await userEvent.type(password(element), 'brand new horse battery');
+    await userEvent.click(within(element).getByRole('button', { name: t('users.setPassword') }));
+
+    const alert = await waitFor(() => within(element).getByRole('alert'));
+    await expect(alert).toHaveTextContent(t('users.error.change'));
+    await waitFor(() => expect(alert).toHaveFocus());
+    await expect(password(element)).toHaveValue('brand new horse battery');
   },
 };
