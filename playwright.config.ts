@@ -30,6 +30,8 @@ const server = (port: number, env: Record<string, string> = {}) => ({
     // Where the browser reaches it: changes sent from another origin are refused.
     BETTER_AUTH_URL: `http://127.0.0.1:${String(port)}`,
     DATA_DIR: dataDir(port),
+    // signInTo sends each sign-in from an address of its own: the suite signs in more than 5 times a minute.
+    TRUST_PROXY: 'true',
     ...env,
   },
   reuseExistingServer: false,

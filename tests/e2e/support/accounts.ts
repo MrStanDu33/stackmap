@@ -8,10 +8,7 @@ export const FRESH_URL = 'http://127.0.0.1:3102';
 /** The administrator the global setup creates on the first two. */
 export const ADMIN = { name: 'Ada', email: 'ada@homelab.example', password: 'correct horse battery' };
 
-/**
- * An account that is not the instance administrator. Stackmap creates such accounts only through invitations (phase
- * 4c): the global setup writes it into the demo and empty servers' databases.
- */
+/** An account that is not the instance administrator: the global setup creates it on the demo and empty servers. */
 export const USER = { name: 'Grace', email: 'grace@homelab.example', password: 'correct horse battery' };
 
 /** The environment variable holding a server's data directory (playwright.config.ts). */
@@ -21,8 +18,9 @@ export const dataDirVariable = (port: number | string) => `STACKMAP_E2E_DATA_DIR
 export const DEMO_SESSION = 'tests/e2e/.auth/demo.json';
 
 /**
- * Signs in to a server, as the administrator unless told otherwise. Cookies are kept per host, not per port, so the
- * demo server's cookie is replaced for the rest of the test.
+ * Signs in to a server, as the administrator unless told otherwise, from an address of its own (the servers trust
+ * X-Forwarded-For). Cookies are kept per host, not per port, so the demo server's cookie is replaced for the rest of
+ * the test.
  */
 export async function signInTo(
   page: Page,
@@ -31,6 +29,8 @@ export async function signInTo(
 ): Promise<void> {
   const response = await page.request.post(`${url}/api/session`, {
     data: { email: account.email, password: account.password },
+    // A documentation address (RFC 5737) of its own: attempts are limited per address, 5 a minute.
+    headers: { 'x-forwarded-for': `198.51.100.${String(1 + Math.floor(Math.random() * 254))}` },
   });
   if (!response.ok()) {
     throw new Error(`Sign-in to ${url} failed: ${String(response.status())}`);

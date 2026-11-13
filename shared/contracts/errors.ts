@@ -89,6 +89,36 @@ export const PROBLEMS = {
     title: 'A workspace needs an owner',
     description: 'The change would leave a workspace without an owner.',
   },
+  user_not_found: {
+    status: 404,
+    title: 'The account does not exist',
+    description: 'No account has this id.',
+  },
+  email_taken: {
+    status: 409,
+    title: 'The email is taken',
+    description: 'An account already uses this email.',
+  },
+  last_admin: {
+    status: 409,
+    title: 'The instance needs an administrator',
+    description: 'The change would leave the instance without an administrator.',
+  },
+  cannot_demote_self: {
+    status: 409,
+    title: 'Administrators cannot demote themselves',
+    description: 'Another administrator has to change this account\'s role.',
+  },
+  cannot_reset_self: {
+    status: 409,
+    title: 'Administrators cannot reset their own password here',
+    description: 'Another administrator has to give this account a temporary password.',
+  },
+  cannot_remove_self: {
+    status: 409,
+    title: 'Administrators cannot remove themselves',
+    description: 'Another administrator has to remove this account.',
+  },
   internal_error: {
     status: 500,
     title: 'Something went wrong',
@@ -151,6 +181,10 @@ export const Problem = z.object({
   issues: z.array(ProblemIssue).max(MAX_ISSUES).optional().meta({
     description: `The invalid values (at most ${String(MAX_ISSUES)}), for \`validation_failed\` and \`invalid_response\``,
   }),
+  workspaces: z.array(text(100)).max(MAX_ISSUES).optional().meta({
+    description: 'For `last_owner` when removing an account: the workspaces it is the only owner of, by name',
+    examples: [['Home lab']],
+  }),
 }).meta({
   id: 'Problem',
   description: 'An API error, as RFC 9457 Problem Details (`application/problem+json`)',
@@ -170,7 +204,12 @@ export type Problem = z.infer<typeof Problem>;
 /** The Problem Details of one occurrence of a problem. */
 export const problemOf = (
   code: ProblemCode,
-  { detail, instance, issues }: { detail: string; instance: string; issues?: Problem['issues'] },
+  { detail, instance, issues, workspaces }: {
+    detail: string;
+    instance: string;
+    issues?: Problem['issues'];
+    workspaces?: Problem['workspaces'];
+  },
 ): Problem => ({
   type: `urn:stackmap:problem:${code}`,
   title: PROBLEMS[code].title,
@@ -179,4 +218,5 @@ export const problemOf = (
   instance,
   code,
   ...(issues === undefined ? {} : { issues }),
+  ...(workspaces === undefined ? {} : { workspaces }),
 });

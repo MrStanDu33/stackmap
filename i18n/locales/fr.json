@@ -316,5 +316,45 @@
     "notFoundHint": "Elle a peut-être expiré ou déjà servi.",
     "error": "L’invitation n’a pas pu être acceptée. Réessayez.",
     "signInHint": "Connectez-vous avec {email} pour accepter. Pas encore de compte ? Demandez à un administrateur d’en créer un."
+  },
+  "users": {
+    "title": "Utilisateurs",
+    "accounts": "Comptes",
+    "name": "Nom",
+    "email": "E-mail",
+    "role": "Rôle d’instance",
+    "createdAt": "Créé le",
+    "created": "Compte créé. Envoyez le mot de passe à {email} par un canal privé.",
+    "actions": "Actions",
+    "you": "(vous)",
+    "roleOf": "Rôle d’instance : {name}",
+    "roleLabel": {
+      "admin": "Administrateur",
+      "user": "Utilisateur"
+    },
+    "onlyYou": "Vous êtes le seul compte. Créez-en un pour chaque personne qui a besoin de Stackmap, puis invitez-la dans un espace de travail.",
+    "newPasswordFor": "Nouveau mot de passe temporaire pour {name}",
+    "remove": "Supprimer {name}",
+    "removeQuestion": "Supprimer {name} ? Ses sessions et ses accès aux espaces de travail disparaissent avec le compte.",
+    "cancel": "Annuler",
+    "close": "Terminé",
+    "lastAdmin": "Stackmap doit garder au moins un administrateur.",
+    "lastOwner": "Espaces de travail dont {name} est l’unique propriétaire : {workspaces}. Ajoutez d’abord un autre propriétaire.",
+    "createTitle": "Créer un compte",
+    "create": "Créer le compte",
+    "temporaryPassword": "Mot de passe temporaire",
+    "passwordRule": "Au moins 12 caractères. Transmettez-le par un canal privé ; il pourra être changé ensuite.",
+    "setPassword": "Enregistrer le mot de passe",
+    "passwordSet": "Toutes les sessions ont été fermées pour {name}. Envoyez le nouveau mot de passe par un canal privé.",
+    "error": {
+      "emailTaken": "Un compte utilise déjà cette adresse.",
+      "load": "Les comptes n’ont pas pu être chargés.",
+      "change": "La modification n’a pas pu être enregistrée. Réessayez."
+    },
+    "loading": "Chargement des comptes…",
+    "removed": "Compte supprimé : {name}",
+    "roleChanged": "Nouveau rôle d’instance pour {name} : {role}",
+    "forAdmins": "Cette page est réservée aux administrateurs.",
+    "home": "Revenir à Stackmap"
   }
 }

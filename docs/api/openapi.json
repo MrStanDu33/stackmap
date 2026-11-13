@@ -38,7 +38,7 @@
   "tags": [
     {
       "name": "Accounts",
-      "description": "Setting up the first administrator, and signing in and out. The session is a cookie."
+      "description": "Setting up the first administrator, signing in and out, and the administrator's management of accounts. The session is a cookie."
     },
     {
       "name": "Extensions",
@@ -2148,6 +2148,595 @@
           }
         }
       }
+    },
+    "/api/users": {
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List the accounts",
+        "description": "Every account of the instance by name, with its instance role.\n\nRequires the instance administrator.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "instanceAdmin",
+        "responses": {
+          "200": {
+            "description": "The accounts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserList"
+                },
+                "examples": {
+                  "two": {
+                    "summary": "Two accounts",
+                    "value": {
+                      "users": [
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000101",
+                          "name": "Ada",
+                          "email": "ada@homelab.example",
+                          "role": "admin",
+                          "createdAt": "2026-10-31T09:00:00.000Z"
+                        },
+                        {
+                          "id": "0199d6a0-0000-7000-8000-000000000102",
+                          "name": "Grace",
+                          "email": "grace@homelab.example",
+                          "role": "user",
+                          "createdAt": "2026-11-01T09:00:00.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createUser",
+        "summary": "Create an account",
+        "description": "A plain user with no workspace, signed in with the temporary password the administrator chose. The administrator stays signed in as themselves.\n\nRequires the instance administrator.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "instanceAdmin",
+        "requestBody": {
+          "description": "The new account",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "Its name, trimmed",
+                    "examples": [
+                      "Grace"
+                    ]
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                    "description": "Its email; compared without case",
+                    "examples": [
+                      "ada@homelab.example"
+                    ]
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "12 to 128 characters",
+                    "examples": [
+                      "correct horse battery"
+                    ]
+                  }
+                },
+                "required": [
+                  "name",
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false,
+                "description": "The new account"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAccount"
+                },
+                "examples": {
+                  "grace": {
+                    "summary": "Grace",
+                    "value": {
+                      "id": "0199d6a0-0000-7000-8000-000000000102",
+                      "name": "Grace",
+                      "email": "grace@homelab.example",
+                      "role": "user",
+                      "createdAt": "2026-11-01T09:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "An account already uses this email",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "email_taken": {
+                    "summary": "An account already uses this email",
+                    "value": {
+                      "type": "urn:stackmap:problem:email_taken",
+                      "title": "The email is taken",
+                      "status": 409,
+                      "detail": "An account already uses this email.",
+                      "instance": "/api/users",
+                      "code": "email_taken"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/users/{userId}": {
+      "patch": {
+        "operationId": "updateUser",
+        "summary": "Change an account's instance role",
+        "description": "Promotes to or demotes from instance administrator, on the account's next request. The instance keeps at least one administrator, and administrators cannot demote themselves.\n\nRequires the instance administrator.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "instanceAdmin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The account's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000102"
+              ]
+            },
+            "required": true,
+            "description": "The account's id",
+            "example": "0199d6a0-0000-7000-8000-000000000102"
+          }
+        ],
+        "requestBody": {
+          "description": "The new instance role",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "admin",
+                      "user"
+                    ],
+                    "description": "`admin` manages the whole instance; `user` only what their workspaces allow",
+                    "examples": [
+                      "user"
+                    ]
+                  }
+                },
+                "required": [
+                  "role"
+                ],
+                "additionalProperties": false,
+                "description": "The new instance role"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account, with the new role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAccount"
+                },
+                "examples": {
+                  "promoted": {
+                    "summary": "Now an administrator",
+                    "value": {
+                      "id": "0199d6a0-0000-7000-8000-000000000102",
+                      "name": "Grace",
+                      "email": "grace@homelab.example",
+                      "role": "admin",
+                      "createdAt": "2026-11-01T09:00:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No account has this id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No account has this id",
+                    "value": {
+                      "type": "urn:stackmap:problem:user_not_found",
+                      "title": "The account does not exist",
+                      "status": 404,
+                      "detail": "No account with this id.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "user_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The change would leave the instance without an administrator, or demote the caller",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "last_admin": {
+                    "summary": "Stackmap needs at least one administrator.",
+                    "value": {
+                      "type": "urn:stackmap:problem:last_admin",
+                      "title": "The instance needs an administrator",
+                      "status": 409,
+                      "detail": "Stackmap needs at least one administrator.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "last_admin"
+                    }
+                  },
+                  "cannot_demote_self": {
+                    "summary": "Administrators cannot demote themselves.",
+                    "value": {
+                      "type": "urn:stackmap:problem:cannot_demote_self",
+                      "title": "Administrators cannot demote themselves",
+                      "status": 409,
+                      "detail": "Administrators cannot demote themselves.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "cannot_demote_self"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeUser",
+        "summary": "Remove an account",
+        "description": "Removes the account with its sessions and memberships. Not the caller's own account, nor the only owner of a workspace.\n\nRequires the instance administrator.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "instanceAdmin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The account's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000102"
+              ]
+            },
+            "required": true,
+            "description": "The account's id",
+            "example": "0199d6a0-0000-7000-8000-000000000102"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "removed": {
+                    "summary": "Removed",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No account has this id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No account has this id",
+                    "value": {
+                      "type": "urn:stackmap:problem:user_not_found",
+                      "title": "The account does not exist",
+                      "status": 404,
+                      "detail": "No account with this id.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "user_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The account is the caller's, or the only owner of a workspace",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "cannot_remove_self": {
+                    "summary": "Administrators cannot remove their own account.",
+                    "value": {
+                      "type": "urn:stackmap:problem:cannot_remove_self",
+                      "title": "Administrators cannot remove themselves",
+                      "status": 409,
+                      "detail": "Administrators cannot remove their own account.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "cannot_remove_self"
+                    }
+                  },
+                  "last_owner": {
+                    "summary": "This account is the only owner of Home lab. Add another owner first.",
+                    "value": {
+                      "type": "urn:stackmap:problem:last_owner",
+                      "title": "A workspace needs an owner",
+                      "status": 409,
+                      "detail": "This account is the only owner of Home lab. Add another owner first.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102",
+                      "code": "last_owner"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/users/{userId}/password": {
+      "put": {
+        "operationId": "setUserPassword",
+        "summary": "Give an account a new temporary password",
+        "description": "Replaces the account's password and signs it out everywhere. Not for the caller's own account.\n\nRequires the instance administrator.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "instanceAdmin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The account's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000102"
+              ]
+            },
+            "required": true,
+            "description": "The account's id",
+            "example": "0199d6a0-0000-7000-8000-000000000102"
+          }
+        ],
+        "requestBody": {
+          "description": "The new temporary password",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "12 to 128 characters",
+                    "examples": [
+                      "correct horse battery"
+                    ]
+                  }
+                },
+                "required": [
+                  "password"
+                ],
+                "additionalProperties": false,
+                "description": "The new temporary password"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Replaced, and the account signed out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "done": {
+                    "summary": "Replaced",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No account has this id",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "user_not_found": {
+                    "summary": "No account has this id",
+                    "value": {
+                      "type": "urn:stackmap:problem:user_not_found",
+                      "title": "The account does not exist",
+                      "status": 404,
+                      "detail": "No account with this id.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102/password",
+                      "code": "user_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Administrators change their own password elsewhere",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "cannot_reset_self": {
+                    "summary": "Administrators change their own password elsewhere",
+                    "value": {
+                      "type": "urn:stackmap:problem:cannot_reset_self",
+                      "title": "Administrators cannot reset their own password here",
+                      "status": 409,
+                      "detail": "Administrators cannot give themselves a temporary password.",
+                      "instance": "/api/users/0199d6a0-0000-7000-8000-000000000102/password",
+                      "code": "cannot_reset_self"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2272,10 +2861,16 @@
               "already_member",
               "member_not_found",
               "last_owner",
+              "user_not_found",
+              "email_taken",
+              "last_admin",
+              "cannot_demote_self",
+              "cannot_reset_self",
+              "cannot_remove_self",
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `user_not_found` (404): No account has this id.\n- `email_taken` (409): An account already uses this email.\n- `last_admin` (409): The change would leave the instance without an administrator.\n- `cannot_demote_self` (409): Another administrator has to change this account's role.\n- `cannot_reset_self` (409): Another administrator has to give this account a temporary password.\n- `cannot_remove_self` (409): Another administrator has to remove this account.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -2286,6 +2881,21 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ProblemIssue"
+            }
+          },
+          "workspaces": {
+            "description": "For `last_owner` when removing an account: the workspaces it is the only owner of, by name",
+            "examples": [
+              [
+                "Home lab"
+              ]
+            ],
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
             }
           }
         },
@@ -7122,6 +7732,116 @@
             "email": "alan@homelab.example",
             "invitedBy": "Ada",
             "expiresAt": "2026-11-08T09:00:00.000Z"
+          }
+        ]
+      },
+      "UserList": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "maxItems": 500,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserAccount"
+            },
+            "description": "By name"
+          }
+        },
+        "required": [
+          "users"
+        ],
+        "additionalProperties": false,
+        "description": "Accounts",
+        "examples": [
+          {
+            "users": [
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000101",
+                "name": "Ada",
+                "email": "ada@homelab.example",
+                "role": "admin",
+                "createdAt": "2026-10-31T09:00:00.000Z"
+              },
+              {
+                "id": "0199d6a0-0000-7000-8000-000000000102",
+                "name": "Grace",
+                "email": "grace@homelab.example",
+                "role": "user",
+                "createdAt": "2026-11-01T09:00:00.000Z"
+              }
+            ]
+          }
+        ]
+      },
+      "UserAccount": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "The account's id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000102"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "Its name",
+            "examples": [
+              "Grace"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Its email; compared without case",
+            "examples": [
+              "ada@homelab.example"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "user"
+            ],
+            "description": "`admin` manages the whole instance; `user` only what their workspaces allow",
+            "examples": [
+              "user"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "maxLength": 30,
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+            "description": "When it was created",
+            "examples": [
+              "2026-11-01T09:00:00.000Z"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "createdAt"
+        ],
+        "additionalProperties": false,
+        "description": "An account of the instance",
+        "examples": [
+          {
+            "id": "0199d6a0-0000-7000-8000-000000000102",
+            "name": "Grace",
+            "email": "grace@homelab.example",
+            "role": "user",
+            "createdAt": "2026-11-01T09:00:00.000Z"
           }
         ]
       }

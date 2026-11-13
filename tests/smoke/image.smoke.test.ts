@@ -13,7 +13,8 @@ const ARM64_IMAGE = process.env.SMOKE_ARM64_IMAGE ?? IMAGE;
 // The line the app logs once it migrated the database (see server/database/startup.ts).
 const APPLIED = `Applied database migrations: ${Object.keys(MIGRATIONS).join(', ')}`;
 
-const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8' }).trim();
+// The default 1 MB is too small for /api/docs, which embeds the whole API document.
+const docker = (...args: string[]) => execFileSync('docker', args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).trim();
 
 const cleanups: (() => void)[] = [];
 
