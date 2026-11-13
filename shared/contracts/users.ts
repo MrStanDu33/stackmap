@@ -82,7 +82,7 @@ export const createUser = defineContract({
   tags: ['Accounts'],
   requiredRole: 'instanceAdmin',
   body: z.strictObject({
-    name: line(100).min(1).meta({ description: 'Its name', examples: [grace.name] }),
+    name: line(100).trim().min(1).meta({ description: 'Its name, trimmed', examples: [grace.name] }),
     email: email(),
     password: password(),
   }).meta({ description: 'The new account' }),

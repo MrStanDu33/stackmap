@@ -155,7 +155,8 @@ export const LastOwnerRefused: Story = {
     const alert = within(canvasElement).getByRole('alert');
     const workspaces = new Intl.ListFormat(i18n.global.locale.value, { type: 'conjunction' }).format(['Home lab', 'Office']);
 
-    await expect(alert).toHaveTextContent(t('users.lastOwner', { name: 'Grace', workspaces }));
+    // Spaces normalised, as toHaveTextContent does to the text it reads (French has non-breaking ones).
+    await expect(alert).toHaveTextContent(t('users.lastOwner', { name: 'Grace', workspaces }).replace(/\s+/g, ' '));
     await waitFor(() => expect(alert).toHaveFocus());
   },
 };

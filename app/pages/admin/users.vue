@@ -90,20 +90,24 @@ const resetting = ref<string>();
 const passwordOpen = ref(false);
 const passwordBusy = ref(false);
 const passwordDone = ref(false);
+const passwordError = ref<'network' | null>(null);
 const askPassword = (userId: string) => {
   resetting.value = userId;
   passwordDone.value = false;
+  passwordError.value = null;
+  // An earlier refusal is about another change.
+  tableError.value = null;
   passwordOpen.value = true;
 };
 const setPassword = async (password: string) => {
   passwordBusy.value = true;
+  passwordError.value = null;
   try {
     await $fetch(`/api/users/${resetting.value ?? ''}/password`, { method: 'PUT', body: { password } });
     passwordDone.value = true;
   } catch {
-    passwordOpen.value = false;
     await nextTick();
-    tableError.value = { code: 'network' };
+    passwordError.value = 'network';
   } finally {
     passwordBusy.value = false;
   }
@@ -186,6 +190,7 @@ const retry = async () => {
         :name="nameOf(resetting ?? '')"
         :busy="passwordBusy"
         :done="passwordDone"
+        :error="passwordError"
         @submit="setPassword"
       />
     </template>

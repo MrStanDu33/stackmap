@@ -21,6 +21,8 @@ const emit = defineEmits<{
 
 const { t, locale } = useI18n();
 const titleId = useId();
+const hintId = useId();
+const onlyYou = computed(() => props.users.length === 1 && props.users[0]?.id === props.me);
 
 const created = (iso: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(iso));
 const roleItems = computed(() => (['user', 'admin'] as const).map((value) => ({ label: t(`users.roleLabel.${value}`), value })));
@@ -103,11 +105,12 @@ defineExpose({
         <table
           class="w-full text-start text-sm"
           :aria-labelledby="titleId"
+          :aria-describedby="onlyYou ? hintId : undefined"
         >
           <thead>
             <tr class="border-b border-default">
               <th
-                v-for="column in ['name', 'email', 'role', 'created', 'actions']"
+                v-for="column in ['name', 'email', 'role', 'createdAt', 'actions']"
                 :key="column"
                 scope="col"
                 class="p-2 text-start"
@@ -130,7 +133,7 @@ defineExpose({
                 <span
                   v-if="user.id === me"
                   class="text-muted"
-                >({{ t('users.you') }})</span>
+                >{{ t('users.you') }}</span>
               </th>
               <td class="p-2">
                 {{ user.email }}
@@ -177,7 +180,8 @@ defineExpose({
         </table>
       </div>
       <p
-        v-if="users.length === 1 && users[0]?.id === me"
+        v-if="onlyYou"
+        :id="hintId"
         class="text-sm text-muted"
       >
         {{ t('users.onlyYou') }}

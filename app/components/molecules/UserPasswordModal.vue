@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { MIN_PASSWORD } from '#shared/contracts/auth';
 
-/** Asks for another account's new temporary password; once set, says it was signed out everywhere. */
+/**
+ * Asks for another account's new temporary password; once set, says it was signed out everywhere. A failure is said
+ * inside, with the password kept, so the dialog never hands the focus back while an alert is being read.
+ */
 const props = defineProps<{
   open: boolean;
   /** The account's name. */
@@ -25,6 +28,21 @@ const onOpenAutoFocus = (event: Event) => {
   event.preventDefault();
   void nextTick(() => field()?.focus());
 };
+
+const closeButton = useTemplateRef<{ $el: HTMLElement }>('close');
+// The outcome takes the focus: the alert on a failure, Close once set (the button that had it is gone).
+watch(() => props.error, async (error) => {
+  if (error) {
+    await nextTick();
+    form.value?.querySelector<HTMLElement>('[role="alert"]')?.focus();
+  }
+});
+watch(() => props.done, async (done) => {
+  if (done) {
+    await nextTick();
+    closeButton.value?.$el.focus();
+  }
+});
 
 watch(() => props.open, (open) => {
   if (open) {
@@ -51,6 +69,7 @@ const submit = async () => {
   <UModal
     :open="open"
     :title="t('users.newPasswordFor', { name })"
+    :description="t('users.passwordRule')"
     :content="{ onOpenAutoFocus }"
     @update:open="emit('update:open', $event)"
   >
@@ -61,6 +80,14 @@ const submit = async () => {
         novalidate
         @submit.prevent="submit"
       >
+        <UAlert
+          v-if="error"
+          role="alert"
+          tabindex="-1"
+          color="error"
+          variant="outline"
+          :title="t('users.error.change')"
+        />
         <UFormField
           :label="t('users.temporaryPassword')"
           :description="t('users.passwordRule')"
@@ -86,6 +113,7 @@ const submit = async () => {
         </p>
         <div class="flex justify-end gap-2">
           <UButton
+            ref="close"
             color="neutral"
             variant="outline"
             @click="emit('update:open', false)"

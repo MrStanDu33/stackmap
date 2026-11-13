@@ -106,7 +106,7 @@ test.describe('users page', () => {
 
     await expect(page).toHaveURL(`${DEMO_URL}/admin/users`);
     const own = page.getByRole('row', { name: /^Ada/ });
-    await expect(own).toContainText('You');
+    await expect(own).toContainText('(you)');
     await expect(own.getByRole('button')).toHaveCount(0);
     await expectNoAxeViolation(page);
   });

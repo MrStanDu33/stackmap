@@ -1,4 +1,5 @@
 import { inTransaction } from './entity-repository';
+import { MAX_ISSUES } from '../../shared/contracts/errors';
 import { MAX_USERS } from '../../shared/contracts/users';
 import { toTimestamp } from '../database/serialize';
 
@@ -6,7 +7,10 @@ import type { UserAccount } from '../../shared/contracts/users';
 import type { Database } from '../database/types/schema';
 import type { Kysely } from 'kysely';
 
-/** Why the administrator's change was refused; `last_owner` names the workspaces it would leave without an owner. */
+/**
+ * Why the administrator's change was refused; `last_owner` names the workspaces it would leave without an owner (the
+ * first MAX_ISSUES by name, as many as a problem lists).
+ */
 export type UserRefusal
   = | { code: 'user_not_found' | 'cannot_demote_self' | 'last_admin' | 'cannot_remove_self' }
     | { code: 'last_owner'; workspaces: string[] };
@@ -104,9 +108,11 @@ export function removeAccount(
     if (userId === actorId) {
       return { code: 'cannot_remove_self' };
     }
-    const owned = trx.selectFrom('member').select('workspaceId').where('userId', '=', userId).where('role', '=', 'owner');
-    // Locks the workspaces it owns, as member changes do (members.ts), so that a demotion there waits for this.
-    await trx.updateTable('workspace').set((update) => ({ id: update.ref('id') })).where('id', 'in', owned).execute();
+    // Locks every workspace it is in, as member changes do (members.ts): a promotion to owner there, or a demotion of
+    // another owner, waits for this, so the owners counted below stay true until the account is gone.
+    const memberOf = trx.selectFrom('member').select('workspaceId').where('userId', '=', userId);
+    await trx.updateTable('workspace').set((update) => ({ id: update.ref('id') })).where('id', 'in', memberOf).execute();
+    const owned = memberOf.where('role', '=', 'owner');
     const soleOwned = await trx.selectFrom('workspace').select('name')
       .where('id', 'in', owned)
       .where((where) => where.not(where.exists(where.selectFrom('member').select('member.userId')
@@ -114,6 +120,7 @@ export function removeAccount(
         .where('member.role', '=', 'owner')
         .where('member.userId', '!=', userId))))
       .orderBy('name')
+      .limit(MAX_ISSUES)
       .execute();
     if (soleOwned.length > 0) {
       return { code: 'last_owner', workspaces: soleOwned.map(({ name }) => name) };
