@@ -3,6 +3,8 @@ import { sql } from 'kysely';
 import { afterEach, beforeEach, vi } from 'vitest';
 
 import { BUILTIN_REGISTRY, useTestWorkspaces } from './workspaces';
+import accountPasswordPut from '../../server/api/account/password.put';
+import accountPreferencesPut from '../../server/api/account/preferences.put';
 import sessionDelete from '../../server/api/session.delete';
 import sessionGet from '../../server/api/session.get';
 import sessionPost from '../../server/api/session.post';
@@ -19,6 +21,7 @@ import { addMember } from '../../server/repositories/members';
 import { useAuth } from '../../server/utils/auth';
 import { setDatabase } from '../../server/utils/database';
 import { setExtensionRegistry } from '../../server/utils/extensions';
+import { NO_PREFERENCES } from '../../shared/contracts/preferences';
 
 import type { Dialect } from './databases';
 import type { Database } from '../../server/database/types/schema';
@@ -38,7 +41,7 @@ export interface Call {
   ip?: string;
 }
 
-/** The account routes (setup, session, users) and one workspace route, served as the app serves them. */
+/** The account routes (setup, session, users, account) and one workspace route, served as the app serves them. */
 const serve = () => {
   const router = createRouter()
     .get('/api/setup', setupGet)
@@ -51,7 +54,9 @@ const serve = () => {
     .post('/api/users', usersPost)
     .patch('/api/users/:userId', userPatch)
     .put('/api/users/:userId/password', userPasswordPut)
-    .delete('/api/users/:userId', userDelete);
+    .delete('/api/users/:userId', userDelete)
+    .put('/api/account/preferences', accountPreferencesPut)
+    .put('/api/account/password', accountPasswordPut);
   return toWebHandler(createApp().use(router));
 };
 
@@ -144,7 +149,7 @@ export async function createAccount(
   // The first account becomes administrator on its own: set the role the test asks for either way.
   const role = admin ? 'admin' : 'user';
   await db.updateTable('user').set({ role }).where('id', '=', user.id).execute();
-  return { user: { id: user.id, name, email, role } };
+  return { user: { id: user.id, name, email, role, mustChangePassword: false, preferences: NO_PREFERENCES } };
 }
 
 /** Each member of a workspace with their role, by user id. */

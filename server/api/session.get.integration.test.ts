@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { NO_PREFERENCES } from '../../shared/contracts/preferences';
 import { SESSION_COOKIE } from '../../shared/contracts/security';
 import { ADMIN, useTestAccounts } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 
+import type { Session } from '../../shared/contracts/auth';
 import type { Dialect } from '../../tests/support/databases';
 
 describe.each(DIALECTS)('GET /api/session on %s', (dialect: Dialect) => {
@@ -19,7 +21,11 @@ describe.each(DIALECTS)('GET /api/session on %s', (dialect: Dialect) => {
     const { status, json } = await accounts.call('GET', '/api/session', { cookie });
 
     expect(status).toBe(200);
-    expect(json).toEqual({ user: { id: expect.any(String) as unknown, name: ADMIN.name, email: ADMIN.email, role: 'admin' } });
+    expect(json).toEqual({
+      user: {
+        id: expect.any(String) as unknown, name: ADMIN.name, email: ADMIN.email, role: 'admin', mustChangePassword: false, preferences: NO_PREFERENCES,
+      },
+    });
   });
 
   it('given no session, or an expired or forged cookie, answers null (12, 17)', async () => {
@@ -44,5 +50,13 @@ describe.each(DIALECTS)('GET /api/session on %s', (dialect: Dialect) => {
     const expired = await accounts.call('GET', '/api/session', { cookie });
     expect(expired.json).toBeNull();
     expect(expired.setCookie).toMatch(/Max-Age=0/i);
+  });
+  it('given a signed-in person, answers the preferences they saved, the others null (1)', async () => {
+    const cookie = await accounts.signedIn();
+    await accounts.call('PUT', '/api/account/preferences', { cookie, body: { theme: 'light', landingPage: 'trace' } });
+
+    const { json } = await accounts.call('GET', '/api/session', { cookie });
+
+    expect((json as Session).user.preferences).toEqual({ theme: 'light', contrast: null, locale: null, landingPage: 'trace' });
   });
 });

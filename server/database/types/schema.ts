@@ -11,6 +11,7 @@ export interface Database {
   invitation: InvitationTable;
   derived_flow: DerivedFlowTable;
   user: UserTable;
+  userPreference: UserPreferenceTable;
   rateLimit: RateLimitTable;
 }
 
@@ -27,6 +28,8 @@ export interface UserTable {
   role: string | null;
   /** A Date from Postgres, an ISO string from SQLite. */
   createdAt: Date | string;
+  /** Set when an administrator gave a temporary password; cleared when the account changes it. 0/1 on SQLite. */
+  mustChangePassword: boolean | number;
 }
 
 /** A pending invitation to a workspace: the link's token is never stored, only its SHA-256 hash. */
@@ -94,4 +97,14 @@ export interface DerivedFlowTable {
   hostnames: string;
   /** JSON array of `{ entity, id }`. */
   basis: string;
+}
+
+/** A person's display preferences and landing page; a null column was never chosen. Deleted with its account. */
+export interface UserPreferenceTable {
+  userId: string;
+  theme: string | null;
+  contrast: string | null;
+  locale: string | null;
+  landingPage: string | null;
+  updatedAt: string;
 }

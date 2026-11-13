@@ -44,7 +44,15 @@ test.describe('users page', () => {
     const context = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });
     const newcomer = await context.newPage();
     await signInTo(newcomer, DEMO_URL, { email, password: PASSWORD });
+    // A temporary password is replaced first (4d), then the graph says to ask for an invitation.
     await newcomer.goto('/graph');
+    await expect(newcomer).toHaveURL(`${DEMO_URL}/settings/password`);
+    await hydrated(newcomer);
+    await newcomer.getByLabel(/^Current password/).fill(PASSWORD);
+    await newcomer.getByLabel(/^New password/).fill('her own horse battery');
+    await newcomer.getByLabel(/^Confirm the new password/).fill('her own horse battery');
+    await newcomer.getByRole('button', { name: 'Change the password' }).click();
+    await expect(newcomer).toHaveURL(new RegExp(`^${DEMO_URL}/graph`));
     await expect(newcomer.getByText('Ask an administrator', { exact: false })).toBeVisible();
     await context.close();
   });
@@ -85,6 +93,10 @@ test.describe('users page', () => {
     const owner = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });
     const ownerPage = await owner.newPage();
     await signInTo(ownerPage, DEMO_URL, { email: user.email, password: PASSWORD });
+    // Its temporary password replaced first (4d): until then, only that is allowed.
+    expect((await ownerPage.request.put(`${DEMO_URL}/api/account/password`, {
+      data: { currentPassword: PASSWORD, newPassword: 'their own horse battery' },
+    })).status()).toBe(204);
     expect((await ownerPage.request.post(`${DEMO_URL}/api/invitations/${token}/accept`)).status()).toBe(200);
     await owner.close();
     const me = await (await page.request.get(`${DEMO_URL}/api/session`)).json() as { user: { id: string } };

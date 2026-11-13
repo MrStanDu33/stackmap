@@ -32,6 +32,8 @@ export interface Contract {
   /** Tags declared in tags.ts. */
   tags: readonly string[];
   requiredRole: Role;
+  /** Allowed to an account that must change its temporary password; every other operation answers 403. */
+  allowedWhilePasswordChange?: true;
   /** The operation will go away: the API reference says so. */
   deprecated?: true;
   externalDocs?: { description: string; url: string };

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { CONTRACTS } from '../../shared/contracts';
 import { WORKSPACE_ROLES } from '../../shared/contracts/contract';
+import { NO_PREFERENCES } from '../../shared/contracts/preferences';
 import { setSessionResolver } from '../utils/session';
 
 import type { Contract } from '../../shared/contracts/contract';
@@ -70,7 +71,10 @@ describe('API routes and contracts', () => {
       setSessionResolver(() => Promise.resolve(null));
       const signedOut = await call();
       setSessionResolver(() => Promise.resolve({
-        user: { id: '0199d6a0-0000-7000-8000-000000000102', name: 'Grace', email: 'grace@homelab.example', role: 'user' },
+        user: {
+          id: '0199d6a0-0000-7000-8000-000000000102', name: 'Grace', email: 'grace@homelab.example', role: 'user',
+          mustChangePassword: false, preferences: NO_PREFERENCES,
+        },
       }));
       // Workspace roles need a membership, in the database: server/utils/contract-handler.integration.test.ts.
       const asUser = contract.requiredRole === 'instanceAdmin' ? await call() : 403;

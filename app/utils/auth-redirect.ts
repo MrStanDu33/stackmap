@@ -2,6 +2,10 @@
 export interface AuthState {
   setUp: boolean;
   signedIn: boolean;
+  /** The page `/` opens for this person; the graph when not chosen. */
+  landingPage?: 'graph' | 'trace' | null;
+  /** The account has a temporary password to replace before anything else. */
+  mustChangePassword?: boolean;
 }
 
 const pathOf = (fullPath: string) => fullPath.split(/[?#]/)[0] ?? '';

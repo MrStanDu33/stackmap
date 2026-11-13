@@ -82,6 +82,25 @@ describe('Docker image', () => {
     expect(compose('logs', 'stackmap')).toContain(APPLIED);
     expect(compose('exec', 'stackmap', 'sh', '-c', 'test -e /data/stackmap.sqlite || echo no-sqlite')).toBe('no-sqlite');
   });
+
+  it('reset-password <email> run in the container resets the password as the PUID user (16)', async () => {
+    const container = await runOnEmptyVolume(IMAGE);
+    const post = (path: string, body: unknown) => {
+      const script = `fetch('http://127.0.0.1:3000${path}', { method: 'POST', headers: { 'content-type': 'application/json' }, `
+        + `body: ${JSON.stringify(JSON.stringify(body))} }).then((r) => console.log(r.status))`;
+      return docker('exec', container, 'node', '-e', script);
+    };
+    expect(post('/api/setup', { name: 'Ada', email: 'ada@homelab.example', password: 'correct horse battery', demo: false }))
+      .toBe('201');
+
+    // As `docker compose exec` runs it: as root unless told otherwise; the wrapper drops to PUID.
+    const printed = docker('exec', container, 'reset-password', 'ada@homelab.example');
+    const password = /: (\S{20})$/m.exec(printed)?.[1] ?? '';
+
+    expect(password).toHaveLength(20);
+    expect(post('/api/session', { email: 'ada@homelab.example', password })).toBe('200');
+    expect(docker('exec', container, 'sh', '-c', 'stat -c %u /data/stackmap.sqlite*  | sort -u')).toBe('1000');
+  });
 });
 
 /** Fetches a page from inside the container (no published port needed). */

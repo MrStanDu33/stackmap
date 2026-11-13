@@ -1,3 +1,4 @@
+import { changePassword, updatePreferences } from './account';
 import { getSession, getSetup, setUp, signIn, signOut } from './auth';
 import { getExtensionDiagnostics, listExtensions } from './extensions';
 import { acceptInvitation, createInvitation, getInvitation, revokeInvitation } from './invitations';
@@ -15,4 +16,5 @@ export const CONTRACTS: readonly Contract[] = [
   getHealth, getOpenApiDocument, getSetup, setUp, getSession, signIn, signOut, listExtensions, getExtensionDiagnostics,
   listWorkspaces, createWorkspace, getTrace, getTraffic, listMembers, updateMember, removeMember, createInvitation,
   revokeInvitation, getInvitation, acceptInvitation, listUsers, createUser, updateUser, setUserPassword, removeUser,
+  updatePreferences, changePassword,
 ];

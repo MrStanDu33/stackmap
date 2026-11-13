@@ -1,7 +1,7 @@
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import DisplayPreferences from './DisplayPreferences.vue';
-import { i18n } from '../../../.storybook/nuxt-shims';
+import { clearNuxtState, i18n, useState } from '../../../.storybook/nuxt-shims';
 
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
@@ -67,5 +67,27 @@ export const French: Story = {
 
     await waitFor(() => expect(i18n.global.locale.value).toBe('fr'));
     await expect(await canvas.findByRole('region', { name: 'Affichage' })).toBeVisible();
+  },
+};
+
+/** Signed in, a change saved to the account is announced (4). */
+export const Saved: Story = {
+  beforeEach: () => {
+    useState('preferences.status').value = 'saved';
+    return clearNuxtState;
+  },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole('status')).toHaveTextContent(t('settings.saved'));
+  },
+};
+
+/** A change that could not be saved is said in an alert (4). */
+export const SaveFailed: Story = {
+  beforeEach: () => {
+    useState('preferences.status').value = 'error';
+    return clearNuxtState;
+  },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole('alert')).toHaveTextContent(t('settings.saveError'));
   },
 };

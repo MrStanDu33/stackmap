@@ -114,6 +114,16 @@ export const PROBLEMS = {
     title: 'Administrators cannot reset their own password here',
     description: 'Another administrator has to give this account a temporary password.',
   },
+  wrong_password: {
+    status: 400,
+    title: 'The current password is incorrect',
+    description: 'Changing the password needs the current one.',
+  },
+  password_change_required: {
+    status: 403,
+    title: 'The password must be changed first',
+    description: 'The account has a temporary password: change it before anything else.',
+  },
   cannot_remove_self: {
     status: 409,
     title: 'Administrators cannot remove themselves',
