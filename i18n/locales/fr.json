@@ -266,7 +266,7 @@
     "role": "Rôle",
     "actions": "Actions",
     "you": "(vous)",
-    "roleOf": "Rôle de {name}",
+    "roleOf": "Rôle attribué à {name}",
     "remove": "Retirer {name}",
     "leave": "Quitter cet espace de travail",
     "removeQuestion": "Retirer {name} de cet espace de travail ? Cette personne perdra l’accès aux données de cet espace de travail.",
@@ -283,9 +283,9 @@
     "cancel": "Annuler",
     "invitedByDeleted": "Compte supprimé",
     "loading": "Chargement des membres…",
-    "removed": "{name} retiré de l’espace de travail",
+    "removed": "Membre retiré : {name}",
     "revoked": "Invitation révoquée",
-    "roleChanged": "Rôle de {name} : {role}"
+    "roleChanged": "Nouveau rôle pour {name} : {role}"
   },
   "invite": {
     "title": "Inviter quelqu’un",
@@ -310,7 +310,7 @@
     "for": "Cette invitation est destinée à {email}.",
     "signIn": "Se connecter pour accepter",
     "accept": "Accepter l’invitation",
-    "wrongAccount": "La session ouverte est celle de {email}. Déconnectez-vous, puis connectez-vous avec {invited} pour accepter.",
+    "wrongAccount": "La session ouverte est celle du compte {email}. Déconnectez-vous, puis connectez-vous avec {invited} pour accepter.",
     "signOut": "Se déconnecter",
     "notFound": "Invitation introuvable",
     "notFoundHint": "Elle a peut-être expiré ou déjà servi.",
