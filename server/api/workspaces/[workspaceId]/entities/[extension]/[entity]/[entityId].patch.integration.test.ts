@@ -9,6 +9,8 @@ import { createExtensionRegistry } from '../../../../../../extensions/registry';
 import { setExtensionRegistry } from '../../../../../../utils/extensions';
 
 import type { Dialect } from '../../../../../../../tests/support/databases';
+import type { CoreDatabase } from '@stackmap/extension-core/server/types';
+import type { Kysely } from 'kysely';
 
 const patch = serveEntity('patch', handler);
 
@@ -84,8 +86,9 @@ describe.each(DIALECTS)('PATCH /api/workspaces/:workspaceId/entities/:extension/
           ? definition
           : {
               ...definition,
-              check: async () => {
-                await api.workspaces.db.updateTable('core_site').set({ updatedAt: '2030-01-01T00:00:00.000Z' })
+              // On the update's own transaction: another connection would wait for its lock.
+              check: async (context: { db: Kysely<CoreDatabase> }) => {
+                await context.db.updateTable('core_site').set({ updatedAt: '2030-01-01T00:00:00.000Z' })
                   .where('id', '=', site.id).execute();
                 return [];
               },

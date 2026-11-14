@@ -16,7 +16,8 @@ describe('contract list', () => {
   it('lists every contract of shared/contracts/', async () => {
     const files = readdirSync(import.meta.dirname).filter((file) => CONTRACT_FILE.test(file));
     const modules = await Promise.all(files.map((file) => import(/* @vite-ignore */ `./${file}`) as Promise<Record<string, unknown>>));
-    const defined = modules.flatMap((module) => Object.values(module).filter(isContract));
+    // A list of generated contracts counts too: the entity operations.
+    const defined = modules.flatMap((module) => Object.values(module).flat().filter(isContract));
 
     expect(defined.length).toBeGreaterThan(0);
     expect(new Set(CONTRACTS)).toEqual(new Set(defined));

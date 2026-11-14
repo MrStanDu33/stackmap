@@ -1,3 +1,5 @@
+import { ENTITY_TAGS } from './entities';
+
 /** Every tag an operation may use, with what the API reference says about it. */
 export interface TagDocs {
   description: string;
@@ -5,6 +7,7 @@ export interface TagDocs {
 }
 
 export const TAGS: Readonly<Record<string, TagDocs>> = {
+  ...ENTITY_TAGS,
   Extensions: {
     description: 'The installed extensions: what they add (kinds, languages), their state, and their diagnostics.',
     externalDocs: {

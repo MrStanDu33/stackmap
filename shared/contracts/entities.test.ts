@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
-import { BUILTIN_ENTITY_CONTRACTS, entityContracts, entityOperationName } from './entities';
+import { BUILTIN_ENTITY_CONTRACTS, entityContracts, entityOperationName, withoutRefines } from './entities';
 import { CONTRACTS } from './index';
 import { TAGS } from './tags';
 import { BUILTIN_EXTENSION_SERVERS, BUILTIN_EXTENSIONS } from '../../server/extensions/builtin';
@@ -79,5 +80,20 @@ describe('entity contracts', () => {
   it('lists every entity operation of the built-in extensions in CONTRACTS', () => {
     expect(BUILTIN_ENTITY_CONTRACTS.length).toBeGreaterThan(0);
     expect(CONTRACTS).toEqual(expect.arrayContaining([...BUILTIN_ENTITY_CONTRACTS]));
+  });
+});
+
+describe('response schemas of entities', () => {
+  it('drop refines, keep the other checks and the description', () => {
+    const field = z.array(z.string().max(3).refine((text) => text !== 'no')).max(2).nullable()
+      .meta({ description: 'Words', examples: [['yes']] });
+
+    const stripped = withoutRefines(field);
+
+    expect(stripped.safeParse(['no']).success).toBe(true);
+    expect(stripped.safeParse(['long']).success).toBe(false);
+    expect(stripped.safeParse(['a', 'b', 'c']).success).toBe(false);
+    expect(stripped.safeParse(null).success).toBe(true);
+    expect(stripped.meta()).toMatchObject({ description: 'Words' });
   });
 });
