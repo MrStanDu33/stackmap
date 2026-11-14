@@ -65,7 +65,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 COPY --from=build /app/.output ./.output
 COPY docker/entrypoint.sh /usr/local/bin/stackmap-entrypoint
-RUN chmod 0755 /usr/local/bin/stackmap-entrypoint \
+COPY docker/reset-password.sh /usr/local/bin/reset-password
+RUN chmod 0755 /usr/local/bin/stackmap-entrypoint /usr/local/bin/reset-password \
     && mkdir -p /data \
     && chown node:node /data
 
