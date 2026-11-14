@@ -5,6 +5,7 @@ import { migration as auth } from './0004_auth';
 import { migration as member } from './0005_member';
 import { migration as invitation } from './0006_invitation';
 import { migration as userSettings } from './0007_user_settings';
+import { migration as auditEvent } from './0008_audit_event';
 
 import type { Migration } from 'kysely/migration';
 
@@ -17,4 +18,5 @@ export const MIGRATIONS: Record<string, Migration> = {
   '0005_member': member,
   '0006_invitation': invitation,
   '0007_user_settings': userSettings,
+  '0008_audit_event': auditEvent,
 };
