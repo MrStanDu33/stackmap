@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
 import { toIssues } from './issues';
+import { ProblemIssue } from '../../shared/contracts/errors';
 
 const issuesOf = (schema: z.ZodType, value: unknown) => {
   const result = schema.safeParse(value);
@@ -48,5 +49,13 @@ describe('entity validation issue codes', () => {
       params: { entity: 'host', kind: 'mainframe' },
       message: 'No active extension provides the host kind "mainframe"',
     }]);
+  });
+
+  it('keeps every issue within the bounds a Problem declares, however much of the input it would echo', () => {
+    const keys = Array.from({ length: 5000 }, (_, index) => [`key${String(index)}`, 1]);
+    const [issue] = issuesOf(z.strictObject({}), Object.fromEntries(keys));
+
+    expect(issue).toMatchObject({ code: 'unrecognized_keys' });
+    expect(() => ProblemIssue.parse({ ...issue, path: 'body' })).not.toThrow();
   });
 });

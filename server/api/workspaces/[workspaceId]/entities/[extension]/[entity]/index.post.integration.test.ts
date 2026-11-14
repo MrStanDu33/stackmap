@@ -68,6 +68,17 @@ describe.each(DIALECTS)('POST /api/workspaces/:workspaceId/entities/:extension/:
     });
   });
 
+  it('answers 422, not 500, when an issue would echo more of the input than a Problem holds', async () => {
+    await api.signInAs('editor');
+
+    const response = await post(api.path('core/site'), { body: { name: 'Home', customFields: { ['k'.repeat(2000)]: 1 } } });
+
+    expect(response.status).toBe(422);
+    const [issue] = (response.json as { issues: { path: string }[] }).issues;
+    expect(issue?.path.startsWith('body.customFields.')).toBe(true);
+    expect(issue?.path.length).toBeLessThanOrEqual(500);
+  });
+
   it('answers 422 entity_invalid with unknown-kind for a kind no active extension provides (18, 27)', async () => {
     await api.signInAs('editor');
 
