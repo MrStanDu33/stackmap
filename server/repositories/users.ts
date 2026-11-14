@@ -1,3 +1,5 @@
+import { sql } from 'kysely';
+
 import { inTransaction } from './entity-repository';
 import { MAX_ISSUES } from '../../shared/contracts/errors';
 import { MAX_USERS } from '../../shared/contracts/users';
@@ -128,4 +130,13 @@ export function removeAccount(
     await trx.deleteFrom('user').where('id', '=', userId).execute();
     return user;
   });
+}
+
+/**
+ * Marks an account's password as temporary (`true`: given by an administrator or the reset command), or clears the
+ * mark once the account chose its own. Better Auth reads the column as the user's `mustChangePassword` field.
+ */
+export async function setPasswordMark(db: Kysely<Database>, userId: string, marked: boolean): Promise<void> {
+  // TRUE/FALSE as SQL keywords: a boolean on Postgres, 1/0 on SQLite (which cannot bind a JavaScript boolean).
+  await db.updateTable('user').set({ mustChangePassword: sql.lit(marked) }).where('id', '=', userId).execute();
 }

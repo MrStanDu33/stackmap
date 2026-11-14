@@ -2905,7 +2905,7 @@
         ],
         "x-required-role": "signedIn",
         "requestBody": {
-          "description": "The current and the new password",
+          "description": "The current and the new password, which must differ",
           "required": true,
           "content": {
             "application/json": {
@@ -2938,7 +2938,7 @@
                   "newPassword"
                 ],
                 "additionalProperties": false,
-                "description": "The current and the new password"
+                "description": "The current and the new password, which must differ"
               }
             }
           }

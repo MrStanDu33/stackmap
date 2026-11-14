@@ -8,15 +8,21 @@ export function useAccount() {
   const session = useState<Session | null>('account.session', () => null);
   const setUp = useState<boolean | null>('account.setUp', () => null);
 
+  const request = useRequestFetch();
+  const preferences = usePreferences();
+  // The account's display preferences, applied when it is known: during server rendering too, through the cookies.
+  const applyPreferences = (next: Session | null) => (next ? preferences.apply(next.user.preferences) : undefined);
+
   const load = async () => {
-    const request = useRequestFetch();
     session.value = await request<Session | null>('/api/session');
     setUp.value = session.value ? true : (await request<{ state: string }>('/api/setup')).state === 'done';
+    await applyPreferences(session.value);
   };
 
-  const signedIn = (next: Session) => {
+  const signedIn = async (next: Session) => {
     session.value = next;
     setUp.value = true;
+    await applyPreferences(next);
   };
 
   /** Signs out, then goes to the sign-in page, or stays where it is (an invitation offers to sign in again). */

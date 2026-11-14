@@ -44,7 +44,10 @@ export const changePassword = defineContract({
   body: z.strictObject({
     currentPassword: text(MAX_PASSWORD).min(1).meta({ description: 'The current password', examples: ['correct horse battery'] }),
     newPassword: password(),
-  }).meta({ description: 'The current and the new password' }),
+  }).refine((body) => body.newPassword !== body.currentPassword, {
+    path: ['newPassword'],
+    message: 'The new password must differ from the current one',
+  }).meta({ description: 'The current and the new password, which must differ' }),
   responses: {
     204: { description: 'Changed', schema: z.null(), examples: { changed: { summary: 'Changed', value: null } } },
     400: problem('The current password is incorrect', 'wrong_password', 'The current password is incorrect.', '/api/account/password'),

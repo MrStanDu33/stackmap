@@ -7,6 +7,7 @@ import { forwardCookies, throttle } from '../auth/requests';
 import { useAuth } from '../utils/auth';
 import { defineContractHandler } from '../utils/contract-handler';
 import { useDatabase } from '../utils/database';
+import { sessionOf } from '../utils/session';
 
 /** Signs in with an email and password; a wrong email and a wrong password get the same answer. */
 export default defineContractHandler(signIn, async ({ body }, event) => {
@@ -22,8 +23,7 @@ export default defineContractHandler(signIn, async ({ body }, event) => {
       returnHeaders: true,
     });
     forwardCookies(event, headers);
-    const { id, name, email, role } = response.user as typeof response.user & { role?: string | null };
-    return { status: 200, body: { user: { id, name, email, role: role === 'admin' ? 'admin' : 'user' } } };
+    return { status: 200, body: await sessionOf(response.user) };
   } catch (error) {
     // Whatever Better Auth refuses (a wrong password, a banned account…) answers the same: nothing tells them apart.
     if (error instanceof APIError && error.statusCode < 500 && error.statusCode !== 429) {

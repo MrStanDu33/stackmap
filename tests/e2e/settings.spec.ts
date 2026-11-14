@@ -1,10 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { DEMO_URL, signInTo } from './support/accounts';
+import { DEMO_URL, OWN_PASSWORD, ownAccount, signInTo } from './support/accounts';
 import { hydrated } from './support/hydration';
 
-import type { Browser, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const expectNoAxeViolation = async (page: Page) => {
   const { violations } = await new AxeBuilder({ page }).analyze();
@@ -12,27 +12,8 @@ const expectNoAxeViolation = async (page: Page) => {
     .toEqual([]);
 };
 
-const unique = (name: string) => `${name}-${String(Date.now())}-${String(Math.floor(Math.random() * 1000))}`;
 const TEMPORARY = 'temporary horse battery';
-const OWN = 'my own horse battery';
-
-/**
- * An account of the test's own (the administrator's session is shared by the other suites: its password never changes
- * here), created by the administrator, with its password already its own, signed in in a fresh
- * browser context: the page, its context and its email.
- */
-const ownAccount = async (admin: Page, browser: Browser) => {
-  const name = unique('Linus');
-  const email = `${name.toLowerCase()}@homelab.example`;
-  expect((await admin.request.post(`${DEMO_URL}/api/users`, { data: { name, email, password: TEMPORARY } })).status()).toBe(201);
-  const context = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await signInTo(page, DEMO_URL, { email, password: TEMPORARY });
-  expect((await page.request.put(`${DEMO_URL}/api/account/password`, {
-    data: { currentPassword: TEMPORARY, newPassword: OWN },
-  })).status()).toBe(204);
-  return { page, context, email };
-};
+const OWN = OWN_PASSWORD;
 
 test.describe('settings', () => {
   test('preferences saved on the account apply on the next load, during server rendering (3)', async ({ page, browser }) => {
@@ -45,7 +26,8 @@ test.describe('settings', () => {
 
     expect(html).toMatch(/<html[^>]*lang="fr/);
     expect(html).toMatch(/<html[^>]*data-contrast="strict"/);
-    expect(html).toMatch(/<html[^>]*class="[^"]*light/);
+    // Color mode sets the theme's class from its cookie, in a script that runs before the first paint.
+    expect(response.headers()['set-cookie']).toMatch(/nuxt-color-mode=light/);
     await context.close();
   });
 
@@ -57,7 +39,7 @@ test.describe('settings', () => {
     await own.getByRole('main').getByRole('radio', { name: 'Light' }).check();
 
     await expect(own.locator('html')).toHaveClass(/light/);
-    await expect(own.getByRole('main').getByRole('status')).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display and landing page' }).getByRole('status')).toContainText('Saved');
     const session = await (await own.request.get(`${DEMO_URL}/api/session`)).json() as { user: { preferences: { theme: string } } };
     expect(session.user.preferences.theme).toBe('light');
     await context.close();
@@ -86,7 +68,7 @@ test.describe('settings', () => {
     await hydrated(own);
 
     await own.getByRole('radio', { name: 'Trace' }).check();
-    await expect(own.getByRole('main').getByRole('status')).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display and landing page' }).getByRole('status')).toContainText('Saved');
     await own.goto('/');
 
     await expect(own).toHaveURL(/\/trace/);

@@ -20,6 +20,8 @@ export default defineNuxtConfig({
   colorMode: {
     preference: 'dark',
     fallback: 'dark',
+    // A cookie, not localStorage: the server renders the theme an account saved (4d), with no flash.
+    storage: 'cookie',
   },
 
   ui: {

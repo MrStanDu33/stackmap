@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { EMPTY_URL, signInTo } from './support/accounts';
+import { EMPTY_URL, ownAccount, signInTo } from './support/accounts';
 
 import type { Page } from '@playwright/test';
 
@@ -79,7 +79,9 @@ test.describe('traffic view', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Selected: Website database' })).toHaveCount(1);
   });
 
-  test('given the sidebar, French, light theme and strict contrast apply and survive a reload', async ({ page }) => {
+  test('given the sidebar, French, light theme and strict contrast apply and survive a reload', async ({ page: admin, browser }) => {
+    // An account of its own: the choices are saved to the account (4d), and the administrator's is shared.
+    const { page, context } = await ownAccount(admin, browser);
     await page.goto('/graph');
 
     await page.getByRole('radio', { name: 'Light' }).click();
@@ -97,6 +99,7 @@ test.describe('traffic view', () => {
     await expect(html).toHaveAttribute('data-contrast', 'strict');
     await expect(html).toHaveAttribute('lang', /^fr/);
     await expectNoAxeViolation(page);
+    await context.close();
   });
 
   test('given a narrow screen, the sidebar opens as a drawer and closes with Escape', async ({ page }) => {

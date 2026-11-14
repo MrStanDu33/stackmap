@@ -32,9 +32,14 @@ export const Default: Story = {
 export const ChooseTrace: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    canvas.getByRole('radio', { name: t('settings.landing.graph') }).focus();
+    // Tab into the group lands on the checked radio, as a keyboard user would.
+    await userEvent.tab();
+    await expect(canvas.getByRole('radio', { name: t('settings.landing.graph') })).toHaveFocus();
 
+    // The arrow moves to Trace; Space checks it (Nuxt UI's radio group, like the display preferences').
     await userEvent.keyboard('{ArrowDown}');
+    await expect(canvas.getByRole('radio', { name: t('settings.landing.trace') })).toHaveFocus();
+    await userEvent.keyboard(' ');
 
     await expect(args['onUpdate:modelValue']).toHaveBeenCalledWith('trace');
   },

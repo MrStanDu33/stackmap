@@ -16,8 +16,29 @@ const API_DOCS = /^\/api\/docs(?:\/|$)/;
 /** Open to anyone once set up, signed in or not: an invitation link offers both to create an account and to sign in. */
 const INVITATION = /^\/invite\/[\w-]+$/;
 
+const PASSWORD_PAGE = '/settings/password';
+
+/** Signed in: a temporary password first, then sign-in and setup lead home, and home is the landing page. */
+function signedInRedirect(
+  fullPath: string,
+  path: string,
+  { landingPage, mustChangePassword }: AuthState,
+): string | null {
+  if (mustChangePassword) {
+    return path === PASSWORD_PAGE ? null : PASSWORD_PAGE;
+  }
+  if (path === PASSWORD_PAGE) {
+    return '/settings';
+  }
+  if (path === '/login' || path === '/setup') {
+    return '/';
+  }
+  return path === '/' ? `/${landingPage ?? 'graph'}${fullPath.slice(1)}` : null;
+}
+
 /** Where a page must send the visitor instead, or null to show it. */
-export function authRedirect(fullPath: string, { setUp, signedIn }: AuthState): string | null {
+export function authRedirect(fullPath: string, state: AuthState): string | null {
+  const { setUp, signedIn } = state;
   const path = pathOf(fullPath);
   if (API_DOCS.test(path)) {
     return null;
@@ -25,11 +46,11 @@ export function authRedirect(fullPath: string, { setUp, signedIn }: AuthState): 
   if (!setUp) {
     return path === '/setup' ? null : '/setup';
   }
-  if (INVITATION.test(path)) {
+  if (INVITATION.test(path) && !state.mustChangePassword) {
     return null;
   }
   if (signedIn) {
-    return path === '/login' || path === '/setup' ? '/' : null;
+    return signedInRedirect(fullPath, path, state);
   }
   if (path === '/login') {
     return null;

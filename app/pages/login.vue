@@ -20,7 +20,7 @@ const submit = async (credentials: { email: string; password: string }) => {
   // The last error goes as a new attempt starts: if this one fails too, its alert appears again and is announced.
   error.value = null;
   try {
-    signedIn(await $fetch<Session>('/api/session', { method: 'POST', body: credentials }));
+    await signedIn(await $fetch<Session>('/api/session', { method: 'POST', body: credentials }));
     error.value = null;
     // Only a path on this site: a link to /login must not send someone elsewhere once signed in.
     await navigateTo(safeRedirect(route.query.redirect), { replace: true });

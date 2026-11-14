@@ -2,7 +2,7 @@ import { getRequestURL } from 'h3';
 
 import { problemOf } from '../../../shared/contracts/errors';
 import { createUser } from '../../../shared/contracts/users';
-import { findUserByEmail } from '../../repositories/users';
+import { findUserByEmail, setPasswordMark } from '../../repositories/users';
 import { useAuth } from '../../utils/auth';
 import { defineContractHandler } from '../../utils/contract-handler';
 import { useDatabase } from '../../utils/database';
@@ -32,6 +32,8 @@ export default defineContractHandler(createUser, async ({ body }, event) => {
     }
     throw error;
   }
+  // A temporary password: the person replaces it before anything else (4d).
+  await setPasswordMark(db, user.id, true);
   return {
     status: 201,
     body: { id: user.id, name: user.name, email: user.email, role: 'user', createdAt: new Date(user.createdAt).toISOString() },

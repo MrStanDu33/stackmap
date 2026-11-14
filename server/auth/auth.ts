@@ -32,6 +32,8 @@ export function createAuth(db: Kysely<Database>, { secret, baseURL }: AuthOption
       maxPasswordLength: MAX_PASSWORD,
       autoSignIn: true,
     },
+    // A temporary password to replace (set by the users page and the reset command, never from a request's input).
+    user: { additionalFields: { mustChangePassword: { type: 'boolean', required: false, defaultValue: false, input: false } } },
     plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
     databaseHooks: {
       // The first account is the instance administrator from its creation: no second step that could fail.

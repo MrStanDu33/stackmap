@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// The landing-page setting (phase 4) will choose where `/` goes; the graph is the only page for now.
-definePageMeta({ redirect: '/graph' });
+// Never shown: the auth middleware sends `/` to sign-in, or to the person's landing page (app/utils/auth-redirect.ts).
 </script>
 
 <template>

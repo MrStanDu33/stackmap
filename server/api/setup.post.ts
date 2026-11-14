@@ -11,6 +11,7 @@ import { useAuth } from '../utils/auth';
 import { defineContractHandler } from '../utils/contract-handler';
 import { useDatabase } from '../utils/database';
 import { useExtensionRegistry } from '../utils/extensions';
+import { sessionOf } from '../utils/session';
 
 const logger = {
   info: (message: string) => {
@@ -73,5 +74,6 @@ export default defineContractHandler(setUp, async ({ body }, event) => {
         logger.error(`Could not add the demo workspace: ${error instanceof Error ? error.message : String(error)}`);
       });
   }
-  return { status: 201, body: { user: { id: user.id, name: user.name, email: user.email, role: 'admin' } } };
+  // The first account is the administrator from its creation (server/auth/auth.ts).
+  return { status: 201, body: await sessionOf({ ...user, role: 'admin' }) };
 });

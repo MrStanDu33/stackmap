@@ -11,6 +11,8 @@ async function replaceTemporaryPassword(url: string): Promise<void> {
     await context.post('/api/session', { data: { email: USER.email, password: TEMPORARY_PASSWORD } });
     const changed = await context.put('/api/account/password', {
       data: { currentPassword: TEMPORARY_PASSWORD, newPassword: USER.password },
+      // An address of its own: the suite's other password changes are limited per address too.
+      headers: { 'x-forwarded-for': '198.51.100.250' },
     });
     if (changed.status() !== 204) {
       throw new Error(`Changing the plain user's password on ${url} failed: ${String(changed.status())} ${await changed.text()}`);

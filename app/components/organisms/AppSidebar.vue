@@ -25,6 +25,10 @@ const items = computed(() => [
   ...(props.current
     ? [{ label: t('members.title'), 'aria-label': t('members.title'), icon: 'i-lucide-users', to: `${base.value}/members` }]
     : []),
+  // Everyone signed in has their own settings.
+  ...(props.user
+    ? [{ label: t('settings.title'), 'aria-label': t('settings.title'), icon: 'i-lucide-settings', to: '/settings' }]
+    : []),
   // Only the instance administrator can create workspaces, and manage accounts.
   ...(props.canCreate
     ? [{ label: t('users.title'), 'aria-label': t('users.title'), icon: 'i-lucide-user-cog', to: '/admin/users' }]

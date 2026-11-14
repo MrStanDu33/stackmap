@@ -233,6 +233,9 @@ async function authorize(
   if (!session) {
     throw new ApiFailure('unauthenticated', 'Sign in to use this operation.');
   }
+  if (session.user.mustChangePassword && !contract.allowedWhilePasswordChange) {
+    throw new ApiFailure('password_change_required', 'Replace the temporary password before anything else.');
+  }
   const { requiredRole } = contract;
   if (requiredRole === 'instanceAdmin' && session.user.role !== 'admin') {
     throw new ApiFailure('forbidden', 'This operation needs the instance administrator.');
