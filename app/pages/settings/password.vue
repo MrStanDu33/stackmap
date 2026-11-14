@@ -4,6 +4,7 @@ import { FetchError } from 'ofetch';
 // A temporary password's only page until the account chose its own (app/utils/auth-redirect.ts).
 const { t } = useI18n();
 const { session, signOut, load } = useAccount();
+const notice = useState<string>('app.notice', () => '');
 
 useHead({ title: () => [t('settings.forcedTitle'), t('app.name')].join(' · ') });
 
@@ -22,7 +23,9 @@ const change = async (body: { currentPassword: string; newPassword: string }) =>
     await $fetch('/api/account/password', { method: 'PUT', body });
     // The session now says the mark is gone: then `/` opens the landing page.
     await load();
-    if (!(session.value)?.user.mustChangePassword) {
+    if (!session.value?.user.mustChangePassword) {
+      // Said on the landing page, by its shell's live region.
+      notice.value = t('settings.passwordChanged');
       await navigateTo('/', { replace: true });
     }
   } catch (failure) {

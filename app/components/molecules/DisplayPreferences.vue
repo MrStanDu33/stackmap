@@ -18,6 +18,7 @@ const colorMode = useColorMode();
 const cookie = useCookie<Contrast>('stackmap_contrast', { default: () => 'standard', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
 const contrast = useState<Contrast>('stackmap:contrast', () => cookie.value);
 // How the last save to the account went (app/composables/usePreferences.ts); null signed out or before any change.
+// Shown, not announced: the page's shell announces it, once.
 const saveStatus = useState<'saved' | 'error' | null>('preferences.status', () => null);
 
 const theme = computed({
@@ -99,18 +100,13 @@ const languages = APP_LOCALES.map(({ code, name }) => ({ label: name, value: cod
         class="w-full"
       />
     </UFormField>
-    <UAlert
-      v-if="saveStatus === 'error'"
-      role="alert"
-      color="error"
-      variant="outline"
-      :title="t('settings.saveError')"
-    />
+    <!-- Shown here, announced once by the page's shell (AppShell): the sidebar and /settings may both show this. -->
     <p
-      role="status"
-      class="text-sm text-muted"
+      v-if="saveStatus"
+      class="text-sm"
+      :class="saveStatus === 'error' ? 'text-error' : 'text-muted'"
     >
-      {{ saveStatus === 'saved' ? t('settings.saved') : '' }}
+      {{ t(saveStatus === 'error' ? 'settings.saveError' : 'settings.saved') }}
     </p>
   </component>
 </template>

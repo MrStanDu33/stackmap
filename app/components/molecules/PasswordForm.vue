@@ -21,6 +21,7 @@ const { t } = useI18n();
 const titleId = useId();
 const values = reactive<Record<Field, string>>({ current: '', next: '', confirm: '' });
 const fieldErrors = ref<Partial<Record<Field, string>>>({});
+const shown = reactive<Record<Field, boolean>>({ current: false, next: false, confirm: false });
 const form = useTemplateRef<HTMLFormElement>('form');
 
 const focus = async (selector: string) => {
@@ -58,7 +59,7 @@ const submit = async () => {
   }
   const tooShort = values.next.length < MIN_PASSWORD;
   fieldErrors.value = {
-    ...(values.current ? {} : { current: t('settings.error.wrongPassword') }),
+    ...(values.current ? {} : { current: t('settings.error.currentRequired') }),
     ...(tooShort ? { next: t('auth.error.password') } : {}),
     ...(!tooShort && values.next === values.current ? { next: t('settings.error.same') } : {}),
     ...(values.confirm === values.next ? {} : { confirm: t('settings.error.confirmation') }),
@@ -114,12 +115,25 @@ const fields = computed(() => [
         <UInput
           v-model="values[field.name]"
           :name="field.name"
-          type="password"
+          :type="shown[field.name] ? 'text' : 'password'"
           :autocomplete="field.autocomplete"
           required
           :readonly="busy"
           class="w-full"
-        />
+          :ui="{ trailing: 'pe-1' }"
+        >
+          <template #trailing>
+            <UButton
+              color="neutral"
+              variant="link"
+              size="sm"
+              :icon="shown[field.name] ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :aria-label="t(`settings.show.${field.name}`)"
+              :aria-pressed="shown[field.name] ? 'true' : 'false'"
+              @click="shown[field.name] = !shown[field.name]"
+            />
+          </template>
+        </UInput>
       </UFormField>
       <p
         role="status"

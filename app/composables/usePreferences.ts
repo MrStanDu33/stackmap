@@ -47,7 +47,8 @@ export function usePreferences() {
 
   /** Saves changes to the signed-in account; signed out, the cookies alone keep them. */
   const save = async (changes: Partial<Preferences>) => {
-    if (!session.value) {
+    // Signed out, or with a temporary password to replace first (the API refuses anything else): cookies only.
+    if (!session.value || session.value.user.mustChangePassword) {
       return;
     }
     status.value = null;

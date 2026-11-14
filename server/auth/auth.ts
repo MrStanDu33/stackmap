@@ -36,8 +36,16 @@ export function createAuth(db: Kysely<Database>, { secret, baseURL }: AuthOption
     user: { additionalFields: { mustChangePassword: { type: 'boolean', required: false, defaultValue: false, input: false } } },
     plugins: [admin({ defaultRole: 'user', adminRoles: ['admin'] })],
     databaseHooks: {
-      // The first account is the instance administrator from its creation: no second step that could fail.
-      user: { create: { before: async (user) => ({ data: { ...user, role: await hasAccounts(db) ? 'user' : 'admin' } }) } },
+      // The first account is the instance administrator, with its own password; every later one is created by an
+      // administrator with a temporary password, marked in the same write: no second step that could fail.
+      user: {
+        create: {
+          before: async (user) => {
+            const later = await hasAccounts(db);
+            return { data: { ...user, role: later ? 'user' : 'admin', mustChangePassword: later } };
+          },
+        },
+      },
       // The address the attempts are counted under, not Better Auth's (the first X-Forwarded-For, which anyone sets).
       session: {
         create: {

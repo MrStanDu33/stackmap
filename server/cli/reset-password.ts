@@ -44,6 +44,12 @@ export async function resetPassword(args: readonly string[], { db, out, err }: C
   // Only the internal adapter is used, which signs nothing: a throwaway secret is enough.
   const auth = createAuth(db, { secret: randomBytes(32).toString('base64url'), baseURL: authUrl() });
   const context = await auth.$context;
+  // Accounts that sign in another way have no password: nothing to reset, and a printed one would not work.
+  const accounts = await context.internalAdapter.findAccounts(user.id);
+  if (!accounts.some(({ providerId }) => providerId === 'credential')) {
+    err('This account has no password to reset.');
+    return 1;
+  }
   await context.internalAdapter.updatePassword(user.id, await context.password.hash(password));
   await setPasswordMark(db, user.id, true);
   await context.internalAdapter.deleteUserSessions(user.id);

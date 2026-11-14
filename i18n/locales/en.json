@@ -360,11 +360,11 @@
   "settings": {
     "title": "Settings",
     "display": "Display and landing page",
-    "displayHint": "Saved on your account: it follows you to any browser you sign in from.",
+    "displayHint": "These settings are saved to your account and follow you to any browser you sign in from.",
     "landingPage": "Landing page",
     "landingPageHint": "The page Stackmap opens on.",
     "landing": {
-      "graph": "Graph",
+      "graph": "Traffic",
       "trace": "Trace"
     },
     "password": "Password",
@@ -377,11 +377,17 @@
     "error": {
       "wrongPassword": "The current password is incorrect.",
       "same": "The new password must differ from the current one.",
-      "confirmation": "The two passwords differ."
+      "confirmation": "The passwords do not match.",
+      "currentRequired": "Enter your current password."
     },
     "forcedTitle": "Choose your own password",
     "forcedIntro": "An administrator gave you a temporary password. Replace it to continue.",
     "saved": "Saved",
-    "saveError": "The setting could not be saved. Try again."
+    "saveError": "Your preferences could not be saved. Try again.",
+    "show": {
+      "current": "Show the current password",
+      "next": "Show the new password",
+      "confirm": "Show the confirmation"
+    }
   }
 }

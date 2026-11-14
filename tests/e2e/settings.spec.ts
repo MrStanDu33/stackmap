@@ -39,7 +39,7 @@ test.describe('settings', () => {
     await own.getByRole('main').getByRole('radio', { name: 'Light' }).check();
 
     await expect(own.locator('html')).toHaveClass(/light/);
-    await expect(own.getByRole('region', { name: 'Display and landing page' }).getByRole('status')).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display and landing page' })).toContainText('Saved');
     const session = await (await own.request.get(`${DEMO_URL}/api/session`)).json() as { user: { preferences: { theme: string } } };
     expect(session.user.preferences.theme).toBe('light');
     await context.close();
@@ -68,7 +68,7 @@ test.describe('settings', () => {
     await hydrated(own);
 
     await own.getByRole('radio', { name: 'Trace' }).check();
-    await expect(own.getByRole('region', { name: 'Display and landing page' }).getByRole('status')).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display and landing page' })).toContainText('Saved');
     await own.goto('/');
 
     await expect(own).toHaveURL(/\/trace/);

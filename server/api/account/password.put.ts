@@ -15,7 +15,8 @@ import { useDatabase } from '../../utils/database';
  */
 export default defineContractHandler(changePassword, async ({ body, session }, event) => {
   const db = await useDatabase();
-  const throttled = await throttle(db, event, 'password');
+  // Per address, and per account: many addresses may not guess one account's password, nor one address block others.
+  const throttled = await throttle(db, event, 'password') ?? await throttle(db, event, 'password', `user:${session.user.id}`);
   if (throttled) {
     return throttled;
   }
@@ -36,6 +37,9 @@ export default defineContractHandler(changePassword, async ({ body, session }, e
     }
     throw error;
   }
-  await setPasswordMark(db, session.user.id, false);
+  // Only the mark this change answers: one an administrator set meanwhile stays.
+  if (session.user.mustChangePassword) {
+    await setPasswordMark(db, session.user.id, false);
+  }
   return { status: 204, body: null };
 });

@@ -360,11 +360,11 @@
   "settings": {
     "title": "Paramètres",
     "display": "Affichage et page d’accueil",
-    "displayHint": "Enregistré sur votre compte : il vous suit dans tout navigateur où vous vous connectez.",
+    "displayHint": "Ces réglages sont enregistrés sur votre compte : ils vous suivent dans tous les navigateurs où vous vous connectez.",
     "landingPage": "Page d’accueil",
     "landingPageHint": "La page sur laquelle Stackmap s’ouvre.",
     "landing": {
-      "graph": "Graphe",
+      "graph": "Trafic",
       "trace": "Trace"
     },
     "password": "Mot de passe",
@@ -377,11 +377,17 @@
     "error": {
       "wrongPassword": "Le mot de passe actuel est incorrect.",
       "same": "Le nouveau mot de passe doit être différent de l’actuel.",
-      "confirmation": "Les deux mots de passe sont différents."
+      "confirmation": "Les deux mots de passe ne correspondent pas.",
+      "currentRequired": "Saisissez votre mot de passe actuel."
     },
-    "forcedTitle": "Choisissez votre mot de passe",
+    "forcedTitle": "Choisissez votre propre mot de passe",
     "forcedIntro": "Un administrateur vous a donné un mot de passe temporaire. Remplacez-le pour continuer.",
     "saved": "Enregistré",
-    "saveError": "Le paramètre n’a pas pu être enregistré. Réessayez."
+    "saveError": "Vos préférences n’ont pas pu être enregistrées. Réessayez.",
+    "show": {
+      "current": "Afficher le mot de passe actuel",
+      "next": "Afficher le nouveau mot de passe",
+      "confirm": "Afficher la confirmation"
+    }
   }
 }
