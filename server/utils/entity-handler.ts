@@ -10,6 +10,7 @@ import { MAX_ISSUES, problemOf } from '../../shared/contracts/errors';
 import {
   EntityChangedError, EntityConflictError, EntityInUseError, EntityValidationError, WorkspaceReferenceError,
 } from '../repositories/errors';
+import { boundIssue } from '../repositories/issues';
 
 import type { AuthorizedWorkspace, ContractInput } from './contract-handler';
 import type { Session } from '../../shared/contracts/auth';
@@ -71,7 +72,7 @@ const extensionOf = (definition: RegisteredRepository, entity: string): string =
 /** The expected failures of a write, as the Problem Details its contract declares. */
 function failure(event: H3Event, definition: RegisteredRepository, error: unknown): Answer {
   if (error instanceof EntityValidationError) {
-    const issues = error.issues.map((issue) => ({ ...issue, path: ['body', issue.path].filter(Boolean).join('.') }));
+    const issues = error.issues.map((issue) => boundIssue({ ...issue, path: ['body', issue.path].filter(Boolean).join('.') }));
     const shown = issues.length > MAX_ISSUES ? ` Showing the first ${String(MAX_ISSUES)} of ${String(issues.length)}.` : '';
     return problem(event, 'entity_invalid', `The entity is invalid.${shown}`, { issues: issues.slice(0, MAX_ISSUES) });
   }

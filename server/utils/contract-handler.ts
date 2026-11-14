@@ -16,7 +16,7 @@ import { isOn } from './flags';
 import { getRequestSession } from './session';
 import { WORKSPACE_ROLES } from '../../shared/contracts/contract';
 import { MAX_ISSUES, Problem, problemOf } from '../../shared/contracts/errors';
-import { toIssues as codedIssues } from '../repositories/issues';
+import { boundIssue, toIssues as codedIssues } from '../repositories/issues';
 import { roleIn } from '../repositories/members';
 import { getWorkspace } from '../repositories/workspaces';
 
@@ -75,7 +75,7 @@ class ApiFailure extends Error {
   }
 }
 
-const toIssues = (source: string, error: z.ZodError): Issue[] => codedIssues(error.issues).map((issue) => ({
+const toIssues = (source: string, error: z.ZodError): Issue[] => codedIssues(error.issues).map((issue) => boundIssue({
   ...issue,
   path: [source, issue.path].filter(Boolean).join('.'),
 }));

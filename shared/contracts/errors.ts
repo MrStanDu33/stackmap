@@ -183,7 +183,10 @@ const CODES = Object.keys(PROBLEMS) as [ProblemCode, ...ProblemCode[]];
 /** How many issues a problem lists at most; its detail says how many there were. */
 export const MAX_ISSUES = 100;
 
-const MAX_PARAMS = 20;
+/** The bounds of one issue, which the server cuts its issues to. */
+export const ISSUE_LIMITS = { path: 500, message: 1000, param: 500, params: 20 } as const;
+
+const MAX_PARAMS = ISSUE_LIMITS.params;
 
 /**
  * Bounds the keys of a record. A typed check rather than a refine: a refine is a custom schema, which the response lint
@@ -205,11 +208,11 @@ function maxEntries(maximum: number): z.core.$ZodCheck<Record<string, unknown>> 
 }
 
 export const ProblemIssue = z.object({
-  path: text(500).min(1).meta({
+  path: text(ISSUE_LIMITS.path).min(1).meta({
     description: 'Where: `params.<name>`, `query.<name>`, `body.<path>`, or `response.<path>` outside production',
     examples: ['body.name'],
   }),
-  message: text(1000).min(1).meta({
+  message: text(ISSUE_LIMITS.message).min(1).meta({
     description: 'What is wrong there, in English',
     examples: ['Too small: expected string to have >=1 characters'],
   }),
@@ -218,7 +221,7 @@ export const ProblemIssue = z.object({
       + '`unknown-kind`, or an extension\'s own (`core.duplicate-address`)',
     examples: ['too_small'],
   }),
-  params: z.record(z.string().max(50).regex(/^\w+$/), z.union([text(500), z.number()]))
+  params: z.record(z.string().max(50).regex(/^\w+$/), z.union([text(ISSUE_LIMITS.param), z.number()]))
     .check(maxEntries(MAX_PARAMS))
     .optional()
     .meta({

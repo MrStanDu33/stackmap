@@ -1,3 +1,5 @@
+import { ISSUE_LIMITS } from '../../shared/contracts/errors';
+
 import type { z } from 'zod';
 
 /** One invalid value, with a stable code and params the interface translates, and the English message as fallback. */
@@ -48,7 +50,23 @@ function customCode(issue: z.core.$ZodIssueCustom): { code: string; params: Reco
   };
 }
 
-/** The coded issues of a failed parse, and of the repository's own checks. */
+/** Cut to the maximum, without splitting a surrogate pair, and marked as cut. */
+function clip(value: string, maximum: number): string {
+  return value.length <= maximum ? value : `${value.slice(0, maximum - 1).replace(/[\uD800-\uDBFF]$/, '')}…`;
+}
+
+/** The issue within the bounds a Problem declares: a longer one would echo the input back, or fail its contract. */
+export function boundIssue({ path, code, params, message }: CodedIssue): CodedIssue {
+  return {
+    path: clip(path, ISSUE_LIMITS.path),
+    code,
+    params: Object.fromEntries(Object.entries(params).slice(0, ISSUE_LIMITS.params)
+      .map(([key, value]) => [key, typeof value === 'string' ? clip(value, ISSUE_LIMITS.param) : value])),
+    message: clip(message, ISSUE_LIMITS.message),
+  };
+}
+
+/** The coded issues of a failed parse, and of the repository's own checks, within a Problem's bounds. */
 export function toIssues(issues: readonly z.core.$ZodIssue[], extra: ExtraIssues = {}): CodedIssue[] {
   const coded = issues.map((issue) => ({
     path: issue.path.map(String).join('.'),
@@ -61,5 +79,5 @@ export function toIssues(issues: readonly z.core.$ZodIssue[], extra: ExtraIssues
       path, code: 'unknown-kind', params: { entity, kind }, message: `No active extension provides the ${entity} kind "${kind}"`,
     });
   }
-  return coded;
+  return coded.map(boundIssue);
 }
