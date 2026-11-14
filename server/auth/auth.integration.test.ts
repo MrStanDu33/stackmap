@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SESSION_COOKIE } from '../../shared/contracts/security';
 import { ADMIN, useTestAccounts } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
-import { resetAuth } from '../utils/auth';
+import { resetAuth, useAuth } from '../utils/auth';
 
 import type { Dialect } from '../../tests/support/databases';
 
@@ -51,5 +51,16 @@ describe.each(DIALECTS)('accounts on %s', (dialect: Dialect) => {
     const { rows } = await sql<{ password: string }>`select password from ${sql.table('account')}`.execute(accounts.db());
     expect(rows).toHaveLength(1);
     expect(rows[0]?.password).not.toContain(ADMIN.password);
+  });
+
+  it('marks every account but the first for a password change in the write that creates it (11, review)', async () => {
+    await accounts.setUp();
+    const { api } = await useAuth();
+
+    await api.signUpEmail({ body: { name: 'Grace', email: 'grace@homelab.example', password: 'temporary horse battery' } });
+
+    const marks = await accounts.db().selectFrom('user').select(['email', 'mustChangePassword']).orderBy('email').execute();
+    expect(marks.map(({ email, mustChangePassword }) => [email, Boolean(mustChangePassword)]))
+      .toEqual([['ada@homelab.example', false], ['grace@homelab.example', true]]);
   });
 });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** The setup and sign-in pages: no navigation yet, the form in a card, and the display preferences. */
+/** The setup, sign-in and forced password pages: no navigation, the form in a card, and the display preferences. */
 defineProps<{ title: string }>();
 </script>
 
@@ -8,7 +8,11 @@ defineProps<{ title: string }>();
     <main class="m-auto flex w-full max-w-md flex-col gap-6 p-4">
       <UCard>
         <template #header>
-          <h1 class="text-xl font-semibold">
+          <!-- Focusable by script, for pages that start on it (the forced password change). -->
+          <h1
+            tabindex="-1"
+            class="text-xl font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+          >
             {{ title }}
           </h1>
         </template>

@@ -296,7 +296,14 @@
                         "id": "0199d6a0-0000-7000-8000-000000000101",
                         "name": "Ada",
                         "email": "ada@homelab.example",
-                        "role": "admin"
+                        "role": "admin",
+                        "mustChangePassword": false,
+                        "preferences": {
+                          "theme": "dark",
+                          "contrast": null,
+                          "locale": "fr",
+                          "landingPage": "graph"
+                        }
                       }
                     }
                   }
@@ -421,7 +428,14 @@
                         "id": "0199d6a0-0000-7000-8000-000000000101",
                         "name": "Ada",
                         "email": "ada@homelab.example",
-                        "role": "admin"
+                        "role": "admin",
+                        "mustChangePassword": false,
+                        "preferences": {
+                          "theme": "dark",
+                          "contrast": null,
+                          "locale": "fr",
+                          "landingPage": "graph"
+                        }
                       }
                     }
                   },
@@ -501,7 +515,14 @@
                         "id": "0199d6a0-0000-7000-8000-000000000101",
                         "name": "Ada",
                         "email": "ada@homelab.example",
-                        "role": "admin"
+                        "role": "admin",
+                        "mustChangePassword": false,
+                        "preferences": {
+                          "theme": "dark",
+                          "contrast": null,
+                          "locale": "fr",
+                          "landingPage": "graph"
+                        }
                       }
                     }
                   }
@@ -2737,6 +2758,248 @@
           }
         }
       }
+    },
+    "/api/account/preferences": {
+      "put": {
+        "operationId": "updatePreferences",
+        "summary": "Save display preferences and the landing page",
+        "description": "Saves the given preferences on the signed-in account and leaves the others as they were.\n\nRequires a session.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "signedIn",
+        "requestBody": {
+          "description": "The preferences to change",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "theme": {
+                    "description": "The color theme; null forgets the choice",
+                    "examples": [
+                      "dark"
+                    ],
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "dark",
+                          "light"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "contrast": {
+                    "description": "The contrast; null forgets the choice",
+                    "examples": [
+                      "standard"
+                    ],
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "standard",
+                          "strict"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "locale": {
+                    "description": "The interface language; null forgets the choice",
+                    "examples": [
+                      "en"
+                    ],
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "en",
+                          "fr"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "landingPage": {
+                    "description": "The page `/` opens; null forgets the choice",
+                    "examples": [
+                      "graph"
+                    ],
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "graph",
+                          "trace"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "description": "The preferences to change"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Every preference, after the change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                },
+                "examples": {
+                  "saved": {
+                    "summary": "Light theme chosen",
+                    "value": {
+                      "theme": "light",
+                      "contrast": null,
+                      "locale": "fr",
+                      "landingPage": "graph"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/account/password": {
+      "put": {
+        "operationId": "changePassword",
+        "summary": "Change the password",
+        "description": "Replaces the signed-in account's password, given the current one, and signs out its other sessions; this one stays. Clears a temporary password's mark. Attempts are limited per address.\n\nRequires a session.",
+        "tags": [
+          "Accounts"
+        ],
+        "x-required-role": "signedIn",
+        "requestBody": {
+          "description": "The current and the new password, which must differ",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "currentPassword": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "The current password",
+                    "examples": [
+                      "correct horse battery"
+                    ]
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "minLength": 12,
+                    "maxLength": 128,
+                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+                    "description": "12 to 128 characters",
+                    "examples": [
+                      "correct horse battery"
+                    ]
+                  }
+                },
+                "required": [
+                  "currentPassword",
+                  "newPassword"
+                ],
+                "additionalProperties": false,
+                "description": "The current and the new password, which must differ"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Changed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "changed": {
+                    "summary": "Changed",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "429": {
+            "description": "Too many attempts from this address; `Retry-After` says when to try again",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "too_many_requests": {
+                    "summary": "Too many attempts from this address; `Retry-After` says when to try again",
+                    "value": {
+                      "type": "urn:stackmap:problem:too_many_requests",
+                      "title": "Too many attempts",
+                      "status": 429,
+                      "detail": "Too many attempts. Try again in 42 seconds.",
+                      "instance": "/api/account/password",
+                      "code": "too_many_requests"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2866,11 +3129,13 @@
               "last_admin",
               "cannot_demote_self",
               "cannot_reset_self",
+              "wrong_password",
+              "password_change_required",
               "cannot_remove_self",
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `user_not_found` (404): No account has this id.\n- `email_taken` (409): An account already uses this email.\n- `last_admin` (409): The change would leave the instance without an administrator.\n- `cannot_demote_self` (409): Another administrator has to change this account's role.\n- `cannot_reset_self` (409): Another administrator has to give this account a temporary password.\n- `cannot_remove_self` (409): Another administrator has to remove this account.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `user_not_found` (404): No account has this id.\n- `email_taken` (409): An account already uses this email.\n- `last_admin` (409): The change would leave the instance without an administrator.\n- `cannot_demote_self` (409): Another administrator has to change this account's role.\n- `cannot_reset_self` (409): Another administrator has to give this account a temporary password.\n- `wrong_password` (400): Changing the password needs the current one.\n- `password_change_required` (403): The account has a temporary password: change it before anything else.\n- `cannot_remove_self` (409): Another administrator has to remove this account.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -5416,13 +5681,25 @@
                 "examples": [
                   "admin"
                 ]
+              },
+              "mustChangePassword": {
+                "type": "boolean",
+                "description": "The account has a temporary password: only reading the session, signing out and changing the password are allowed until it changes it",
+                "examples": [
+                  false
+                ]
+              },
+              "preferences": {
+                "$ref": "#/components/schemas/Preferences"
               }
             },
             "required": [
               "id",
               "name",
               "email",
-              "role"
+              "role",
+              "mustChangePassword",
+              "preferences"
             ],
             "additionalProperties": false,
             "description": "The signed-in account"
@@ -5439,8 +5716,108 @@
               "id": "0199d6a0-0000-7000-8000-000000000101",
               "name": "Ada",
               "email": "ada@homelab.example",
-              "role": "admin"
+              "role": "admin",
+              "mustChangePassword": false,
+              "preferences": {
+                "theme": "dark",
+                "contrast": null,
+                "locale": "fr",
+                "landingPage": "graph"
+              }
             }
+          }
+        ]
+      },
+      "Preferences": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "dark",
+                  "light"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The color theme: `dark` (Midnight) or `light`, or null until chosen",
+            "examples": [
+              "dark"
+            ]
+          },
+          "contrast": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "standard",
+                  "strict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The contrast: `standard`, or `strict` (AAA contrast, no motion, larger targets), or null until chosen",
+            "examples": [
+              "standard"
+            ]
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "fr"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The interface language, or null until chosen",
+            "examples": [
+              "en"
+            ]
+          },
+          "landingPage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "graph",
+                  "trace"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The page `/` opens, or null until chosen",
+            "examples": [
+              "graph"
+            ]
+          }
+        },
+        "required": [
+          "theme",
+          "contrast",
+          "locale",
+          "landingPage"
+        ],
+        "additionalProperties": false,
+        "description": "A person's display preferences and landing page",
+        "examples": [
+          {
+            "theme": "dark",
+            "contrast": null,
+            "locale": "fr",
+            "landingPage": "graph"
           }
         ]
       },

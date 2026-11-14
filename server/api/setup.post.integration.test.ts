@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { NO_PREFERENCES } from '../../shared/contracts/preferences';
 import { ADMIN, cookieOf, membersOf, useTestAccounts } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
 import { markServerStart } from '../auth/setup-window';
@@ -27,7 +28,12 @@ describe.each(DIALECTS)('POST /api/setup on %s', (dialect: Dialect) => {
     const { status, json, setCookie } = await accounts.setUp({ demo: true });
 
     expect(status).toBe(201);
-    expect(json).toEqual({ user: { id: expect.any(String) as unknown, name: ADMIN.name, email: ADMIN.email, role: 'admin' } });
+    // The first administrator chose their own password: never marked for a change (4d).
+    expect(json).toEqual({
+      user: {
+        id: expect.any(String) as unknown, name: ADMIN.name, email: ADMIN.email, role: 'admin', mustChangePassword: false, preferences: NO_PREFERENCES,
+      },
+    });
     const session = await accounts.call('GET', '/api/session', { cookie: cookieOf(setCookie) });
     expect(session.json).toEqual(json);
     expect(await accounts.hasDemo()).toBe(true);

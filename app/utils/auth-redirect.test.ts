@@ -26,6 +26,27 @@ describe('authRedirect', () => {
     expect(authRedirect('/setup', signedIn)).toBe('/');
     expect(authRedirect('/graph?view=list', signedIn)).toBeNull();
   });
+
+  it('given a session, sends / to the landing page, /graph by default (6)', () => {
+    expect(authRedirect('/', signedIn)).toBe('/graph');
+    expect(authRedirect('/', { ...signedIn, landingPage: 'graph' })).toBe('/graph');
+    expect(authRedirect('/', { ...signedIn, landingPage: 'trace' })).toBe('/trace');
+    expect(authRedirect('/?view=list', { ...signedIn, landingPage: 'trace' })).toBe('/trace?view=list');
+  });
+
+  it('given a session that must change its password, sends every page but /settings/password and /api/docs there (13)', () => {
+    const marked = { ...signedIn, mustChangePassword: true };
+
+    for (const path of ['/', '/graph', '/w/demo/members', '/settings', '/admin/users', '/invite/abc']) {
+      expect(authRedirect(path, marked)).toBe('/settings/password');
+    }
+    expect(authRedirect('/settings/password', marked)).toBeNull();
+    expect(authRedirect('/api/docs', marked)).toBeNull();
+  });
+
+  it('given a session that need not change its password, sends /settings/password to /settings (13)', () => {
+    expect(authRedirect('/settings/password', signedIn)).toBe('/settings');
+  });
 });
 
 describe('authRedirect, public pages', () => {

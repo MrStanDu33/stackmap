@@ -33,6 +33,8 @@ export const Default: Story = {
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).not.toHaveAttribute('aria-current');
     // Users is for the instance administrator only (21).
     await expect(within(navigation).queryByRole('link', { name: t('users.title') })).toBeNull();
+    // Signed out, no settings link (4d).
+    await expect(within(navigation).queryByRole('link', { name: t('settings.title') })).toBeNull();
     await expect(canvas.getByText(t('app.name'))).toBeVisible();
     await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
     // In strict mode, the links get the 44 px targets buttons have.
@@ -56,6 +58,9 @@ export const SignedIn: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.getByText('Ada')).toBeVisible();
+    // Everyone signed in has their settings (4d).
+    await expect(within(canvas.getByRole('navigation')).getByRole('link', { name: t('settings.title') }))
+      .toHaveAttribute('href', '/settings');
     await userEvent.click(canvas.getByRole('button', { name: t('auth.signOut') }));
     await expect(args.onSignOut).toHaveBeenCalledOnce();
   },

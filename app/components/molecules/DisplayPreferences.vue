@@ -1,15 +1,25 @@
 <script setup lang="ts">
 import { APP_LOCALES } from '#shared/i18n/locales';
 
-/** Theme, contrast and language: stored in the browser until accounts save them per user (phase 4). */
+/**
+ * Theme, contrast and language, kept in the browser's cookies; signed in, the preferences plugin also saves them to
+ * the account, and this says how that went.
+ */
 type Contrast = 'standard' | 'strict';
 
+/** `landmark: false` inside a page section that names it already (/settings): one landmark per name. */
+const props = withDefaults(defineProps<{ landmark?: boolean }>(), { landmark: true });
+
 const { t, locale } = useI18n();
+const titleId = useId();
 const { $i18n } = useNuxtApp();
 const colorMode = useColorMode();
 // Read by the contrast plugin, which applies it to <html> during SSR and after.
 const cookie = useCookie<Contrast>('stackmap_contrast', { default: () => 'standard', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' });
 const contrast = useState<Contrast>('stackmap:contrast', () => cookie.value);
+// How the last save to the account went (app/composables/usePreferences.ts); null signed out or before any change.
+// Shown, not announced: the page's shell announces it, once.
+const saveStatus = useState<'saved' | 'error' | null>('preferences.status', () => null);
 
 const theme = computed({
   get: () => (colorMode.preference === 'light' ? 'light' : 'dark'),
@@ -50,13 +60,15 @@ const languages = APP_LOCALES.map(({ code, name }) => ({ label: name, value: cod
 </script>
 
 <template>
-  <section
+  <component
+    :is="props.landmark ? 'section' : 'div'"
     class="flex flex-col gap-3"
-    aria-labelledby="display-preferences"
+    :aria-labelledby="props.landmark ? titleId : undefined"
   >
     <!-- A named region rather than a heading: the sidebar comes before the page's h1. -->
     <p
-      id="display-preferences"
+      v-if="props.landmark"
+      :id="titleId"
       class="text-sm font-semibold"
     >
       {{ t('preferences.title') }}
@@ -88,5 +100,13 @@ const languages = APP_LOCALES.map(({ code, name }) => ({ label: name, value: cod
         class="w-full"
       />
     </UFormField>
-  </section>
+    <!-- Shown here, announced once by the page's shell (AppShell): the sidebar and /settings may both show this. -->
+    <p
+      v-if="saveStatus"
+      class="text-sm"
+      :class="saveStatus === 'error' ? 'text-error' : 'text-muted'"
+    >
+      {{ t(saveStatus === 'error' ? 'settings.saveError' : 'settings.saved') }}
+    </p>
+  </component>
 </template>

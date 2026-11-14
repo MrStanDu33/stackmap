@@ -14,6 +14,11 @@ const emit = defineEmits<{ signOut: [] }>();
 
 const { t } = useI18n();
 const main = useTemplateRef<HTMLElement>('main');
+// The page's one live region and alert: preference saves (shown by DisplayPreferences, maybe twice on a page) and a
+// notice a page leaves for the next one (the forced password change) are announced here, once.
+const saveStatus = useState<'saved' | 'error' | null>('preferences.status', () => null);
+const notice = useState<string>('app.notice', () => '');
+const announcement = computed(() => (saveStatus.value === 'saved' ? t('settings.saved') : notice.value));
 
 // Hidden until focused, then shown over the page.
 const skipLink = 'sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50 focus:rounded-md '
@@ -60,6 +65,20 @@ const skipToMain = () => {
         >
           <slot />
         </main>
+        <p
+          role="status"
+          class="sr-only"
+        >
+          {{ announcement }}
+        </p>
+        <!-- Only while there is one: an alert is announced when it appears, and an empty one would still be found. -->
+        <p
+          v-if="saveStatus === 'error'"
+          role="alert"
+          class="sr-only"
+        >
+          {{ t('settings.saveError') }}
+        </p>
       </template>
     </UDashboardPanel>
   </UDashboardGroup>

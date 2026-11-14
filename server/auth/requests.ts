@@ -44,9 +44,17 @@ export function clientAddress(event: H3Event): string {
   return isIP(ip) === 6 ? network64(ip) : ip;
 }
 
-/** Counts an attempt for this action and address; the 429 answer, with Retry-After, when over the limit. */
-export async function throttle(db: Kysely<Database>, event: H3Event, action: 'setup' | 'sign-in' | 'invitation') {
-  const { allowed, retryAfter } = await hitRateLimit(db, `${action}:${clientAddress(event)}`, { ...LIMIT, now: Date.now() });
+/**
+ * Counts an attempt for this action and address (or another subject, such as an account); the 429 answer, with
+ * Retry-After, when over the limit.
+ */
+export async function throttle(
+  db: Kysely<Database>,
+  event: H3Event,
+  action: 'setup' | 'sign-in' | 'invitation' | 'password',
+  subject = clientAddress(event),
+) {
+  const { allowed, retryAfter } = await hitRateLimit(db, `${action}:${subject}`, { ...LIMIT, now: Date.now() });
   if (allowed) {
     return null;
   }

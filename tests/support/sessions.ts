@@ -3,6 +3,7 @@ import { afterEach, beforeEach } from 'vitest';
 import { createAccount } from './accounts';
 import { addMember } from '../../server/repositories/members';
 import { setSessionResolver } from '../../server/utils/session';
+import { NO_PREFERENCES } from '../../shared/contracts/preferences';
 
 import type { TestWorkspaces } from './workspaces';
 import type { Database } from '../../server/database/types/schema';
@@ -12,7 +13,14 @@ import type { Kysely } from 'kysely';
 
 /** The instance administrator, as route tests are signed in. */
 export const ADMIN_SESSION: Session = {
-  user: { id: '0199d6a0-0000-7000-8000-000000000101', name: 'Ada', email: 'ada@homelab.example', role: 'admin' },
+  user: {
+    id: '0199d6a0-0000-7000-8000-000000000101',
+    name: 'Ada',
+    email: 'ada@homelab.example',
+    role: 'admin',
+    mustChangePassword: false,
+    preferences: NO_PREFERENCES,
+  },
 };
 
 /**

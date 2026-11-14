@@ -143,6 +143,23 @@ under `/api/auth`, and every account operation is in the API document:
 - The session is the `better-auth.session_token` cookie (`__Secure-` prefixed and Secure when `BETTER_AUTH_URL` is
   HTTPS), HTTP-only and `SameSite=Lax`, valid 7 days and renewed daily while used (an expired one is cleared).
   `GET /api/session` says who is signed in; `DELETE /api/session` signs out.
+- The instance administrator manages accounts on `/admin/users` (`/api/users`): creates one with a temporary password
+  they choose and send privately, gives one a new temporary password (signing it out everywhere), promotes or demotes
+  it, and deletes it. The instance always keeps an administrator and every workspace an owner: role changes and
+  deletions are our own writes, under a lock on the `appSetting` row `users.lock`, so their checks and the write share
+  a transaction (`409 last_admin`, `409 last_owner` naming the workspaces). Better Auth still hashes and sets
+  passwords.
+- A temporary password must be replaced first. Every account but the first is created marked
+  (`user.mustChangePassword`, set in the Better Auth hook that sets the role, so in the same write), and so is one
+  given a temporary password. Signed in, it is sent to `/settings/password`, and `defineContractHandler` answers
+  `403 password_change_required` to every operation but reading the session, signing out and changing the password
+  (`allowedWhilePasswordChange` on the contract), before reading the input. `PUT /api/account/password` changes the
+  password with the current one, signs out the other sessions and clears the mark; it is limited per address and per
+  account.
+- `reset-password <email>`, for a locked-out administrator, gives the account a random temporary password, printed
+  once, signs it out everywhere and marks it: `docker compose exec stackmap reset-password <email>`. It is
+  `server/cli/reset-password.ts`, bundled with esbuild at build time into `.output/server/cli/reset-password.mjs`
+  (next to the server's traced dependencies); the image's wrapper runs it as `PUID:PGID`.
 - The secret that signs sessions is `BETTER_AUTH_SECRET`, or one generated once into `DATA_DIR/.auth-secret`, readable
   by its owner only (an empty file is written again); it must be at least 32 characters.
 - `defineContractHandler` refuses a change sent by a browser from another origin than `BETTER_AUTH_URL`
@@ -197,13 +214,13 @@ inviting the same email again replaces it. An invitation stands only while its i
 demoted, gone from the workspace or deleted, the link answers like an unknown one. Opening it tells the workspace,
 the role, the email and the inviter. Links **create no accounts**: without proof that someone owns an email, whoever
 holds a link could claim that address, and a sign-in afterwards would tell whether it had an account. So accepting
-needs the invited account signed in, and accounts are created by the instance administrator _(phase 4c′)_; open
+needs the invited account signed in, and accounts are created by the instance administrator (see Accounts); open
 registration waits for email verification. Admins invite, re-role, revoke and remove for editors and viewers only;
 owners for anyone (`server/domain/member-rules.ts`); every member may leave. Role changes and removals check these
 rules on the member's role as read after locking the workspace's row, and never leave a workspace without an owner:
 two owners demoting each other at once cannot both go through (`409 last_owner`). Accepting is limited per address
-like sign-in. An entitlements service, `can(workspace, feature)`, allows
-everything in v1 and prepares paid plans _(planned)_.
+like sign-in. An entitlements service, `can(workspace, feature)` (`server/domain/entitlements.ts`), allows
+everything in v1; paid plans will drive it with a license key or a subscription.
 
 ## Extensions
 
@@ -345,9 +362,14 @@ healthcheck calls it. The database error goes to the logs, never to the response
 - Accessibility targets RGAA 4.1 / WCAG 2.1 AA; the strict mode raises contrast to AAA, removes motion, keeps focus
   visible and enlarges targets. Every graph has an accessible table equivalent.
 - Every page sits in the `AppShell` template: a skip link, the `AppSidebar` (only the sections that exist; a drawer
-  on narrow screens) with the display preferences (theme, contrast, language), and the main landmark. The preferences
-  are kept in the browser (Nuxt color mode, the `stackmap_contrast` and `stackmap_locale` cookies, applied during SSR
-  by `app/plugins/contrast.ts` and i18n) until accounts save them per user.
+  on narrow screens) with the display preferences (theme, contrast, language), and the main landmark. The shell holds
+  the page's one live region and alert, for preference saves and a notice a page leaves for the next one.
+- Preferences follow the account: theme, contrast, language and landing page (Traffic or Trace, which `/` opens) are
+  saved in `userPreference`, each `null` until chosen, and come with the session. They are applied on sign-in and on
+  each load and written to the cookies server rendering reads (color mode's cookie, `stackmap_contrast`,
+  `stackmap_locale`), so the page is right from its first paint; signed in, a change is saved to the account
+  (`app/plugins/preferences.client.ts`), signed out it stays in the cookies. `/settings` shows them with the password
+  change.
 - Workspaces are in the URL: `/w/<slug>/graph` and `/w/<slug>/trace`, so links and bookmarks open the same one. The
   sidebar's switcher (`WorkspaceSwitcher`, a non-modal menu of links kept in the sidebar's landmark) lists the
   user's workspaces with their role and keeps the view; the instance administrator also gets `/workspaces/new`.

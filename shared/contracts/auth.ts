@@ -4,8 +4,16 @@ import { z } from 'zod';
 import { defineContract } from './contract';
 import { Problem, problemOf } from './errors';
 import { line, text } from './formats';
+import { Preferences } from './preferences';
 
-const admin = { id: '0199d6a0-0000-7000-8000-000000000101', name: 'Ada', email: 'ada@homelab.example', role: 'admin' };
+const admin = {
+  id: '0199d6a0-0000-7000-8000-000000000101',
+  name: 'Ada',
+  email: 'ada@homelab.example',
+  role: 'admin',
+  mustChangePassword: false,
+  preferences: { theme: 'dark', contrast: null, locale: 'fr', landingPage: 'graph' },
+};
 const session = { user: admin };
 
 /** Who is signed in. */
@@ -18,6 +26,12 @@ export const Session = z.object({
       description: '`admin` manages the whole instance; `user` only what their workspaces allow',
       examples: [admin.role],
     }),
+    mustChangePassword: z.boolean().meta({
+      description: 'The account has a temporary password: only reading the session, signing out and changing the '
+        + 'password are allowed until it changes it',
+      examples: [false],
+    }),
+    preferences: Preferences,
   }).meta({ description: 'The signed-in account' }),
 }).meta({ id: 'Session', description: 'Who is signed in', examples: [session] });
 
@@ -147,6 +161,7 @@ export const signOut = defineContract({
   description: 'Ends the session on the server and clears its cookie; the answer is the session now: none.',
   tags: ['Accounts'],
   requiredRole: 'signedIn',
+  allowedWhilePasswordChange: true,
   responses: {
     200: { description: 'Signed out', schema: z.null(), examples: { signedOut: { summary: 'Signed out', value: null } } },
   },

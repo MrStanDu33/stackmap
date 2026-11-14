@@ -8,8 +8,9 @@ import { defineContractHandler } from '../../utils/contract-handler';
 import { useDatabase } from '../../utils/database';
 
 /**
- * Creates a plain account with the temporary password the administrator chose, through Better Auth's admin API,
- * which hashes it and leaves the administrator's own session alone.
+ * Creates a plain account with the temporary password the administrator chose, through Better Auth's admin API, which
+ * hashes it and leaves the administrator's own session alone. It is marked for a change in the same write
+ * (server/auth/auth.ts).
  */
 export default defineContractHandler(createUser, async ({ body }, event) => {
   const db = await useDatabase();

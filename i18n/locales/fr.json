@@ -356,5 +356,38 @@
     "roleChanged": "Nouveau rôle d’instance pour {name} : {role}",
     "forAdmins": "Cette page est réservée aux administrateurs.",
     "home": "Revenir à Stackmap"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "display": "Affichage et page d’accueil",
+    "displayHint": "Ces réglages sont enregistrés sur votre compte : ils vous suivent dans tous les navigateurs où vous vous connectez.",
+    "landingPage": "Page d’accueil",
+    "landingPageHint": "La page sur laquelle Stackmap s’ouvre.",
+    "landing": {
+      "graph": "Trafic",
+      "trace": "Trace"
+    },
+    "password": "Mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmez le nouveau mot de passe",
+    "passwordRule": "Au moins 12 caractères, différent de l’actuel.",
+    "changePassword": "Changer le mot de passe",
+    "passwordChanged": "Mot de passe changé. Vos autres sessions ont été fermées.",
+    "error": {
+      "wrongPassword": "Le mot de passe actuel est incorrect.",
+      "same": "Le nouveau mot de passe doit être différent de l’actuel.",
+      "confirmation": "Les deux mots de passe ne correspondent pas.",
+      "currentRequired": "Saisissez votre mot de passe actuel."
+    },
+    "forcedTitle": "Choisissez votre propre mot de passe",
+    "forcedIntro": "Un administrateur vous a donné un mot de passe temporaire. Remplacez-le pour continuer.",
+    "saved": "Enregistré",
+    "saveError": "Vos préférences n’ont pas pu être enregistrées. Réessayez.",
+    "show": {
+      "current": "Afficher le mot de passe actuel",
+      "next": "Afficher le nouveau mot de passe",
+      "confirm": "Afficher la confirmation"
+    }
   }
 }

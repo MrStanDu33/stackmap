@@ -2,7 +2,7 @@ import { getRequestURL } from 'h3';
 
 import { problemOf } from '../../../../shared/contracts/errors';
 import { setUserPassword } from '../../../../shared/contracts/users';
-import { findUser } from '../../../repositories/users';
+import { findUser, setPasswordMark } from '../../../repositories/users';
 import { useAuth } from '../../../utils/auth';
 import { defineContractHandler } from '../../../utils/contract-handler';
 import { useDatabase } from '../../../utils/database';
@@ -19,13 +19,16 @@ export default defineContractHandler(setUserPassword, async ({ params: { userId 
       body: problemOf('cannot_reset_self', { detail: 'Administrators cannot give themselves a temporary password.', instance }),
     };
   }
-  if (!await findUser(await useDatabase(), userId)) {
+  const db = await useDatabase();
+  if (!await findUser(db, userId)) {
     return { status: 404, body: problemOf('user_not_found', { detail: 'No account with this id.', instance }) };
   }
   const auth = await useAuth();
   const revoke = () => auth.api.revokeUserSessions({ body: { userId }, headers: event.headers });
   // Out first, so a failure to set the password still ends the old sessions; out again after, for a sign-in with the
   // old password that was under way meanwhile.
+  // Marked first: if setting the password fails, the account must still replace whichever it has.
+  await setPasswordMark(db, userId, true);
   await revoke();
   await auth.api.setUserPassword({ body: { userId, newPassword: body.password }, headers: event.headers });
   await revoke();

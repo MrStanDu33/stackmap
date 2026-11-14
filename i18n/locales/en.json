@@ -356,5 +356,38 @@
     "roleChanged": "{name} is now {role}",
     "forAdmins": "This page is for administrators.",
     "home": "Back to Stackmap"
+  },
+  "settings": {
+    "title": "Settings",
+    "display": "Display and landing page",
+    "displayHint": "These settings are saved to your account and follow you to any browser you sign in from.",
+    "landingPage": "Landing page",
+    "landingPageHint": "The page Stackmap opens on.",
+    "landing": {
+      "graph": "Traffic",
+      "trace": "Trace"
+    },
+    "password": "Password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm the new password",
+    "passwordRule": "At least 12 characters, different from the current one.",
+    "changePassword": "Change the password",
+    "passwordChanged": "Password changed. Your other sessions were signed out.",
+    "error": {
+      "wrongPassword": "The current password is incorrect.",
+      "same": "The new password must differ from the current one.",
+      "confirmation": "The passwords do not match.",
+      "currentRequired": "Enter your current password."
+    },
+    "forcedTitle": "Choose your own password",
+    "forcedIntro": "An administrator gave you a temporary password. Replace it to continue.",
+    "saved": "Saved",
+    "saveError": "Your preferences could not be saved. Try again.",
+    "show": {
+      "current": "Show the current password",
+      "next": "Show the new password",
+      "confirm": "Show the confirmation"
+    }
   }
 }

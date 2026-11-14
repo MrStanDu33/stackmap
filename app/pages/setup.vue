@@ -37,7 +37,7 @@ const submit = async (account: { name: string; email: string; password: string; 
   busy.value = true;
   failure.value = null;
   try {
-    signedIn(await $fetch<Session>('/api/setup', { method: 'POST', body: account }));
+    await signedIn(await $fetch<Session>('/api/setup', { method: 'POST', body: account }));
     await navigateTo('/graph', { replace: true });
   } catch (error) {
     const status = error instanceof FetchError ? error.status : undefined;

@@ -1,7 +1,7 @@
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import DisplayPreferences from './DisplayPreferences.vue';
-import { i18n } from '../../../.storybook/nuxt-shims';
+import { clearNuxtState, i18n, useState } from '../../../.storybook/nuxt-shims';
 
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
@@ -67,5 +67,44 @@ export const French: Story = {
 
     await waitFor(() => expect(i18n.global.locale.value).toBe('fr'));
     await expect(await canvas.findByRole('region', { name: 'Affichage' })).toBeVisible();
+  },
+};
+
+/** Signed in, a saved change is shown; the page's shell announces it, once (4, review). */
+export const Saved: Story = {
+  beforeEach: () => {
+    useState('preferences.status').value = 'saved';
+    return clearNuxtState;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText(t('settings.saved'))).toBeVisible();
+    await expect(canvas.queryByRole('status')).toBeNull();
+  },
+};
+
+/** A change that could not be saved is shown; the shell's alert says it, once (4, review). */
+export const SaveFailed: Story = {
+  beforeEach: () => {
+    useState('preferences.status').value = 'error';
+    return clearNuxtState;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText(t('settings.saveError'))).toBeVisible();
+    await expect(canvas.queryByRole('alert')).toBeNull();
+  },
+};
+
+/** Inside a page section that names it (/settings): no landmark of its own, the controls still labelled (review). */
+export const WithoutLandmark: Story = {
+  args: { landmark: false },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByRole('region')).toBeNull();
+    await expect(canvas.getByRole('radiogroup', { name: t('preferences.theme') })).toBeVisible();
   },
 };

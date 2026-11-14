@@ -6,6 +6,7 @@ import { defineContractHandler, MAX_BODY_BYTES } from './contract-handler';
 import { setSessionResolver } from './session';
 import { defineContract } from '../../shared/contracts/contract';
 import { Problem, problemOf } from '../../shared/contracts/errors';
+import { NO_PREFERENCES } from '../../shared/contracts/preferences';
 
 import type { EventHandler } from 'h3';
 
@@ -81,7 +82,16 @@ const serve = (handler: EventHandler) => {
 /** A valid body for the account contract. */
 const ACCOUNT_BODY = { user: { name: 'Ada' }, items: [] as { id: string }[], plan: 'free' };
 
-const ADA = { user: { id: '0199d6a0-0000-7000-8000-000000000101', name: 'Ada', email: 'ada@homelab.example', role: 'admin' } } as const;
+const ADA = {
+  user: {
+    id: '0199d6a0-0000-7000-8000-000000000101',
+    name: 'Ada',
+    email: 'ada@homelab.example',
+    role: 'admin',
+    mustChangePassword: false,
+    preferences: NO_PREFERENCES,
+  },
+} as const;
 
 beforeEach(() => {
   // Signed in as the instance admin, unless a test says otherwise.
