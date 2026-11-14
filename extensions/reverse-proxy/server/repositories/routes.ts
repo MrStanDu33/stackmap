@@ -29,7 +29,12 @@ async function checkRoute(
       .where('id', '=', route.proxyServiceId)
       .executeTakeFirst();
     if (proxy && proxy.kind !== 'reverse-proxy') {
-      issues.push({ path: 'proxyServiceId', message: `${proxy.name} is not a reverse proxy` });
+      issues.push({
+        path: 'proxyServiceId',
+        message: `${proxy.name} is not a reverse proxy`,
+        code: 'reverse-proxy.not-a-proxy',
+        params: { proxy: proxy.name },
+      });
     }
   }
   if (proxyChanged || changed.has('hostnames')) {
@@ -42,7 +47,12 @@ async function checkRoute(
     route.hostnames.forEach((hostname, index) => {
       const other = taken.get(hostname);
       if (other !== undefined) {
-        issues.push({ path: `hostnames.${String(index)}`, message: `${hostname} is already served by this proxy, in route ${other}` });
+        issues.push({
+          path: `hostnames.${String(index)}`,
+          message: `${hostname} is already served by this proxy, in route ${other}`,
+          code: 'reverse-proxy.hostname-taken',
+          params: { hostname, route: other },
+        });
       }
     });
   }

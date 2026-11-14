@@ -31,7 +31,12 @@ export type CommonInput = Partial<CommonFields>;
 export interface EntityIssue {
   /** Dotted path of the field: `name`, `addresses.1.address`. */
   path: string;
+  /** In English: the fallback when the interface has no translation of `code`. */
   message: string;
+  /** Stable, prefixed with the extension id, for the interface to translate: `core.address-outside-network`. */
+  code?: string;
+  /** The values the translation needs. */
+  params?: Record<string, string | number>;
 }
 
 /** Fields the repository sets; never accepted as input. */

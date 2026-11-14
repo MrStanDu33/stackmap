@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { PATH, text } from './formats';
+import { kebabId, PATH, text } from './formats';
 
 /** Every problem the API answers with: its HTTP status, its title (fixed per code) and when it happens. */
 export const PROBLEMS = {
@@ -129,6 +129,41 @@ export const PROBLEMS = {
     title: 'Administrators cannot remove themselves',
     description: 'Another administrator has to remove this account.',
   },
+  entity_type_not_found: {
+    status: 404,
+    title: 'No such entity type',
+    description: 'No active extension declares this extension and entity id with a repository.',
+  },
+  entity_not_found: {
+    status: 404,
+    title: 'The entity does not exist',
+    description: 'The workspace has no entity of this type with this id.',
+  },
+  entity_invalid: {
+    status: 422,
+    title: 'The entity is invalid',
+    description: 'The entity breaks one of its rules, or names a kind no active extension provides; `issues` says which.',
+  },
+  reference_invalid: {
+    status: 422,
+    title: 'A reference points outside the workspace',
+    description: 'A field refers to an entity that is not in the workspace; `field` names it when known.',
+  },
+  entity_conflict: {
+    status: 409,
+    title: 'The entity already exists',
+    description: 'Another entity of the workspace has the same unique values; `fields` names them.',
+  },
+  entity_in_use: {
+    status: 409,
+    title: 'The entity is in use',
+    description: 'Other entities refer to it; `dependents` says which and how many.',
+  },
+  entity_changed: {
+    status: 409,
+    title: 'The entity changed meanwhile',
+    description: 'Another write changed the entity while this one was checked: reload it and try again.',
+  },
   internal_error: {
     status: 500,
     title: 'Something went wrong',
@@ -148,19 +183,68 @@ const CODES = Object.keys(PROBLEMS) as [ProblemCode, ...ProblemCode[]];
 /** How many issues a problem lists at most; its detail says how many there were. */
 export const MAX_ISSUES = 100;
 
+const MAX_PARAMS = 20;
+
+/**
+ * Bounds the keys of a record. A typed check rather than a refine: a refine is a custom schema, which the response lint
+ * rightly reads as loose.
+ */
+function maxEntries(maximum: number): z.core.$ZodCheck<Record<string, unknown>> {
+  type Check = z.core.$ZodCheck<Record<string, unknown>>;
+  const Check = z.core.$ZodCheck as unknown as new (def: z.core.$ZodCheckDef) => Check;
+  const check = new Check({ check: 'max_size' });
+  check._zod.check = (payload) => {
+    if (Object.keys(payload.value).length > maximum) {
+      payload.issues.push({
+        code: 'too_big', origin: 'object', maximum, inclusive: true, input: payload.value, path: [],
+        message: `Too big: expected at most ${String(maximum)} entries`,
+      });
+    }
+  };
+  return check;
+}
+
 export const ProblemIssue = z.object({
   path: text(500).min(1).meta({
     description: 'Where: `params.<name>`, `query.<name>`, `body.<path>`, or `response.<path>` outside production',
     examples: ['body.name'],
   }),
   message: text(1000).min(1).meta({
-    description: 'What is wrong there',
+    description: 'What is wrong there, in English',
     examples: ['Too small: expected string to have >=1 characters'],
   }),
+  code: z.string().min(1).max(100).regex(/^[a-z][a-z0-9_.-]*$/).optional().meta({
+    description: 'What is wrong, stable so the interface can translate it: a Zod code (`too_small`, `invalid_format`…), '
+      + '`unknown-kind`, or an extension\'s own (`core.duplicate-address`)',
+    examples: ['too_small'],
+  }),
+  params: z.record(z.string().max(50).regex(/^\w+$/), z.union([text(500), z.number()]))
+    .check(maxEntries(MAX_PARAMS))
+    .optional()
+    .meta({
+      description: `The values the translation of \`code\` needs, at most ${String(MAX_PARAMS)}`,
+      examples: [{ minimum: 1, origin: 'string' }],
+      maxProperties: MAX_PARAMS,
+    }),
 }).meta({
   id: 'ProblemIssue',
   description: 'One invalid value',
-  examples: [{ path: 'body.name', message: 'Too small: expected string to have >=1 characters' }],
+  examples: [{
+    path: 'body.name',
+    message: 'Too small: expected string to have >=1 characters',
+    code: 'too_small',
+    params: { minimum: 1, origin: 'string' },
+  }],
+});
+
+export const ProblemDependent = z.object({
+  extension: kebabId().meta({ description: 'The extension of the referring entities', examples: ['core'] }),
+  entity: text(100).min(1).meta({ description: 'The referring entity or owned row', examples: ['service'] }),
+  count: z.number().int().min(1).meta({ description: 'How many refer to it', examples: [2] }),
+}).meta({
+  id: 'ProblemDependent',
+  description: 'Entities that refer to the one being removed',
+  examples: [{ extension: 'core', entity: 'service', count: 2 }],
 });
 
 /** An API error, as RFC 9457 Problem Details. */
@@ -195,6 +279,17 @@ export const Problem = z.object({
     description: 'For `last_owner` when removing an account: the workspaces it is the only owner of, by name',
     examples: [['Home lab']],
   }),
+  field: text(200).min(1).nullable().optional().meta({
+    description: 'For `reference_invalid`: the field holding the reference, null when it could not be told',
+    examples: ['siteId'],
+  }),
+  fields: z.array(text(200).min(1)).max(MAX_ISSUES).optional().meta({
+    description: 'For `entity_conflict`: the fields whose combination is already taken',
+    examples: [['name']],
+  }),
+  dependents: z.array(ProblemDependent).max(MAX_ISSUES).optional().meta({
+    description: 'For `entity_in_use`: what refers to the entity; empty when it could not be told',
+  }),
 }).meta({
   id: 'Problem',
   description: 'An API error, as RFC 9457 Problem Details (`application/problem+json`)',
@@ -205,7 +300,12 @@ export const Problem = z.object({
     detail: 'The request does not match the API contract.',
     instance: '/api/things/abc',
     code: 'validation_failed',
-    issues: [{ path: 'params.id', message: 'Invalid string: must match pattern /^\\d+$/' }],
+    issues: [{
+      path: 'params.id',
+      message: 'Invalid string: must match pattern /^\\d+$/',
+      code: 'invalid_format',
+      params: { format: 'regex' },
+    }],
   }],
 });
 
@@ -214,12 +314,10 @@ export type Problem = z.infer<typeof Problem>;
 /** The Problem Details of one occurrence of a problem. */
 export const problemOf = (
   code: ProblemCode,
-  { detail, instance, issues, workspaces }: {
+  { detail, instance, ...extra }: {
     detail: string;
     instance: string;
-    issues?: Problem['issues'];
-    workspaces?: Problem['workspaces'];
-  },
+  } & Pick<Problem, 'issues' | 'workspaces' | 'field' | 'fields' | 'dependents'>,
 ): Problem => ({
   type: `urn:stackmap:problem:${code}`,
   title: PROBLEMS[code].title,
@@ -227,6 +325,5 @@ export const problemOf = (
   detail,
   instance,
   code,
-  ...(issues === undefined ? {} : { issues }),
-  ...(workspaces === undefined ? {} : { workspaces }),
+  ...extra,
 });

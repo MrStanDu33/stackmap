@@ -16,6 +16,7 @@ import { isOn } from './flags';
 import { getRequestSession } from './session';
 import { WORKSPACE_ROLES } from '../../shared/contracts/contract';
 import { MAX_ISSUES, Problem, problemOf } from '../../shared/contracts/errors';
+import { toIssues as codedIssues } from '../repositories/issues';
 import { roleIn } from '../repositories/members';
 import { getWorkspace } from '../repositories/workspaces';
 
@@ -74,9 +75,9 @@ class ApiFailure extends Error {
   }
 }
 
-const toIssues = (source: string, error: z.ZodError): Issue[] => error.issues.map((issue) => ({
-  path: [source, ...issue.path.map(String)].join('.'),
-  message: issue.message,
+const toIssues = (source: string, error: z.ZodError): Issue[] => codedIssues(error.issues).map((issue) => ({
+  ...issue,
+  path: [source, issue.path].filter(Boolean).join('.'),
 }));
 
 const tooLarge = () =>
@@ -130,16 +131,20 @@ async function readJsonBody(event: H3Event): Promise<unknown> {
     return JSON.parse(raw) as unknown;
   } catch {
     throw new ApiFailure('validation_failed', 'The request body is not valid JSON.', [
-      { path: 'body', message: 'Invalid JSON' },
+      { path: 'body', message: 'Invalid JSON', code: 'invalid_json', params: {} },
     ]);
   }
 }
 
-async function parseInput<C extends Contract>(contract: C, event: H3Event): Promise<ContractInput<C>> {
+async function parseInput<C extends Contract>(
+  contract: C,
+  event: H3Event,
+  body: z.ZodType | undefined = contract.body,
+): Promise<ContractInput<C>> {
   const sources = {
     params: [contract.params, () => getRouterParams(event, { decode: true })],
     query: [contract.query, () => getQuery(event)],
-    body: [contract.body, () => readJsonBody(event)],
+    body: [body, () => readJsonBody(event)],
   } as const;
   const input: Record<string, unknown> = {};
   const issues: Issue[] = [];
@@ -259,53 +264,71 @@ async function authorize(
   return { session, workspace: { id: workspaceId, role } as AuthorizedWorkspace };
 }
 
+export interface ServeOptions {
+  /**
+   * Parses the body instead of the contract's schema, which still documents it: the entity API only refuses
+   * undeclared fields there, and leaves the entity's rules to its repository (422 instead of 400). Undefined reads
+   * no body.
+   */
+  body?: z.ZodType;
+}
+
+/** Answers a request with a contract: the caller checked, the input validated, a declared response out. */
+export async function serveContract<C extends Contract>(
+  event: H3Event,
+  contract: C,
+  handler: (input: ContractInput<C>, event: H3Event) => ContractResult<C> | Promise<ContractResult<C>>,
+  options: ServeOptions = {},
+): Promise<unknown> {
+  try {
+    // Responses hold the caller's data: never stored by the browser or a proxy.
+    setResponseHeader(event, 'cache-control', 'no-store');
+    checkOrigin(contract, event);
+    // Who calls comes first: someone signed out cannot have a body read or an input checked.
+    const caller = await authorize(contract, event);
+    const input = {
+      ...await parseInput(contract, event, 'body' in options ? options.body : contract.body), ...caller,
+    } as ContractInput<C>;
+    const result: { status: number; body: unknown } = await handler(input, event);
+    const body = responseBody(contract, result);
+    setResponseStatus(event, result.status);
+    // An expected error the contract declares (404, 409…) is Problem Details, like the ones thrown here.
+    if (contract.responses[result.status]?.schema === Problem) {
+      setResponseHeader(event, 'content-type', 'application/problem+json');
+    }
+    // h3 answers a null body with 204 and nothing, which is right for a 204; another status's declared `null` (signed
+    // out) is sent as JSON.
+    if (body === null && result.status === 204) {
+      return null;
+    }
+    if (body === null) {
+      setResponseHeader(event, 'content-type', 'application/json');
+      return 'null';
+    }
+    return body;
+  } catch (error) {
+    const failure = error instanceof ApiFailure
+      ? error
+      : new ApiFailure('internal_error', INTERNAL_ERROR);
+    if (!(error instanceof ApiFailure)) {
+      console.error(`[api] ${contract.operationId} failed`, error);
+    }
+    const problem = problemOf(failure.code, {
+      detail: failure.message,
+      instance: getRequestURL(event).pathname,
+      ...(failure.issues === undefined ? {} : { issues: failure.issues }),
+    });
+    setResponseStatus(event, problem.status);
+    setResponseHeader(event, 'content-type', 'application/problem+json');
+    return problem;
+  }
+}
+
 /** A route handler that implements a contract: validated input in, a declared response out. */
 // R is inferred from the handler (const keeps `status: 200` literal) and must be one of the declared responses.
 export function defineContractHandler<C extends Contract, const R extends ContractResult<C>>(
   contract: C,
   handler: (input: ContractInput<C>, event: H3Event) => R | Promise<R>,
 ): ContractHandler<C> {
-  const eventHandler = defineEventHandler(async (event) => {
-    try {
-      // Responses hold the caller's data: never stored by the browser or a proxy.
-      setResponseHeader(event, 'cache-control', 'no-store');
-      checkOrigin(contract, event);
-      // Who calls comes first: someone signed out cannot have a body read or an input checked.
-      const caller = await authorize(contract, event);
-      const input = { ...await parseInput(contract, event), ...caller } as ContractInput<C>;
-      const result: { status: number; body: unknown } = await handler(input, event);
-      const body = responseBody(contract, result);
-      setResponseStatus(event, result.status);
-      // An expected error the contract declares (404, 409…) is Problem Details, like the ones thrown here.
-      if (contract.responses[result.status]?.schema === Problem) {
-        setResponseHeader(event, 'content-type', 'application/problem+json');
-      }
-      // h3 answers a null body with 204 and nothing, which is right for a 204; another status's declared `null` (signed
-      // out) is sent as JSON.
-      if (body === null && result.status === 204) {
-        return null;
-      }
-      if (body === null) {
-        setResponseHeader(event, 'content-type', 'application/json');
-        return 'null';
-      }
-      return body;
-    } catch (error) {
-      const failure = error instanceof ApiFailure
-        ? error
-        : new ApiFailure('internal_error', INTERNAL_ERROR);
-      if (!(error instanceof ApiFailure)) {
-        console.error(`[api] ${contract.operationId} failed`, error);
-      }
-      const problem = problemOf(failure.code, {
-        detail: failure.message,
-        instance: getRequestURL(event).pathname,
-        ...(failure.issues === undefined ? {} : { issues: failure.issues }),
-      });
-      setResponseStatus(event, problem.status);
-      setResponseHeader(event, 'content-type', 'application/problem+json');
-      return problem;
-    }
-  });
-  return Object.assign(eventHandler, { contract });
+  return Object.assign(defineEventHandler((event) => serveContract(event, contract, handler)), { contract });
 }
