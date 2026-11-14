@@ -12,5 +12,5 @@ export type DomainInput = CommonInput & { name: string };
 export type DomainPatch = Partial<DomainInput>;
 
 export const domainSchema: EntitySchema<DomainFields, DomainInput> = defineEntitySchema({
-  name: dnsName({ minLabels: 2 }),
+  name: dnsName({ minLabels: 2 }).meta({ description: 'The domain name, normalized to lower case', examples: ['homelab.example'] }),
 });

@@ -11,4 +11,6 @@ export type Site = EntityMeta & SiteFields;
 export type SiteInput = CommonInput & { name: string };
 export type SitePatch = Partial<SiteInput>;
 
-export const siteSchema: EntitySchema<SiteFields, SiteInput> = defineEntitySchema({ name: entityName() });
+export const siteSchema: EntitySchema<SiteFields, SiteInput> = defineEntitySchema({
+  name: entityName().meta({ description: 'The site\'s name, such as a building or a cloud region', examples: ['Home'] }),
+});

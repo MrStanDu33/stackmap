@@ -1,4 +1,4 @@
-import { ASCII, defineEntitySchema, entityId, normalizeDnsName, normalizeIp } from '@stackmap/extension-sdk/entities';
+import { ASCII, defineEntitySchema, DNS_CHARACTERS, whenValid, entityId, normalizeDnsName, normalizeIp } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from '@stackmap/extension-sdk/entities';
@@ -36,25 +36,24 @@ function normalizeHostname(text: string): string | undefined {
   return wildcard ? `*.${name}` : name;
 }
 
-const hostname = () => z.string().max(255).transform((text, context) => {
-  const name = normalizeHostname(text);
-  if (name === undefined || name.length > 253) {
-    context.addIssue({ code: 'custom', message: 'Expected a hostname, such as app.homelab.example or *.homelab.example' });
-    return z.NEVER;
-  }
-  return name;
-});
+const hostname = () => z.string().max(255).regex(DNS_CHARACTERS)
+  .refine((text) => (normalizeHostname(text)?.length ?? Infinity) <= 253, {
+    message: 'Expected a hostname, such as app.homelab.example or *.homelab.example',
+    params: { code: 'reverse-proxy.invalid-hostname' },
+    when: whenValid,
+  })
+  .overwrite((text) => normalizeHostname(text) ?? text);
 
 export const proxyRouteSchema: EntitySchema<ProxyRouteFields, ProxyRouteInput> = defineEntitySchema({
-  proxyServiceId: entityId(),
-  hostnames: z.array(hostname()).min(1).max(MAX_HOSTNAMES),
-  upstreamListenerId: entityId(),
-  forceSsl: z.boolean().default(false),
-  websockets: z.boolean().default(false),
+  proxyServiceId: entityId().meta({ description: 'The reverse proxy service that serves the route', examples: ['0199d6a0-0000-7000-8000-000000000003'] }),
+  hostnames: z.array(hostname()).min(1).max(MAX_HOSTNAMES).meta({ description: 'The hostnames the route serves', examples: [['blog.homelab.example']] }),
+  upstreamListenerId: entityId().meta({ description: 'The listener it forwards to', examples: ['0199d6a0-0000-7000-8000-000000000005'] }),
+  forceSsl: z.boolean().default(false).meta({ description: 'Whether plain HTTP is redirected to HTTPS', examples: [true] }),
+  websockets: z.boolean().default(false).meta({ description: 'Whether WebSocket upgrades are passed on', examples: [false] }),
 }, (route: ProxyRouteFields, context) => {
   const twice = route.hostnames.find((name, index) => route.hostnames.indexOf(name) !== index);
   if (twice !== undefined) {
-    context.addIssue({ code: 'custom', path: ['hostnames'], message: `${twice} is listed twice` });
+    context.addIssue({ code: 'custom', path: ['hostnames'], message: `${twice} is listed twice`, params: { code: 'reverse-proxy.duplicate-hostname', hostname: twice } });
   }
   return route;
 });

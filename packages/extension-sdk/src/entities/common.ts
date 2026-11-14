@@ -78,19 +78,73 @@ export const port = () => z.number().int().min(1).max(65_535);
 const unique = (values: string[]) => [...new Set(values)];
 
 const COMMON_FIELDS = {
-  status: z.enum(ENTITY_STATUSES).default('active'),
-  tags: z.array(line(50).min(1)).max(MAX_TAGS).transform(unique).default([]),
-  notes: text(20_000).default(''),
-  links: z.array(z.strictObject({ label: line(100).min(1), url: httpUrl() })).max(MAX_LINKS).default([]),
+  status: z.enum(ENTITY_STATUSES).default('active')
+    .meta({ description: 'Whether the entity is planned, in use or on its way out', examples: ['active'] }),
+  tags: z.array(line(50).min(1)).max(MAX_TAGS).overwrite(unique).default([])
+    .meta({ description: 'Free labels, each once', examples: [['storage']] }),
+  notes: text(20_000).default('').meta({ description: 'Notes, in Markdown', examples: ['Under the desk'] }),
+  links: z.array(z.strictObject({
+    label: line(100).min(1).meta({ description: 'What the link points to', examples: ['Admin page'] }),
+    url: httpUrl().meta({ description: 'An http or https URL', examples: ['https://nas.homelab.example'] }),
+  })).max(MAX_LINKS).default([])
+    .meta({ description: 'Links to elsewhere', examples: [[{ label: 'Admin page', url: 'https://nas.homelab.example' }]] }),
   customFields: z.record(line(50).min(1), z.union([text(1000), z.number(), z.boolean(), z.null()]))
-    .refine((fields) => Object.keys(fields).length <= MAX_CUSTOM_FIELDS, `At most ${String(MAX_CUSTOM_FIELDS)} custom fields`)
-    .default({}),
-  origin: z.string().max(80).regex(ORIGIN).default('manual'),
-  externalRef: line(500).nullable().default(null),
+    .refine((fields) => Object.keys(fields).length <= MAX_CUSTOM_FIELDS, {
+      message: `At most ${String(MAX_CUSTOM_FIELDS)} custom fields`,
+      params: { code: 'common.too-many-custom-fields', maximum: MAX_CUSTOM_FIELDS },
+    })
+    .default({})
+    .meta({ description: 'Values of the workspace\'s own fields, by name', examples: [{ rack: 'A2' }] }),
+  origin: z.string().max(80).regex(ORIGIN).default('manual')
+    .meta({ description: '`manual`, or `connector:<id>` for an entity a connector imported', examples: ['manual'] }),
+  externalRef: line(500).nullable().default(null)
+    .meta({ description: 'The entity\'s id in the system it was imported from', examples: ['vm-104'] }),
 };
 
-const withoutDefault = (field: z.ZodType): z.ZodType =>
-  (field instanceof z.ZodDefault ? field.unwrap() as z.ZodType : field);
+/** Optional and without its default, keeping its description: a patch documents the same fields. */
+const patchField = (field: z.ZodType): z.ZodType => {
+  const optional = (field instanceof z.ZodDefault ? field.unwrap() as z.ZodType : field).optional();
+  const meta = field.meta();
+  return meta ? optional.meta(meta) : optional;
+};
+
+/**
+ * Runs the refine on an input some fields of which failed, so that one answer lists every issue, unless the refine
+ * reads one of the failed fields: its checks hold for valid values only. Its result is dropped: the parse fails.
+ */
+function refineDespiteIssues<Fields>(
+  refine: (value: Fields, context: z.RefinementCtx) => Fields,
+): z.core.$ZodCheck<unknown> {
+  const check = z.check((payload) => {
+    const failed = new Set(payload.issues.map(({ path }) => path?.[0]));
+    const value = payload.value as Record<PropertyKey, unknown>;
+    const guarded = new Proxy(value, {
+      get: (target, key) => {
+        if (failed.has(key)) {
+          throw new Error(`The refine reads ${String(key)}, which failed.`);
+        }
+        return Reflect.get(target, key);
+      },
+    });
+    const context = {
+      value,
+      issues: payload.issues,
+      addIssue: (issue: string | z.core.$ZodRawIssue) => {
+        payload.issues.push(typeof issue === 'string'
+          ? { code: 'custom', message: issue, input: value, path: [] }
+          : { path: [], ...issue, input: value } as z.core.$ZodRawIssue);
+      },
+    } as unknown as z.RefinementCtx;
+    try {
+      refine(guarded as Fields, context);
+    } catch {
+      // It read a failed field, or a value an unknown key left unparsed: the issues already found are the answer.
+    }
+  });
+  // Only on an input with issues: on a valid one, the transform runs the refine.
+  check._zod.def.when = ({ issues }) => issues.length > 0;
+  return check;
+}
 
 /**
  * The schemas of an entity: its own fields (listed first, so issues come in the form's order) and the common ones.
@@ -102,9 +156,12 @@ export function defineEntitySchema<Fields, Input>(
   refine?: (value: Fields, context: z.RefinementCtx) => Fields,
 ): EntitySchema<Fields, Input> {
   const object = z.strictObject({ ...shape, ...COMMON_FIELDS });
-  const input = refine ? object.transform((value, context) => refine(value as Fields, context)) : object;
+  const input = refine
+    ? object.check(refineDespiteIssues(refine))
+        .transform((value, context) => refine(value as Fields, context))
+    : object;
   const patch = z.strictObject(Object.fromEntries(
-    Object.entries(object.shape).map(([key, field]) => [key, withoutDefault(field as z.ZodType).optional()]),
+    Object.entries(object.shape).map(([key, field]) => [key, patchField(field as z.ZodType)]),
   ));
   return { input, patch } as unknown as EntitySchema<Fields, Input>;
 }

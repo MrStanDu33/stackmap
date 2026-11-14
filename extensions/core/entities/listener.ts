@@ -30,15 +30,15 @@ export type ListenerInput = CommonInput & {
 export type ListenerPatch = Partial<ListenerInput>;
 
 export const listenerSchema: EntitySchema<ListenerFields, ListenerInput> = defineEntitySchema({
-  serviceId: entityId(),
-  port: port(),
-  transport: z.enum(TRANSPORTS),
-  protocol: kindId().nullable().default(null),
-  bindAddress: ipAddress().nullable().default('0.0.0.0'),
-  publishedPort: port().nullable().default(null),
+  serviceId: entityId().meta({ description: 'The service that listens', examples: ['0199d6a0-0000-7000-8000-000000000003'] }),
+  port: port().meta({ description: 'The port it listens on', examples: [443] }),
+  transport: z.enum(TRANSPORTS).meta({ description: 'The transport protocol', examples: ['tcp'] }),
+  protocol: kindId().nullable().default(null).meta({ description: 'The application protocol, from an active extension', examples: ['https'] }),
+  bindAddress: ipAddress().nullable().default('0.0.0.0').meta({ description: 'The address it is bound to; 0.0.0.0 or :: for every address', examples: ['0.0.0.0'] }),
+  publishedPort: port().nullable().default(null).meta({ description: 'The host port a container publishes it on', examples: [8443] }),
 }, (listener: ListenerFields, context) => {
   if (listener.publishedPort !== null && listener.bindAddress === null) {
-    context.addIssue({ code: 'custom', path: ['bindAddress'], message: 'A published port is bound to an address' });
+    context.addIssue({ code: 'custom', path: ['bindAddress'], message: 'A published port is bound to an address', params: { code: 'core.published-port-bound' } });
   }
   return listener;
 });
