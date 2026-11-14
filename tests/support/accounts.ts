@@ -148,7 +148,8 @@ export async function createAccount(
   const { user } = await auth.api.signUpEmail({ body: { name, email, password: ADMIN.password } });
   // The first account becomes administrator on its own: set the role the test asks for either way.
   const role = admin ? 'admin' : 'user';
-  await db.updateTable('user').set({ role }).where('id', '=', user.id).execute();
+  // Every account but the first is created marked for a password change (4d): these chose their own.
+  await db.updateTable('user').set({ role, mustChangePassword: sql.lit(false) }).where('id', '=', user.id).execute();
   return { user: { id: user.id, name, email, role, mustChangePassword: false, preferences: NO_PREFERENCES } };
 }
 

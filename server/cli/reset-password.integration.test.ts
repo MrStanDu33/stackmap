@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { describe, expect, it } from 'vitest';
 
 import { resetPassword } from './reset-password';
@@ -58,5 +59,12 @@ describe.each(DIALECTS)('reset-password on %s', (dialect: Dialect) => {
     expect(missing.err).toContain('Usage: reset-password <email>');
     expect(help.code).toBe(0);
     expect(help.out).toContain('Usage: reset-password <email>');
+  });
+
+  it('given an account with no password to reset, says so and exits with 1 (15, review)', async () => {
+    await accounts.signedIn();
+    await sql`delete from ${sql.table('account')}`.execute(accounts.db());
+
+    expect(await run('ada@homelab.example')).toMatchObject({ code: 1, err: 'This account has no password to reset.' });
   });
 });

@@ -121,3 +121,45 @@ export const Changed: Story = {
     await expect(fields(canvasElement).current).toHaveValue('');
   },
 };
+
+/** An empty current password asks for it (review). */
+export const CurrentMissing: Story = {
+  play: async ({ canvasElement, args }) => {
+    const form = fields(canvasElement);
+    await userEvent.type(form.next, 'brand new horse battery');
+    await userEvent.type(form.confirm, 'brand new horse battery');
+    await userEvent.click(form.submit);
+
+    await waitFor(() => expect(form.current).toHaveFocus());
+    await expect(form.current).toHaveAccessibleDescription(t('settings.error.currentRequired'));
+    await expect(args.onSubmit).not.toHaveBeenCalled();
+  },
+};
+
+/** Stackmap unreachable: an alert that takes the focus (review). */
+export const NetworkError: Story = {
+  args: { error: 'network' },
+  play: async ({ canvasElement }) => {
+    const alert = within(canvasElement).getByRole('alert');
+
+    await expect(alert).toHaveTextContent(t('auth.error.network'));
+    await waitFor(() => expect(alert).toHaveFocus());
+  },
+};
+
+/** Each field can be shown, with a toggle named after it that says whether it is pressed (review). */
+export const ShowPasswords: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const form = fields(canvasElement);
+
+    for (const key of ['current', 'next', 'confirm'] as const) {
+      await expect(canvas.getByRole('button', { name: t(`settings.show.${key}`) })).toHaveAttribute('aria-pressed', 'false');
+    }
+    await userEvent.click(canvas.getByRole('button', { name: t('settings.show.next') }));
+
+    await expect(canvas.getByRole('button', { name: t('settings.show.next') })).toHaveAttribute('aria-pressed', 'true');
+    await expect(form.next).toHaveAttribute('type', 'text');
+    await expect(form.current).toHaveAttribute('type', 'password');
+  },
+};

@@ -1,3 +1,4 @@
+import { sql } from 'kysely';
 import { describe, expect, it, vi } from 'vitest';
 
 import { createAccount, useTestAccounts } from '../../../../tests/support/accounts';
@@ -45,6 +46,19 @@ describe.each(DIALECTS)('PUT /api/users/:userId/password on %s', (dialect: Diale
 
     expect(status).toBe(500);
     expect((await accounts.call('GET', '/api/session', { cookie: graceCookie })).json).toBeNull();
+    vi.restoreAllMocks();
+  });
+
+  it('given setting the password fails, has already marked the account for a change (11, review)', async () => {
+    const cookie = await accounts.signedIn();
+    const { user } = await grace();
+    await accounts.db().updateTable('user').set({ mustChangePassword: sql.lit(false) }).where('id', '=', user.id).execute();
+    vi.spyOn((await useAuth()).api, 'setUserPassword').mockRejectedValueOnce(new Error('database unavailable'));
+
+    await accounts.call('PUT', `/api/users/${user.id}/password`, { cookie, body: { password: NEW_PASSWORD } });
+
+    const row = await accounts.db().selectFrom('user').select('mustChangePassword').where('id', '=', user.id).executeTakeFirst();
+    expect(Boolean(row?.mustChangePassword)).toBe(true);
     vi.restoreAllMocks();
   });
 

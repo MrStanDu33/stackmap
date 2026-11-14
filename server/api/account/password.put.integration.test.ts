@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { sql } from 'kysely';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ADMIN, cookieOf, useTestAccounts } from '../../../tests/support/accounts';
 import { DIALECTS } from '../../../tests/support/databases';
+import { useAuth } from '../../utils/auth';
 
 import type { Dialect } from '../../../tests/support/databases';
 
@@ -79,5 +81,33 @@ describe.each(DIALECTS)('PUT /api/account/password on %s', (dialect: Dialect) =>
     expect(status).toBe(204);
     const { json } = await accounts.call('GET', '/api/session', { cookie: cookieOf(setCookie) ?? grace });
     expect(json).toMatchObject({ user: { mustChangePassword: false } });
+  });
+
+  it('limits attempts per account as well, whatever the addresses (8, review)', async () => {
+    const cookie = await accounts.signedIn();
+    const wrong = { currentPassword: 'not the password', newPassword: NEW_PASSWORD };
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      expect((await change(cookie, wrong, `192.0.2.${String(80 + attempt)}`)).status).toBe(400);
+    }
+
+    expect((await change(cookie, wrong, '192.0.2.90')).status).toBe(429);
+  });
+
+  it('keeps a mark an administrator sets while an unmarked account changes its password (13, review)', async () => {
+    const cookie = await accounts.signedIn();
+    const { api } = await useAuth();
+    const original = api.changePassword.bind(api);
+    // An administrator gives the account a temporary password while its own change is under way.
+    vi.spyOn(api, 'changePassword').mockImplementationOnce(async (...args) => {
+      await accounts.db().updateTable('user').set({ mustChangePassword: sql.lit(true) }).where('email', '=', ADMIN.email).execute();
+      return original(...args);
+    });
+
+    expect((await change(cookie, { currentPassword: ADMIN.password, newPassword: NEW_PASSWORD })).status).toBe(204);
+
+    const row = await accounts.db().selectFrom('user').select('mustChangePassword').where('email', '=', ADMIN.email).executeTakeFirst();
+    expect(Boolean(row?.mustChangePassword)).toBe(true);
+    vi.restoreAllMocks();
   });
 });

@@ -23,6 +23,8 @@ export const Default: Story = {
     const group = canvas.getByRole('radiogroup', { name: t('settings.landingPage') });
 
     await expect(group).toHaveAccessibleDescription(t('settings.landingPageHint'));
+    // Named once: no fieldset named the same around it (review).
+    await expect(canvas.queryByRole('group', { name: t('settings.landingPage') })).toBeNull();
     await expect(canvas.getByRole('radio', { name: t('settings.landing.graph') })).toBeChecked();
     await expect(canvas.getByRole('radio', { name: t('settings.landing.trace') })).not.toBeChecked();
   },

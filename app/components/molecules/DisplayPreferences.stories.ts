@@ -70,24 +70,41 @@ export const French: Story = {
   },
 };
 
-/** Signed in, a change saved to the account is announced (4). */
+/** Signed in, a saved change is shown; the page's shell announces it, once (4, review). */
 export const Saved: Story = {
   beforeEach: () => {
     useState('preferences.status').value = 'saved';
     return clearNuxtState;
   },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('status')).toHaveTextContent(t('settings.saved'));
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText(t('settings.saved'))).toBeVisible();
+    await expect(canvas.queryByRole('status')).toBeNull();
   },
 };
 
-/** A change that could not be saved is said in an alert (4). */
+/** A change that could not be saved is shown; the shell's alert says it, once (4, review). */
 export const SaveFailed: Story = {
   beforeEach: () => {
     useState('preferences.status').value = 'error';
     return clearNuxtState;
   },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('alert')).toHaveTextContent(t('settings.saveError'));
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText(t('settings.saveError'))).toBeVisible();
+    await expect(canvas.queryByRole('alert')).toBeNull();
+  },
+};
+
+/** Inside a page section that names it (/settings): no landmark of its own, the controls still labelled (review). */
+export const WithoutLandmark: Story = {
+  args: { landmark: false },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByRole('region')).toBeNull();
+    await expect(canvas.getByRole('radiogroup', { name: t('preferences.theme') })).toBeVisible();
   },
 };

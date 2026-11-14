@@ -34,3 +34,14 @@ export const Default: Story = {
     await expect(canvas.getByRole('region', { name: t('preferences.title') })).toBeVisible();
   },
 };
+
+/** Its title can take the focus, for pages that start on it (the forced password change), and stays out of Tab (13). */
+export const FocusableTitle: Story = {
+  play: async ({ canvasElement }) => {
+    const heading = within(canvasElement).getByRole('heading', { level: 1 });
+
+    await expect(heading).toHaveAttribute('tabindex', '-1');
+    heading.focus();
+    await expect(heading).toHaveFocus();
+  },
+};
