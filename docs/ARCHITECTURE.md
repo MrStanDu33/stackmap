@@ -345,6 +345,23 @@ checks that Better Auth sets that cookie. Tests prove it: it is valid OpenAPI, t
 (`redocly.yaml`) reports nothing, and every example matches its schema. `/api/docs` renders it with Scalar, bundled in
 the app: no CDN, remote fonts, telemetry or AI services.
 
+**The entity API** serves every entity type an active extension declares, from generic routes:
+`/api/workspaces/:workspaceId/entities/:extension/:entity` (list, create) and `…/:entityId` (get, update, remove).
+`shared/contracts/entities.ts` generates each type's operations from its schemas, tagged with its extension, so the
+document describes every type's fields; response schemas drop the refines, which have no OpenAPI form, and entity
+schemas normalize with checks and overwrites rather than transforms for the same reason. Reading needs `viewer`,
+writing `editor`; the role is checked before the type, so a non-member cannot tell which types exist. Lists are paged
+(`limit` up to 1000, `offset`) and answer with the `total`. The route reads only the type's declared fields and leaves
+their values to the repository, so a broken rule is `422 entity_invalid`. Every issue has a stable `code` (Zod's,
+`unknown-kind`, or an extension's `<extension>.<rule>`) and the `params` its translation needs, cut to the bounds its
+contract declares. A reference outside the workspace is `422 reference_invalid` (a foreign key race too, caught in a
+savepoint), a duplicate `409 entity_conflict`, a removal others depend on `409 entity_in_use`, and an update that lost
+a race `409 entity_changed`; an update that changes nothing writes nothing.
+
+Every entity write records an **audit event** (`audit_event`) in its own transaction: the actor, the action, the
+entity and the names of the fields it changed, never their values, which may be secrets. Rows the database deletes
+with an entity (a host's port forwards) record no event of their own _(planned)_.
+
 `GET /api/health` answers `200` with the app version when the database answers, `503` otherwise; the Docker
 healthcheck calls it. The database error goes to the logs, never to the response.
 
