@@ -221,6 +221,8 @@ export function createEntityRepository<Fields, Input, DB>(
         return find(db, pick(where, definition.filters ?? []));
       },
 
+      count: () => Promise.reject(new Error('Not implemented')),
+
       update: (id, patch) => serialized(db, async () => {
         const changes = parseEntity(definition.schema.patch, patch) as Row;
         if (!isId(id)) {

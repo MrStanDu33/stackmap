@@ -26,27 +26,41 @@ const routeOf = (file: string) => {
 
 const routeFiles = globSync(join(API_DIR, '**/*.ts')).filter((file) => !file.endsWith('.test.ts'));
 
-const contractOf = async (file: string) =>
-  ((await import(file) as { default: { contract?: Contract } }).default).contract;
+/** The contract a route implements, or the contracts of a generic route (the entity API: one per entity type). */
+const contractsOf = async (file: string): Promise<readonly Contract[]> => {
+  type Route = { default: { contract?: Contract; contracts?: readonly Contract[] } };
+  const { contract, contracts } = (await import(file) as Route).default;
+  return contract ? [contract] : contracts ?? [];
+};
+
+/** Whether a contract's path is served by a route: equal, or with the route's `:extension/:entity` filled in. */
+const serves = (route: { method: string; path: string }, contract: Contract) => {
+  const pattern = new RegExp(`^${route.path.replace(':extension/:entity', '[a-z0-9-]+/[a-z0-9-]+')}$`);
+  return contract.method === route.method && (contract.path === route.path || pattern.test(contract.path));
+};
 
 describe('API routes and contracts', () => {
   it('every route file uses a contract whose method and path match its Nitro route', async () => {
     expect(routeFiles.length).toBeGreaterThan(0);
     const mismatches = [];
     for (const file of routeFiles) {
-      const contract = await contractOf(file);
+      const contracts = await contractsOf(file);
       const route = routeOf(file);
-      if (contract?.method !== route.method || contract.path !== route.path) {
+      if (contracts.length === 0) {
+        mismatches.push(`${relative(API_DIR, file)}: route ${route.method} ${route.path}, contract missing`);
+      }
+      for (const contract of contracts.filter((candidate) => !serves(route, candidate))) {
         mismatches.push(`${relative(API_DIR, file)}: route ${route.method} ${route.path}, `
-          + `contract ${contract ? `${contract.method} ${contract.path}` : 'missing'}`);
+          + `contract ${contract.method} ${contract.path}`);
       }
     }
     expect(mismatches).toEqual([]);
   });
 
   it('every contract has a route file', () => {
-    const routes = new Set(routeFiles.map(routeOf).map(({ method, path }) => `${method} ${path}`));
-    const orphans = CONTRACTS.map(({ method, path }) => `${method} ${path}`).filter((route) => !routes.has(route));
+    const routes = routeFiles.map(routeOf);
+    const orphans = CONTRACTS.filter((contract) => !routes.some((route) => serves(route, contract)))
+      .map(({ method, path }) => `${method} ${path}`);
     expect(orphans).toEqual([]);
   });
 
@@ -58,28 +72,30 @@ describe('API routes and contracts', () => {
     const wrong = [];
     for (const file of routeFiles) {
       const handler = (await import(file) as { default: Parameters<ReturnType<typeof createRouter>['use']>[1] }).default;
-      const contract = await contractOf(file);
-      if (!contract || contract.requiredRole === 'public') {
-        continue;
-      }
-      // Every placeholder filled, so the route matches; the role is checked before the input.
-      const path = contract.path.replaceAll(/:\w+/g, '0199d6a0-0000-7000-8000-000000000001');
-      const call = async () => {
-        const app = createApp().use(createRouter().use(contract.path, handler, contract.method));
-        return (await toWebHandler(app)(new Request(`http://localhost${path}`, { method: contract.method.toUpperCase() }))).status;
-      };
-      setSessionResolver(() => Promise.resolve(null));
-      const signedOut = await call();
-      setSessionResolver(() => Promise.resolve({
-        user: {
-          id: '0199d6a0-0000-7000-8000-000000000102', name: 'Grace', email: 'grace@homelab.example', role: 'user',
-          mustChangePassword: false, preferences: NO_PREFERENCES,
-        },
-      }));
-      // Workspace roles need a membership, in the database: server/utils/contract-handler.integration.test.ts.
-      const asUser = contract.requiredRole === 'instanceAdmin' ? await call() : 403;
-      if (signedOut !== 401 || asUser !== 403) {
-        wrong.push(`${contract.operationId}: ${String(signedOut)} signed out, ${String(asUser)} as a user`);
+      const route = routeOf(file);
+      for (const contract of await contractsOf(file)) {
+        if (contract.requiredRole === 'public') {
+          continue;
+        }
+        // Every placeholder filled, so the route matches; the role is checked before the input.
+        const path = contract.path.replaceAll(/:\w+/g, '0199d6a0-0000-7000-8000-000000000001');
+        const call = async () => {
+          const app = createApp().use(createRouter().use(route.path, handler, contract.method));
+          return (await toWebHandler(app)(new Request(`http://localhost${path}`, { method: contract.method.toUpperCase() }))).status;
+        };
+        setSessionResolver(() => Promise.resolve(null));
+        const signedOut = await call();
+        setSessionResolver(() => Promise.resolve({
+          user: {
+            id: '0199d6a0-0000-7000-8000-000000000102', name: 'Grace', email: 'grace@homelab.example', role: 'user',
+            mustChangePassword: false, preferences: NO_PREFERENCES,
+          },
+        }));
+        // Workspace roles need a membership, in the database: server/utils/contract-handler.integration.test.ts.
+        const asUser = contract.requiredRole === 'instanceAdmin' ? await call() : 403;
+        if (signedOut !== 401 || asUser !== 403) {
+          wrong.push(`${contract.operationId}: ${String(signedOut)} signed out, ${String(asUser)} as a user`);
+        }
       }
     }
     expect(wrong).toEqual([]);
