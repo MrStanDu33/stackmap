@@ -31,7 +31,7 @@ const failureOf = async (write: Promise<unknown>): Promise<unknown> => write.the
 );
 
 describe.each(DIALECTS)('entity repository on %s', (dialect: Dialect) => {
-  const workspaces = useTestWorkspaces(dialect);
+  const workspaces = useTestWorkspaces(dialect, { actorAccount: true });
   const db = () => workspaces.db as unknown as Kysely<Database>;
   const events = () => listAuditEvents(db(), workspaces.a.workspace.id);
 

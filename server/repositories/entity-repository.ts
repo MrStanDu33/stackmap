@@ -5,10 +5,12 @@ import { ENTITY_META_FIELDS, entityId } from '@stackmap/extension-sdk/entities';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
+import { recordAuditEvent } from './audit-events';
 import {
   EntityChangedError, EntityConflictError, EntityInUseError, EntityValidationError, parseEntity,
   WorkspaceReferenceError,
 } from './errors';
+import { toIssues } from './issues';
 import { isForeignKeyViolation, isUniqueViolation } from '../database/errors';
 import { newId } from '../database/ids';
 import { fromBoolean, fromJson, fromTimestamp, toBoolean, toJson, toTimestamp } from '../database/serialize';
@@ -16,7 +18,7 @@ import { fromBoolean, fromJson, fromTimestamp, toBoolean, toJson, toTimestamp } 
 import type { Dependent } from './errors';
 import type { Database } from '../database/types/schema';
 import type {
-  EntityReference, EntityRepositoryDefinition, RepositoryContext as DefinitionContext, RepositoryScope,
+  EntityReference, EntityRepositoryDefinition, Page, RepositoryContext as DefinitionContext, RepositoryScope,
   ScopedRepository,
 } from '@stackmap/extension-sdk/server';
 import type { Kysely } from 'kysely';
@@ -33,6 +35,22 @@ const COMMON_COLUMNS = ['status', 'tags', 'notes', 'links', 'customFields', 'ori
 const JSON_COLUMNS = new Set(['tags', 'links', 'customFields']);
 const TIMESTAMP_COLUMNS = new Set(['createdAt', 'updatedAt']);
 const META_COLUMNS: readonly string[] = ENTITY_META_FIELDS;
+
+/**
+ * Runs the work on a savepoint, so the transaction stays usable when it fails: Postgres refuses any query after a
+ * failed one, and the failure is explained by querying again.
+ */
+async function withSavepoint<T>(trx: Kysely<Database>, name: string, work: () => Promise<T>): Promise<T> {
+  await sql`savepoint ${sql.raw(name)}`.execute(trx);
+  try {
+    const result = await work();
+    await sql`release savepoint ${sql.raw(name)}`.execute(trx);
+    return result;
+  } catch (error) {
+    await sql`rollback to savepoint ${sql.raw(name)}`.execute(trx);
+    throw error;
+  }
+}
 
 /** Runs the work in a transaction, or in the caller's transaction when there is one. */
 export function inTransaction<T>(db: Kysely<Database>, work: (trx: Kysely<Database>) => Promise<T>): Promise<T> {
@@ -68,7 +86,7 @@ function serialized<T>(db: Kysely<Database>, write: () => Promise<T>): Promise<T
  * named columns.
  */
 export function createEntityRepository<Fields, Input, DB>(
-  definition: EntityRepositoryDefinition<Fields, Input, DB> & { tableOwners?: readonly string[] },
+  definition: EntityRepositoryDefinition<Fields, Input, DB> & { extension: string; tableOwners?: readonly string[] },
 ): (context: RepositoryContext) => ScopedRepository<unknown, unknown, unknown, object> {
   const { table } = definition;
   for (const column of [...definition.columns, ...(definition.filters ?? []), ...(definition.ownedFields ?? [])]) {
@@ -108,12 +126,19 @@ export function createEntityRepository<Fields, Input, DB>(
     // The definition's callbacks query the extension's own tables, which the platform's types do not know.
     const contextOf = (trx: Kysely<Database>) => ({ db: trx, scope, newId }) as unknown as DefinitionContext<DB>;
 
-    const find = async (trx: Kysely<Database>, where: Row): Promise<Row[]> => {
-      let query = loose(trx).selectFrom(table).select(selected).where('workspaceId', '=', scope.workspaceId);
-      for (const [column, value] of Object.entries(where)) {
+    const where = (trx: Kysely<Database>, filter: Row) => {
+      let query = loose(trx).selectFrom(table).where('workspaceId', '=', scope.workspaceId);
+      for (const [column, value] of Object.entries(filter)) {
         query = query.where(column, '=', value);
       }
-      const entities = (await query.orderBy('id').execute()).map(fromRow);
+      return query;
+    };
+
+    const find = async (trx: Kysely<Database>, filter: Row, page?: Page): Promise<Row[]> => {
+      // Ids are time-ordered: by id is in creation order.
+      const query = where(trx, filter).select(selected).orderBy('id');
+      const rows = await (page ? query.limit(page.limit).offset(page.offset) : query).execute();
+      const entities = rows.map(fromRow);
       return definition.expand ? definition.expand(contextOf(trx), entities) : entities;
     };
 
@@ -121,7 +146,7 @@ export function createEntityRepository<Fields, Input, DB>(
       const issues = Object.entries(definition.kinds ?? {}).flatMap(([field, entity]) => {
         const kind = fields[field];
         return changed.has(field) && typeof kind === 'string' && !scope.kinds.hasKind(entity, kind)
-          ? [{ path: field, message: `No active extension provides the ${entity} kind "${kind}"` }]
+          ? toIssues([], { unknownKind: { path: field, entity, kind } })
           : [];
       });
       if (issues.length > 0) {
@@ -129,8 +154,10 @@ export function createEntityRepository<Fields, Input, DB>(
       }
     };
 
-    const checkReferences = async (trx: Kysely<Database>, references: EntityReference[]) => {
-      for (const { field, table: target, id } of references) {
+    /** The first reference to an entity the workspace does not have. */
+    const missingReference = async (trx: Kysely<Database>, references: EntityReference[]) => {
+      for (const reference of references) {
+        const { table: target, id } = reference;
         // An extension refers to its own tables and its dependencies', never to the platform's or another's.
         if (definition.tableOwners && !definition.tableOwners.some((owner) => isExtensionTable(owner, target))) {
           throw new Error(`The ${definition.key} repository refers to table "${target}", which is neither its own `
@@ -141,10 +168,16 @@ export function createEntityRepository<Fields, Input, DB>(
           .where('id', '=', id)
           .executeTakeFirst();
         if (!found) {
-          throw new WorkspaceReferenceError(field, id);
+          return reference;
         }
       }
+      return undefined;
     };
+
+    const audit = (trx: Kysely<Database>, action: 'create' | 'update' | 'delete', entityId: string, fields: string[]) =>
+      recordAuditEvent(trx, scope.workspaceId, {
+        actorId: scope.actorId, action, extension: definition.extension, entity: definition.entity, entityId, fields,
+      });
 
     /** Checks what needs the database, then writes the row and the rows the entity owns. */
     const save = async (
@@ -152,25 +185,37 @@ export function createEntityRepository<Fields, Input, DB>(
       id: string,
       fields: Row,
       changed: ReadonlySet<string>,
+      action: 'create' | 'update',
       write: () => Promise<unknown>,
     ) => {
       const typed = fields as Fields;
-      const references = (definition.references?.(typed) ?? []).filter(({ field }) => changed.has(field.split('.')[0] ?? ''));
-      await checkReferences(trx, references);
+      const declared = definition.references?.(typed) ?? [];
+      const missing = await missingReference(trx, declared.filter(({ field }) => changed.has(field.split('.')[0] ?? '')));
+      if (missing) {
+        throw new WorkspaceReferenceError(missing.field, missing.id);
+      }
       const issues = await definition.check?.(contextOf(trx), typed, changed, id) ?? [];
       if (issues.length > 0) {
         throw new EntityValidationError(issues);
       }
       try {
-        await write();
-        // Owned rows may have unique indexes of their own, such as a route's hostnames on its proxy.
-        await definition.writeOwned?.(contextOf(trx), id, typed, changed);
+        await withSavepoint(trx, 'save_entity', async () => {
+          await write();
+          // Owned rows may have unique indexes of their own, such as a route's hostnames on its proxy.
+          await definition.writeOwned?.(contextOf(trx), id, typed, changed);
+        });
       } catch (error) {
         if (definition.unique && isUniqueViolation(error)) {
           throw new EntityConflictError([...definition.unique]);
         }
+        // A referenced entity removed since the check (a race), or a reference the definition does not declare.
+        if (isForeignKeyViolation(error)) {
+          const gone = await missingReference(trx, declared);
+          throw new WorkspaceReferenceError(gone?.field ?? null, gone?.id ?? null);
+        }
         throw error;
       }
+      await audit(trx, action, id, [...changed]);
       const [saved] = await find(trx, { id });
       return saved;
     };
@@ -202,7 +247,7 @@ export function createEntityRepository<Fields, Input, DB>(
           const id = newId();
           const now = toTimestamp(new Date());
           // The id, workspace and audit fields last: no stored field can override them.
-          return save(trx, id, fields, changed, () => loose(trx).insertInto(table).values({
+          return save(trx, id, fields, changed, 'create', () => loose(trx).insertInto(table).values({
             ...toRow(fields),
             id,
             workspaceId: scope.workspaceId,
@@ -216,12 +261,18 @@ export function createEntityRepository<Fields, Input, DB>(
 
       get: async (id) => (isId(id) ? (await find(db, { id }))[0] : undefined),
 
-      list: async (filter) => {
-        const where = parseEntity(filterSchema, filter ?? {}) as Row;
-        return find(db, pick(where, definition.filters ?? []));
+      list: async (filter, page) => {
+        const parsed = parseEntity(filterSchema, filter ?? {}) as Row;
+        return find(db, pick(parsed, definition.filters ?? []), page);
       },
 
-      count: () => Promise.reject(new Error('Not implemented')),
+      count: async (filter) => {
+        const parsed = parseEntity(filterSchema, filter ?? {}) as Row;
+        const row = await where(db, pick(parsed, definition.filters ?? []))
+          .select((expression) => expression.fn.countAll().as('count'))
+          .executeTakeFirst();
+        return Number(row?.count ?? 0);
+      },
 
       update: (id, patch) => serialized(db, async () => {
         const changes = parseEntity(definition.schema.patch, patch) as Row;
@@ -243,12 +294,16 @@ export function createEntityRepository<Fields, Input, DB>(
           // unchanged kind stays valid when its extension is turned off: data is never lost to a toggle.
           const changed = new Set(inputFields.filter((key) => !isDeepStrictEqual(fields[key], current[key])));
           checkKinds(fields, changed);
+          // Nothing to write, record or refresh: the entity stays as it was, updatedAt included.
+          if (changed.size === 0) {
+            return current;
+          }
           // Only the changed columns, and only if the row is still the one read: rules checked against `current` hold.
           const columns = stored.filter((column) => changed.has(column));
           const read = current.updatedAt as Date;
           // Always later than the last write, even within its millisecond, so every write moves it.
           const updatedAt = new Date(Math.max(Date.now(), read.getTime() + 1));
-          return save(trx, id, fields, changed, async () => {
+          return save(trx, id, fields, changed, 'update', async () => {
             const { numUpdatedRows } = await loose(trx).updateTable(table)
               .set({ ...toRow(fields, columns), updatedBy: scope.actorId, updatedAt: toTimestamp(updatedAt) })
               .where('workspaceId', '=', scope.workspaceId)
@@ -266,34 +321,29 @@ export function createEntityRepository<Fields, Input, DB>(
         if (!isId(id)) {
           return false;
         }
-        const dependents = await countDependents(db, id);
-        if (dependents.length > 0) {
-          throw new EntityInUseError(dependents);
-        }
-        // A savepoint keeps the transaction usable when the delete fails: Postgres refuses any query after a failure.
-        const savepoint = db.isTransaction;
-        try {
-          if (savepoint) {
-            await sql`savepoint remove_entity`.execute(db);
+        return inTransaction(db, async (trx) => {
+          const dependents = await countDependents(trx, id);
+          if (dependents.length > 0) {
+            throw new EntityInUseError(dependents);
           }
-          const { numDeletedRows } = await loose(db).deleteFrom(table)
-            .where('workspaceId', '=', scope.workspaceId)
-            .where('id', '=', id)
-            .executeTakeFirstOrThrow();
-          if (savepoint) {
-            await sql`release savepoint remove_entity`.execute(db);
+          try {
+            const { numDeletedRows } = await withSavepoint(trx, 'remove_entity', () => loose(trx).deleteFrom(table)
+              .where('workspaceId', '=', scope.workspaceId)
+              .where('id', '=', id)
+              .executeTakeFirstOrThrow());
+            if (numDeletedRows === 0n) {
+              return false;
+            }
+          } catch (error) {
+            // A dependent through another table, or one added since the count.
+            if (isForeignKeyViolation(error)) {
+              throw new EntityInUseError(await countDependents(trx, id, true));
+            }
+            throw error;
           }
-          return numDeletedRows > 0n;
-        } catch (error) {
-          // A dependent through another table, or one added since the count.
-          if (savepoint) {
-            await sql`rollback to savepoint remove_entity`.execute(db);
-          }
-          if (isForeignKeyViolation(error)) {
-            throw new EntityInUseError(await countDependents(db, id, true));
-          }
-          throw error;
-        }
+          await audit(trx, 'delete', id, []);
+          return true;
+        });
       }),
     };
   };

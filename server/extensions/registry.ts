@@ -16,7 +16,8 @@ export interface RegisteredLocale extends LocaleDeclaration {
 export type ExtensionState = 'active' | 'failed';
 
 /** A repository definition, with the extensions whose tables it may refer to: its own and its dependencies. */
-export type RegisteredRepository = EntityRepositoryDefinition & { tableOwners: readonly string[] };
+/** A definition with its extension, the extensions whose tables it may refer to, and every dependent on it. */
+export type RegisteredRepository = EntityRepositoryDefinition & { extension: string; tableOwners: readonly string[] };
 
 export interface RegisteredExtension {
   manifest: ExtensionManifest;
@@ -406,6 +407,7 @@ export function createExtensionRegistry(
         return {
           ...definition,
           ...(added.length > 0 ? { dependents: [...(definition.dependents ?? []), ...added] } : {}),
+          extension: manifest.id,
           tableOwners: tableOwnersOf(manifest),
         };
       }));

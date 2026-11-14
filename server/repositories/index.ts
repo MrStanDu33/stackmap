@@ -3,10 +3,10 @@ import { createEntityRepository, inTransaction } from './entity-repository';
 import { loggerFor } from '../extensions/runtime';
 
 import type { Database } from '../database/types/schema';
-import type { RegisteredFlowDeriver } from '../extensions/registry';
+import type { RegisteredFlowDeriver, RegisteredRepository } from '../extensions/registry';
 import type { ExtensionLogger, KindEntity } from '@stackmap/extension-sdk';
 import type {
-  EntityRepositories, EntityRepositoryDefinition, FlowReader, RepositoryScope,
+  EntityRepositories, FlowReader, RepositoryScope,
 } from '@stackmap/extension-sdk/server';
 import type { Kysely } from 'kysely';
 
@@ -54,7 +54,7 @@ interface Session {
  * write runs in a transaction that refreshes the workspace's derived flows before it commits.
  */
 export function createWorkspaceRepositories(
-  definitions: readonly (EntityRepositoryDefinition & { tableOwners?: readonly string[] })[],
+  definitions: readonly RegisteredRepository[],
   { flowDerivers = [], logger = loggerFor, deriverTimeoutMs }: WorkspaceRepositoriesOptions = {},
 ): (db: Kysely<Database>, scope: RepositoryScope) => WorkspaceRepositories {
   const factories = definitions.map((definition) => [definition.key, createEntityRepository(definition)] as const);

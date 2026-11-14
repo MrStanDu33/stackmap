@@ -170,12 +170,13 @@ describe.each(DIALECTS)('workspace repositories on %s', (dialect: Dialect) => {
     expect(await workspaces.a.repos.hosts.get(host.id)).toMatchObject({ name: 'Home server', os: 'Debian 13' });
   });
 
-  it('given a patch that changes nothing, writes only updatedBy and updatedAt', async () => {
+  it('given a patch that changes nothing, writes nothing', async () => {
     const host = await workspaces.a.repos.hosts.create(buildHost({ name: 'Server', os: null }));
 
     await withConcurrentWriter(() => host.id).hosts.update(host.id, { name: 'Server' });
 
-    expect(await workspaces.a.repos.hosts.get(host.id)).toMatchObject({ name: 'Server', os: 'Debian 13', updatedBy: null });
+    // No check runs, so the concurrent writer never does, and the row stays as created.
+    expect(await workspaces.a.repos.hosts.get(host.id)).toEqual(host);
   });
 
   it('given another update committed between this update\'s read and its write, refuses it and keeps nothing of it', async () => {
