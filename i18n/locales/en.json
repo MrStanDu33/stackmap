@@ -560,8 +560,9 @@
     "notEmpty": "This workspace already has data: change its extensions on the {link}.",
     "extensionsPage": "Extensions page",
     "failed": "Your choices could not be saved. Try again.",
-    "forbidden": "Only admins and owners can set up this workspace.",
+    "forbidden": "Only administrators and owners can set up this workspace.",
     "toGraph": "Go to the graph",
-    "loading": "Loading the extensions…"
+    "loading": "Loading the extensions…",
+    "loadFailed": "This page could not be loaded."
   }
 }

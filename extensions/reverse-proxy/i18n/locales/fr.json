@@ -3,7 +3,7 @@
     "reverse-proxy": {
       "name": "Proxy inverse",
       "description": "Documentez les noms d’hôte servis par vos proxys et vers où ils les redirigent.",
-      "onboarding": "Servez-vous des sites derrière un proxy inverse, comme Nginx Proxy Manager, Traefik ou Caddy ?",
+      "onboarding": "Vos sites passent-ils par un proxy inverse, comme Nginx Proxy Manager, Traefik ou Caddy ?",
       "entities": {
         "route": "Route de proxy"
       },
