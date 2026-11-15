@@ -131,6 +131,14 @@ function checkCidr(text: string): CidrCheck {
   return { cidr: { ...ip, prefix } };
 }
 
+/** An address and port as clients write them (`203.0.113.10:443`, `[2001:db8::1]:443`); without port, the address. */
+export function endpoint(address: string, port?: number | null): string {
+  if (port === null || port === undefined) {
+    return address;
+  }
+  return address.includes(':') ? `[${address}]:${String(port)}` : `${address}:${String(port)}`;
+}
+
 /** Whether the address is inside the network; never across address families. */
 export function cidrContains(cidr: string, address: string): boolean {
   const network = checkCidr(cidr);

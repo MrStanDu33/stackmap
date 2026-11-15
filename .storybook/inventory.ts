@@ -16,6 +16,7 @@ export const IDS = {
   domain: id(40),
   record: id(50),
   flow: id(60),
+  blogForward: id(70), wireguardForward: id(71),
 } as const;
 
 const common = (n: number) => ({
@@ -48,7 +49,7 @@ export const HOSTS: EntityRow[] = [
   },
   {
     id: IDS.router, name: 'Edge router', kind: 'router', os: null, siteId: null,
-    addresses: [{ address: '192.0.2.1', networkId: IDS.lan }], ...common(11),
+    addresses: [{ address: '203.0.113.10', networkId: null }, { address: '192.0.2.1', networkId: IDS.lan }], ...common(11),
   },
 ];
 
@@ -72,17 +73,33 @@ export const FLOWS: EntityRow[] = [
   { id: IDS.flow, sourceServiceId: IDS.blog, targetListenerId: IDS.databasePort, protocol: null, purpose: 'Stores the posts', encrypted: false, ...common(60) },
 ];
 
+export const PORT_FORWARDS: EntityRow[] = [
+  {
+    id: IDS.blogForward, hostId: IDS.router, externalAddress: '203.0.113.10', externalPort: 443, transport: 'tcp',
+    internalAddress: '192.0.2.10', internalPort: 8443, description: 'Blog', ...common(70),
+  },
+  {
+    id: IDS.wireguardForward, hostId: IDS.router, externalAddress: '203.0.113.10', externalPort: 80, transport: 'tcp',
+    internalAddress: '192.0.2.10', internalPort: 8080, description: 'Blog HTTP', ...common(71),
+  },
+];
+
+/** A reference option as the inventory page gives it to forms: the referenced row with its name. */
+export type ReferenceOption = { id: string; label: string; entity: Record<string, unknown> };
+const named = (rows: EntityRow[]): ReferenceOption[] =>
+  rows.map((row) => ({ id: row.id, label: String(row.name), entity: row }));
+
 /** What the inventory page gives a form for its reference selects, by referenced type. */
-export const REFERENCES: Record<string, { id: string; label: string }[]> = {
-  'core/site': SITES.map(({ id: value, name }) => ({ id: value, label: String(name) })),
-  'core/network': NETWORKS.map(({ id: value, name }) => ({ id: value, label: String(name) })),
-  'core/host': HOSTS.map(({ id: value, name }) => ({ id: value, label: String(name) })),
-  'core/service': SERVICES.map(({ id: value, name }) => ({ id: value, label: String(name) })),
+export const REFERENCES: Record<string, ReferenceOption[]> = {
+  'core/site': named(SITES),
+  'core/network': named(NETWORKS),
+  'core/host': named(HOSTS),
+  'core/service': named(SERVICES),
   'core/listener': [
-    { id: IDS.blogHttp, label: 'Blog :3000/tcp' },
-    { id: IDS.databasePort, label: 'Blog database :5432/tcp' },
+    { id: IDS.blogHttp, label: 'Blog :3000/tcp', entity: LISTENERS[0] as EntityRow },
+    { id: IDS.databasePort, label: 'Blog database :5432/tcp', entity: LISTENERS[1] as EntityRow },
   ],
-  'core/domain': DOMAINS.map(({ id: value, name }) => ({ id: value, label: String(name) })),
+  'core/domain': named(DOMAINS),
 };
 
 /** The host table's columns, as the core registers them. */

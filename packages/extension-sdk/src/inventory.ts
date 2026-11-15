@@ -2,7 +2,7 @@ import type { ExtensionManifest, KindEntity } from './manifest';
 
 const REFERENCE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
-export const COLUMN_FORMATS = ['text', 'kind', 'reference', 'date', 'boolean', 'number', 'list', 'enum'] as const;
+export const COLUMN_FORMATS = ['text', 'kind', 'reference', 'date', 'boolean', 'number', 'list', 'enum', 'endpoint'] as const;
 export type ColumnFormat = (typeof COLUMN_FORMATS)[number];
 
 /** A column of an inventory table: a field of the entity, its label, and how its value shows. */
@@ -17,6 +17,8 @@ export interface InventoryColumn {
   kind?: KindEntity;
   /** For an `enum` column: the i18n key prefix of its values' labels, `<prefix>.<value>`. */
   labels?: string;
+  /** For an `endpoint` column (`field` is the address): the field holding its port, shown `<address>:<port>`. */
+  port?: string;
 }
 
 /** An entity type in the inventory: its hand-written form, loaded when opened, and its table's columns. */
@@ -46,18 +48,21 @@ export function defineInventory<Form>(
 ): ExtensionInventory<Form> {
   const declared = new Set((manifest.contributes.entities ?? []).map(({ id }) => id));
   const prefix = `extensions.${manifest.id}.`;
+  // A dependency's strings are always loaded with the extension's: its value labels can be shared (core transports).
+  const labelPrefixes = [manifest.id, ...manifest.dependsOn].map((id) => `extensions.${id}.`);
   const problems = types.flatMap(({ entity, columns }, index) => [
     ...(declared.has(entity) ? [] : [`"${entity}" is not an entity of the manifest`]),
     ...(types.findIndex((other) => other.entity === entity) === index ? [] : [`"${entity}" is listed twice`]),
     ...(columns.length === 0 ? [`"${entity}" has no column`] : []),
-    ...columns.flatMap(({ field, label, format, reference, labels }) => [
+    ...columns.flatMap(({ field, label, format, reference, labels, port }) => [
       ...(label.startsWith(prefix) ? [] : [`"${entity}.${field}": its label ${label} is not under ${prefix}`]),
       ...(format === 'reference' && !REFERENCE.test(reference ?? '')
         ? [`"${entity}.${field}": a reference column needs <extension>/<entity>, not ${reference ?? 'nothing'}`]
         : []),
-      ...(format === 'enum' && !labels?.startsWith(prefix)
-        ? [`"${entity}.${field}": an enum column needs labels under ${prefix}, not ${labels ?? 'nothing'}`]
+      ...(format === 'enum' && !labelPrefixes.some((allowed) => labels?.startsWith(allowed))
+        ? [`"${entity}.${field}": an enum column needs labels under ${labelPrefixes.join(' or ')}, not ${labels ?? 'nothing'}`]
         : []),
+      ...(format === 'endpoint' && !port ? [`"${entity}.${field}": an endpoint column needs the field holding its port`] : []),
     ]),
   ]);
   if (problems.length > 0) {

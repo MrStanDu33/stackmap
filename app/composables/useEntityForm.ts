@@ -138,8 +138,8 @@ export interface EntityFormProps {
   /** Translated messages by field path. */
   issues: Record<string, string[]>;
   readonly: boolean;
-  /** The entities each reference field can choose from, by type: `core/site`. */
-  references: Record<string, { id: string; label: string }[]>;
+  /** The entities each reference field can choose from, by type: `core/site`; `entity` is the row, for its fields. */
+  references: Record<string, { id: string; label: string; entity: Record<string, unknown> }[]>;
 }
 
 /** A field's id in a form: `host-form-addresses-1-address`. */

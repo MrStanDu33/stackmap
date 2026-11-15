@@ -271,6 +271,37 @@ test.describe('inventory', () => {
     await expect(page.getByRole('table', { name: /Home server/ }).locator('caption')).toContainText('Physical server');
   });
 
+  test('an editor creates a port forward on the router, picking its address, and deletes it (9, 11, 16)', async ({ page }) => {
+    const workspace = await createWorkspace(page);
+    await createEntity(page, workspace.id, 'core/host', {
+      name: 'Edge router', kind: 'router', addresses: [{ address: '203.0.113.10' }, { address: '192.0.2.1' }],
+    });
+    await page.goto(`/w/${workspace.slug}/inventory/nat/port-forward`);
+    await hydrated(page);
+    await expect(page.getByRole('heading', { level: 1, name: 'Port forwards' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'New Port forward' }).click();
+    const dialog = page.getByRole('dialog', { name: 'New Port forward' });
+    await pick(page, /^Host/, 'Edge router');
+    await page.getByRole('combobox', { name: /^External address/ }).click();
+    await expect(page.getByRole('option')).toHaveText(['203.0.113.10', '192.0.2.1']);
+    await page.getByRole('option', { name: '203.0.113.10', exact: true }).click();
+    await dialog.getByRole('spinbutton', { name: /^External port/ }).fill('443');
+    await dialog.getByRole('textbox', { name: /^Internal address/ }).fill('192.0.2.10');
+    await dialog.getByRole('spinbutton', { name: /^Internal port/ }).fill('8443');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+
+    await expect(dialog).toBeHidden();
+    const name = 'Edge router 203.0.113.10:443/tcp';
+    await expect(announced(page, `${name} created`)).toBeAttached();
+    const row = page.getByRole('table', { name: /Port forwards/ }).getByRole('row', { name: /203\.0\.113\.10:443/ });
+    await expect(row).toContainText('192.0.2.10:8443');
+
+    await page.getByRole('button', { name: `Delete ${name}` }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: `Delete ${name}` }).click();
+    await expect(announced(page, `${name} deleted`)).toBeAttached();
+  });
+
   test('has no axe violation: table, slide-over with issues, delete dialog', async ({ page }) => {
     const workspace = await createWorkspace(page);
     await createEntity(page, workspace.id, 'core/host', { name: 'nas', kind: 'physical' });

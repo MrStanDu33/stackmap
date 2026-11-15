@@ -15,6 +15,22 @@
       "issues": {
         "address-not-on-host": "Expected an address of this host",
         "ip-version-mismatch": "Expected an address of the same IP version as the external one"
+      },
+      "fields": {
+        "port-forward": {
+          "hostId": "Host",
+          "external": "External",
+          "externalAddress": "External address",
+          "externalPort": "External port",
+          "transport": "Transport",
+          "internal": "Internal",
+          "internalAddress": "Internal address",
+          "internalPort": "Internal port",
+          "description": "Description",
+          "portHint": "From 1 to 65535",
+          "chooseHostFirst": "Choose the host first",
+          "hostWithoutAddress": "This host has no address yet: add one to the host first"
+        }
       }
     }
   }

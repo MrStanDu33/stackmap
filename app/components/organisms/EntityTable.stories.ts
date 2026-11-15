@@ -2,8 +2,10 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { ref } from 'vue';
 
 import EntityTable from './EntityTable.vue';
-import { HOST_COLUMNS, HOSTS, IDS, manyHosts, optionTexts, pick, REFERENCES, SITES } from '../../../.storybook/inventory';
+import { HOST_COLUMNS, HOSTS, IDS, manyHosts, optionTexts, pick, PORT_FORWARDS, REFERENCES, SITES } from '../../../.storybook/inventory';
 import { i18n } from '../../../.storybook/nuxt-shims';
+import natInventory from '../../../extensions/nat/app/inventory';
+import { cellText } from '../../utils/inventory-cells';
 import { DEFAULT_INVENTORY_QUERY } from '../../utils/inventory-query';
 
 import type { InventoryQuery } from '../../utils/inventory-query';
@@ -322,5 +324,41 @@ export const Sites: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole('combobox', { name: t('inventory.filterKind') })).toBeNull();
     await expect(canvas.getByRole('combobox', { name: t('inventory.filterStatus') })).toBeVisible();
+  },
+};
+
+const forwardCells = (entity: EntityRow, column: InventoryColumn): string => cellText(entity, column, {
+  t: (key, params) => t(key, params ?? {}),
+  locale: i18n.global.locale.value,
+  name: (reference, id) => REFERENCES[reference]?.find((option) => option.id === id)?.label ?? '',
+  kindLabel: (_, value) => value,
+});
+
+/** Port forwards: endpoints as <address>:<port>, sorted with the port as a number, found by their port (3, 4, 5, 6). */
+export const PortForwards: Story = {
+  args: {
+    entities: PORT_FORWARDS,
+    total: PORT_FORWARDS.length,
+    columns: [...natInventory.types[0]?.columns ?? []],
+    display: forwardCells,
+    typeLabel: 'extensions.nat.entities.port-forward',
+    pluralLabel: 'extensions.nat.entitiesPlural.port-forward',
+    kindField: undefined,
+    kindEntity: undefined,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const grid = within(canvas.getByRole('table'));
+    const external = () => grid.getAllByRole('row').slice(1).map((row) => within(row).getAllByRole('cell')[1]?.textContent.trim());
+
+    await expect(grid.getAllByRole('columnheader').map(({ textContent }) => textContent.trim()).slice(0, 5)).toEqual(
+      ['hostId', 'external', 'transport', 'internal', 'description'].map((field) => t(`extensions.nat.fields.port-forward.${field}`)),
+    );
+    await expect(grid.getAllByRole('row')[1]).toHaveTextContent('Edge router');
+    await userEvent.click(grid.getByRole('button', { name: t('extensions.nat.fields.port-forward.external') }));
+    await expect(external()).toEqual(['203.0.113.10:80', '203.0.113.10:443']);
+    await expect(grid.getAllByRole('row')[1]).toHaveTextContent('192.0.2.10:8080');
+    await userEvent.type(search(canvasElement), '443');
+    await waitFor(() => expect(external()).toEqual(['203.0.113.10:443']));
   },
 };

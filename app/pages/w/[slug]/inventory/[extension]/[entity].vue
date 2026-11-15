@@ -112,7 +112,7 @@ const name = (entity: EntityRow) => (type.value ? nameIn(type.value.key, entity)
 const kindColumn = computed(() => type.value?.columns.find(({ format, field }) => format === 'kind' && field === 'kind'));
 const references = computed(() => Object.fromEntries(Object.entries(lists.value).flatMap(([key, list]) => (list === 'error'
   ? []
-  : [[key, list.items.map((item) => ({ id: item.id, label: nameIn(key, item) }))
+  : [[key, list.items.map((item) => ({ id: item.id, label: nameIn(key, item), entity: item }))
       .sort((a, b) => a.label.localeCompare(b.label, locale.value, { numeric: true }))]]))));
 
 const template = useTemplateRef<{ focusHeading: () => void }>('template');

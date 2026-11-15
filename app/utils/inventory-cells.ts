@@ -1,3 +1,5 @@
+import { endpoint } from '@stackmap/extension-sdk/entities';
+
 import type { Translate } from './traffic-graph';
 import type { InventoryColumn, KindEntity } from '@stackmap/extension-sdk';
 
@@ -40,6 +42,11 @@ export function cellText(entity: Record<string, unknown>, column: InventoryColum
         : valueText(item))).join(', ');
     case 'number':
       return typeof value === 'number' ? new Intl.NumberFormat(context.locale).format(value) : valueText(value);
+    case 'endpoint': {
+      // A port is an identifier: not grouped by the locale, as a number column would be.
+      const port = entity[column.port ?? ''];
+      return endpoint(valueText(value), typeof port === 'number' ? port : null);
+    }
     case 'date':
       return new Intl.DateTimeFormat(context.locale, { dateStyle: 'medium' }).format(new Date(valueText(value)));
     default:
