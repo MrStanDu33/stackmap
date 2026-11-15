@@ -64,4 +64,14 @@ describe('cellText', () => {
     expect(cellText({ externalAddress: '203.0.113.10', externalPort: null }, external, en)).toBe('203.0.113.10');
     expect(cellText({ externalAddress: null, externalPort: 443 }, external, en)).toBe('');
   });
+
+  it('shows a boolean column as Yes or No in the interface\'s language (3)', () => {
+    const forceSsl = column('forceSsl', { format: 'boolean' });
+    const fr = contextFor('fr');
+
+    expect(cellText({ forceSsl: true }, forceSsl, contextFor('en'))).toBe('Yes');
+    expect(cellText({ forceSsl: false }, forceSsl, contextFor('en'))).toBe('No');
+    expect(cellText({ forceSsl: true }, forceSsl, fr)).toBe(fr.t('inventory.yes'));
+    expect(fr.t('inventory.yes')).not.toBe('Yes');
+  });
 });
