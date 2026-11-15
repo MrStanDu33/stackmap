@@ -37,9 +37,10 @@ const press = (canvasElement: HTMLElement, name: string) =>
   userEvent.click(within(canvasElement).getByRole('button', { name }));
 const group = (canvasElement: HTMLElement, name: string) => within(canvasElement).getByRole('group', { name });
 
-const PORT_FORWARDS = t('extensions.nat.entitiesPlural.port-forward');
-const PROXY_ROUTES = t('extensions.reverse-proxy.entitiesPlural.route');
-const PROXY_KIND = t('extensions.reverse-proxy.kinds.service.reverse-proxy');
+// Read when called: each story project switches the locale after this module loads.
+const portForwards = () => t('extensions.nat.entitiesPlural.port-forward');
+const proxyRoutes = () => t('extensions.reverse-proxy.entitiesPlural.route');
+const proxyKind = () => t('extensions.reverse-proxy.kinds.service.reverse-proxy');
 
 /**
  * Fictional extensions, ACME certificates needing TLS certificates, to show requirements: no built-in extension
@@ -79,10 +80,10 @@ export const Default: Story = {
     }
     await expect(within(group(canvasElement, question('nat'))).getAllByRole('checkbox')).toHaveLength(1);
     await expect(within(group(canvasElement, question('reverse-proxy'))).getAllByRole('checkbox')).toHaveLength(2);
-    for (const name of [PORT_FORWARDS, PROXY_ROUTES, PROXY_KIND]) {
+    for (const name of [portForwards(), proxyRoutes(), proxyKind()]) {
       await expect(box(canvasElement, name)).not.toBeChecked();
     }
-    await expect(box(canvasElement, PROXY_KIND))
+    await expect(box(canvasElement, proxyKind()))
       .toHaveAccessibleDescription(t('onboarding.kindHint', { entity: t('extensions.core.entities.service') }));
   },
 };
@@ -114,7 +115,7 @@ export const NoItems: Story = {
 /** Continue sends the extensions with an item checked (19′). */
 export const Continue: Story = {
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(box(canvasElement, PORT_FORWARDS));
+    await userEvent.click(box(canvasElement, portForwards()));
     await press(canvasElement, t('onboarding.continue'));
 
     await expect(args.onSubmit).toHaveBeenCalledWith(['nat']);
@@ -124,12 +125,12 @@ export const Continue: Story = {
 /** Any item of an extension turns it on, once, in the order shown: its kind alone, or with its entity type (19′). */
 export const ItemPicksExtension: Story = {
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(box(canvasElement, PROXY_KIND));
+    await userEvent.click(box(canvasElement, proxyKind()));
     await press(canvasElement, t('onboarding.continue'));
     await expect(args.onSubmit).toHaveBeenLastCalledWith(['reverse-proxy']);
 
-    await userEvent.click(box(canvasElement, PROXY_ROUTES));
-    await userEvent.click(box(canvasElement, PORT_FORWARDS));
+    await userEvent.click(box(canvasElement, proxyRoutes()));
+    await userEvent.click(box(canvasElement, portForwards()));
     await press(canvasElement, t('onboarding.continue'));
     await expect(args.onSubmit).toHaveBeenLastCalledWith(['reverse-proxy', 'nat']);
   },
@@ -151,8 +152,9 @@ export const Requirements: Story = {
     await userEvent.click(box(canvasElement, itemOf('acme', 'account')));
 
     await expect(box(canvasElement, itemOf('tls', 'certificate'))).toBeChecked();
-    await expect(within(canvasElement).getByRole('status'))
-      .toHaveTextContent(t('onboarding.alsoChecked', { item: itemOf('acme', 'account'), names: itemOf('tls', 'certificate') }));
+    // Compared raw: toHaveTextContent turns the French no-break space into a plain one.
+    await expect(within(canvasElement).getByRole('status').textContent.trim())
+      .toBe(t('onboarding.alsoChecked', { item: itemOf('acme', 'account'), names: itemOf('tls', 'certificate') }));
     await press(canvasElement, t('onboarding.continue'));
     await expect(args.onSubmit).toHaveBeenCalledWith(['tls', 'acme']);
   },
@@ -188,7 +190,7 @@ export const RequirementAlreadyMet: Story = {
 /** Skip for now sends nothing (21). */
 export const Skip: Story = {
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(box(canvasElement, PORT_FORWARDS));
+    await userEvent.click(box(canvasElement, portForwards()));
     await press(canvasElement, t('onboarding.skip'));
 
     await expect(args.onSkip).toHaveBeenCalled();
@@ -223,11 +225,11 @@ export const Failed: Story = {
     template: '<StackQuestions v-bind="args" :error="error" @submit="submit" />',
   }),
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(box(canvasElement, PORT_FORWARDS));
+    await userEvent.click(box(canvasElement, portForwards()));
     await press(canvasElement, t('onboarding.continue'));
 
     await expect(await within(canvasElement).findByRole('alert')).toHaveTextContent(t('onboarding.failed'));
-    await expect(box(canvasElement, PORT_FORWARDS)).toBeChecked();
+    await expect(box(canvasElement, portForwards())).toBeChecked();
     await press(canvasElement, t('onboarding.continue'));
     await expect(args.onSubmit).toHaveBeenCalledTimes(2);
     await expect(args.onSubmit).toHaveBeenLastCalledWith(['nat']);

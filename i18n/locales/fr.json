@@ -563,6 +563,8 @@
     "forbidden": "Seuls les administrateurs et les propriétaires peuvent configurer cet espace de travail.",
     "toGraph": "Aller au graphe",
     "loading": "Chargement des extensions…",
-    "loadFailed": "Cette page n’a pas pu être chargée."
+    "loadFailed": "Cette page n’a pas pu être chargée.",
+    "kindHint": "Type · {entity}",
+    "alsoChecked": "Également coché pour {item} : {names}"
   }
 }

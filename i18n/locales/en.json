@@ -563,6 +563,8 @@
     "forbidden": "Only administrators and owners can set up this workspace.",
     "toGraph": "Go to the graph",
     "loading": "Loading the extensions…",
-    "loadFailed": "This page could not be loaded."
+    "loadFailed": "This page could not be loaded.",
+    "kindHint": "Kind · {entity}",
+    "alsoChecked": "Also checked for {item}: {names}"
   }
 }
