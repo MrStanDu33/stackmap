@@ -40,20 +40,22 @@ const createWorkspace = async (page: Page) => {
 const extensionSwitch = (page: Page, name: string) => page.getByRole('switch', { name });
 
 test.describe('onboarding', () => {
-  test('given an admin creating a workspace, the creation toast shows and "What\'s in your stack?" opens with every question unchecked, with no axe violation (16, 17, 26)', async ({ page }) => {
+  test('given an admin creating a workspace, the creation toast shows and "What\'s in your stack?" opens with every item unchecked under its question, with no axe violation (16, 17′, 26)', async ({ page }) => {
     await createThroughForm(page);
 
     await expect(page.getByText(/^Workspace “Stack .+” created$/)).toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: 'What\'s in your stack?' })).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: NAT })).not.toBeChecked();
-    await expect(page.getByRole('checkbox', { name: PROXY })).not.toBeChecked();
+    await expect(page.getByRole('group', { name: NAT }).getByRole('checkbox', { name: 'Port forwards' })).not.toBeChecked();
+    const proxy = page.getByRole('group', { name: PROXY });
+    await expect(proxy.getByRole('checkbox', { name: 'Proxy routes' })).not.toBeChecked();
+    await expect(proxy.getByRole('checkbox', { name: 'Reverse proxy' })).not.toBeChecked();
     await expectNoAxeViolation(page);
   });
 
-  test('given Router and NAT picked, Continue says the stack is set up and opens the graph; the Extensions page shows NAT on and reverse proxy off, and the inventory offers port forwards but not proxy routes (19, 27)', async ({ page }) => {
+  test('given Port forwards picked, Continue says the stack is set up and opens the graph; the Extensions page shows NAT on and reverse proxy off, and the inventory offers port forwards but not proxy routes (19′, 27)', async ({ page }) => {
     const slug = await createThroughForm(page);
 
-    await page.getByRole('checkbox', { name: NAT }).check();
+    await page.getByRole('checkbox', { name: 'Port forwards' }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByText('Your stack is set up', { exact: true })).toBeVisible();
@@ -74,7 +76,7 @@ test.describe('onboarding', () => {
   test('given Skip for now, the graph opens and every extension stays on (21)', async ({ page }) => {
     const slug = await createThroughForm(page);
 
-    await page.getByRole('checkbox', { name: NAT }).check();
+    await page.getByRole('checkbox', { name: 'Port forwards' }).check();
     await page.getByRole('button', { name: 'Skip for now' }).click();
 
     await expect(page).toHaveURL(`${DEMO_URL}/w/${slug}/graph`);
@@ -129,7 +131,7 @@ test.describe('onboarding', () => {
     await page.unroute('**/api/workspaces/*/extensions');
     await page.getByRole('button', { name: 'Try again' }).click();
 
-    await expect(page.getByRole('checkbox', { name: NAT })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'Port forwards' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: 'What\'s in your stack?' })).toBeFocused();
   });
 

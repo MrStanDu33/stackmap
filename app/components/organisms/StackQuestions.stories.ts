@@ -35,42 +35,107 @@ const hint = (id: string) => t('onboarding.hint', { name: t(extension(id).name),
 const box = (canvasElement: HTMLElement, name: string) => within(canvasElement).getByRole('checkbox', { name });
 const press = (canvasElement: HTMLElement, name: string) =>
   userEvent.click(within(canvasElement).getByRole('button', { name }));
+const group = (canvasElement: HTMLElement, name: string) => within(canvasElement).getByRole('group', { name });
 
-/** A plain question per optional extension, unchecked, described by the extension's name and description (17). */
+const PORT_FORWARDS = t('extensions.nat.entitiesPlural.port-forward');
+const PROXY_ROUTES = t('extensions.reverse-proxy.entitiesPlural.route');
+const PROXY_KIND = t('extensions.reverse-proxy.kinds.service.reverse-proxy');
+
+/**
+ * Fictional extensions, ACME certificates needing TLS certificates, to show requirements: no built-in extension
+ * needs another optional one.
+ */
+const tls: WorkspaceExtension = {
+  ...extension('nat'),
+  id: 'tls',
+  name: 'TLS certificates',
+  description: 'Certificates and where they are used.',
+  onboarding: 'Do you manage TLS certificates?',
+  entities: [{ id: 'certificate', label: 'Certificate' }],
+};
+const acme: WorkspaceExtension = {
+  ...extension('nat'),
+  id: 'acme',
+  name: 'ACME certificates',
+  description: 'Certificates renewed through ACME.',
+  onboarding: 'Do you renew certificates with ACME?',
+  dependsOn: ['core', 'tls'],
+  entities: [{ id: 'account', label: 'ACME account' }],
+};
+// Strings of the fictional extensions are plain text: the i18n shim gives back what it cannot translate.
+const REQUIRING = [extension('core'), tls, acme];
+const itemOf = (id: string, entity: string) => t(`extensions.${id}.entitiesPlural.${entity}`);
+
+/**
+ * A group per optional extension, named by its question and described by its name and description, with an
+ * unchecked checkbox per entity type and kind it adds (17′).
+ */
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('group', { name: t('onboarding.title') })).toBeVisible();
-    await expect(canvas.getAllByRole('checkbox')).toHaveLength(2);
     for (const id of ['nat', 'reverse-proxy']) {
-      await expect(box(canvasElement, question(id))).not.toBeChecked();
-      await expect(box(canvasElement, question(id))).toHaveAccessibleDescription(hint(id));
+      await expect(group(canvasElement, question(id))).toHaveAccessibleDescription(hint(id));
     }
+    await expect(within(group(canvasElement, question('nat'))).getAllByRole('checkbox')).toHaveLength(1);
+    await expect(within(group(canvasElement, question('reverse-proxy'))).getAllByRole('checkbox')).toHaveLength(2);
+    for (const name of [PORT_FORWARDS, PROXY_ROUTES, PROXY_KIND]) {
+      await expect(box(canvasElement, name)).not.toBeChecked();
+    }
+    await expect(box(canvasElement, PROXY_KIND))
+      .toHaveAccessibleDescription(t('onboarding.kindHint', { entity: t('extensions.core.entities.service') }));
   },
 };
 
-/** An extension that asks no question is offered by its name (18). */
+/** An extension that asks no question has its group named by its name (17′). */
 export const NoQuestion: Story = {
   args: {
     extensions: EXTENSIONS.map(({ onboarding: _onboarding, ...installed }) => installed),
   },
   play: async ({ canvasElement }) => {
-    await expect(box(canvasElement, t(extension('nat').name))).not.toBeChecked();
-    await expect(box(canvasElement, t(extension('reverse-proxy').name))).not.toBeChecked();
+    await expect(group(canvasElement, t(extension('nat').name))).toBeVisible();
+    await expect(group(canvasElement, t(extension('reverse-proxy').name))).toBeVisible();
   },
 };
 
-/** Continue sends the extensions checked (19). */
-export const Continue: Story = {
+/** An extension that adds no entity type and no kind is one checkbox, named after it (18′). */
+export const NoItems: Story = {
+  args: {
+    extensions: EXTENSIONS.map((installed) => (installed.id === 'nat' ? { ...installed, entities: [] } : installed)),
+  },
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(box(canvasElement, question('nat')));
+    await userEvent.click(within(group(canvasElement, question('nat'))).getByRole('checkbox', { name: t(extension('nat').name) }));
     await press(canvasElement, t('onboarding.continue'));
 
     await expect(args.onSubmit).toHaveBeenCalledWith(['nat']);
   },
 };
 
-/** With nothing checked, Continue sends an empty choice: every optional extension goes off (20). */
+/** Continue sends the extensions with an item checked (19′). */
+export const Continue: Story = {
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(box(canvasElement, PORT_FORWARDS));
+    await press(canvasElement, t('onboarding.continue'));
+
+    await expect(args.onSubmit).toHaveBeenCalledWith(['nat']);
+  },
+};
+
+/** Any item of an extension turns it on, once, in the order shown: its kind alone, or with its entity type (19′). */
+export const ItemPicksExtension: Story = {
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(box(canvasElement, PROXY_KIND));
+    await press(canvasElement, t('onboarding.continue'));
+    await expect(args.onSubmit).toHaveBeenLastCalledWith(['reverse-proxy']);
+
+    await userEvent.click(box(canvasElement, PROXY_ROUTES));
+    await userEvent.click(box(canvasElement, PORT_FORWARDS));
+    await press(canvasElement, t('onboarding.continue'));
+    await expect(args.onSubmit).toHaveBeenLastCalledWith(['reverse-proxy', 'nat']);
+  },
+};
+
+/** With nothing checked, Continue sends an empty choice: every optional extension goes off (20′). */
 export const ContinueWithNothing: Story = {
   play: async ({ canvasElement, args }) => {
     await press(canvasElement, t('onboarding.continue'));
@@ -79,10 +144,51 @@ export const ContinueWithNothing: Story = {
   },
 };
 
+/** Checking an item checks the items of the extensions it needs, and says so (28). */
+export const Requirements: Story = {
+  args: { extensions: REQUIRING },
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(box(canvasElement, itemOf('acme', 'account')));
+
+    await expect(box(canvasElement, itemOf('tls', 'certificate'))).toBeChecked();
+    await expect(within(canvasElement).getByRole('status'))
+      .toHaveTextContent(t('onboarding.alsoChecked', { item: itemOf('acme', 'account'), names: itemOf('tls', 'certificate') }));
+    await press(canvasElement, t('onboarding.continue'));
+    await expect(args.onSubmit).toHaveBeenCalledWith(['tls', 'acme']);
+  },
+};
+
+/** An item checked as a requirement can be unchecked; the choice still holds the extension that needs it (29). */
+export const RequirementsFree: Story = {
+  args: { extensions: REQUIRING },
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(box(canvasElement, itemOf('acme', 'account')));
+    await userEvent.click(box(canvasElement, itemOf('tls', 'certificate')));
+
+    await expect(box(canvasElement, itemOf('tls', 'certificate'))).not.toBeChecked();
+    await press(canvasElement, t('onboarding.continue'));
+    await expect(args.onSubmit).toHaveBeenCalledWith(['acme']);
+  },
+};
+
+/** A requirement already met changes nothing else, and nothing is said (30). */
+export const RequirementAlreadyMet: Story = {
+  args: {
+    extensions: [extension('core'), { ...tls, entities: [...tls.entities, { id: 'store', label: 'Store' }] }, acme],
+  },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(box(canvasElement, itemOf('tls', 'store')));
+    await userEvent.click(box(canvasElement, itemOf('acme', 'account')));
+
+    await expect(box(canvasElement, itemOf('tls', 'certificate'))).not.toBeChecked();
+    await expect(within(canvasElement).getByRole('status')).toHaveTextContent('');
+  },
+};
+
 /** Skip for now sends nothing (21). */
 export const Skip: Story = {
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(box(canvasElement, question('nat')));
+    await userEvent.click(box(canvasElement, PORT_FORWARDS));
     await press(canvasElement, t('onboarding.skip'));
 
     await expect(args.onSkip).toHaveBeenCalled();
@@ -97,7 +203,7 @@ export const NotEmpty: Story = {
     const alert = within(canvasElement).getByRole('alert');
     await expect(within(alert).getByRole('link', { name: t('onboarding.extensionsPage') }))
       .toHaveAttribute('href', '/w/home/extensions');
-    await expect(within(canvasElement).getAllByRole('checkbox')).toHaveLength(2);
+    await expect(within(canvasElement).getAllByRole('checkbox')).toHaveLength(3);
   },
 };
 
@@ -117,11 +223,11 @@ export const Failed: Story = {
     template: '<StackQuestions v-bind="args" :error="error" @submit="submit" />',
   }),
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(box(canvasElement, question('nat')));
+    await userEvent.click(box(canvasElement, PORT_FORWARDS));
     await press(canvasElement, t('onboarding.continue'));
 
     await expect(await within(canvasElement).findByRole('alert')).toHaveTextContent(t('onboarding.failed'));
-    await expect(box(canvasElement, question('nat'))).toBeChecked();
+    await expect(box(canvasElement, PORT_FORWARDS)).toBeChecked();
     await press(canvasElement, t('onboarding.continue'));
     await expect(args.onSubmit).toHaveBeenCalledTimes(2);
     await expect(args.onSubmit).toHaveBeenLastCalledWith(['nat']);
