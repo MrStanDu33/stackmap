@@ -154,6 +154,11 @@ export const PROBLEMS = {
     title: 'The entity is connected',
     description: 'A flow of the workspace is based on the entity: it is not hidden on its own.',
   },
+  workspace_not_empty: {
+    status: 409,
+    title: 'The workspace is not empty',
+    description: 'The workspace already holds entities: its extensions are turned on or off one by one.',
+  },
   extension_always_on: {
     status: 409,
     title: 'The extension is always on',

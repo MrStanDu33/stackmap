@@ -17,6 +17,7 @@ export const INSTALLED_EXTENSIONS: readonly WorkspaceExtension[] = BUILTIN_EXTEN
   version: manifest.version,
   name: manifest.name,
   description: manifest.description,
+  ...(manifest.onboarding === undefined ? {} : { onboarding: manifest.onboarding }),
   ...(manifest.icon === undefined ? {} : { icon: manifest.icon }),
   alwaysOn: manifest.alwaysOn,
   dependsOn: [...manifest.dependsOn],

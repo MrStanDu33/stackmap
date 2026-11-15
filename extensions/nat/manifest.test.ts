@@ -10,3 +10,9 @@ describe('nat manifest', () => {
     expect([nat.name, nat.description]).toEqual(['extensions.nat.name', 'extensions.nat.description']);
   });
 });
+
+describe('nat manifest: onboarding', () => {
+  it('asks its onboarding question under extensions.nat.onboarding (3)', () => {
+    expect(nat.onboarding).toBe('extensions.nat.onboarding');
+  });
+});

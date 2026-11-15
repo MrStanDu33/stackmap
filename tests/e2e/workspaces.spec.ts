@@ -89,9 +89,12 @@ test.describe('workspaces', () => {
     await expect(page.getByRole('textbox', { name: 'Short name' })).toHaveValue(slug);
     await page.getByRole('button', { name: 'Create workspace' }).click();
 
-    await expect(page).toHaveURL(`${DEMO_URL}/w/${slug}/graph`);
     // Said by a toast, which outlives the page that created the workspace.
     await expect(page.getByText(`Workspace “Home ${slug.slice(5)}” created`, { exact: true })).toBeVisible();
+    // Onboarding comes first (5c′): skipped, the workspace opens on its graph.
+    await expect(page).toHaveURL(`${DEMO_URL}/w/${slug}/onboarding`);
+    await page.getByRole('button', { name: 'Skip for now' }).click();
+    await expect(page).toHaveURL(`${DEMO_URL}/w/${slug}/graph`);
     await expect(page.getByText('Nothing to draw yet')).toBeVisible();
     await expect(switcher(page, `Home ${slug.slice(5)}`)).toBeVisible();
   });

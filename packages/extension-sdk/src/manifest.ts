@@ -56,6 +56,8 @@ export interface ExtensionManifest {
   apiVersion: number;
   name: string;
   description: string;
+  /** i18n key of the plain question onboarding asks to offer it ("Does a router forward ports…?"). */
+  onboarding?: string;
   icon?: ExtensionIcon;
   /** Cannot be turned off (the core). */
   alwaysOn: boolean;

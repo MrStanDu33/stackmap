@@ -274,3 +274,14 @@ describe('entity declarations', () => {
     expect(manifestProblems(manifest)).toEqual(expect.arrayContaining([expect.stringMatching(/^id: /)]));
   });
 });
+
+describe('defineExtension: onboarding question', () => {
+  it('accepts onboarding, an i18n key under extensions.<id>., and no onboarding at all (2)', () => {
+    const asked = { ...minimal(), onboarding: 'extensions.reverse-proxy.onboarding' };
+
+    expect(defineExtension(asked)).toHaveProperty('onboarding', 'extensions.reverse-proxy.onboarding');
+    expect(defineExtension(minimal())).not.toHaveProperty('onboarding');
+    expect(problemsOf(() => defineExtension({ ...minimal(), onboarding: 'extensions.nat.onboarding' })))
+      .toContainEqual(expect.stringMatching(/^onboarding: /));
+  });
+});

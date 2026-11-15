@@ -165,3 +165,12 @@ describe('GET /api/extensions: entities', () => {
     ]);
   });
 });
+
+describe('GET /api/extensions: onboarding questions', () => {
+  it('lists each extension\'s onboarding key when it has one, and none otherwise (3)', async () => {
+    const { json } = await get([core, { ...vpn, onboarding: 'extensions.vpn.onboarding' }]);
+
+    expect(json.extensions[0]).not.toHaveProperty('onboarding');
+    expect(json.extensions[1]).toHaveProperty('onboarding', 'extensions.vpn.onboarding');
+  });
+});
