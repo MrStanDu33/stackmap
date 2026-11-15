@@ -342,7 +342,7 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
                 fill="none"
                 vector-effect="non-scaling-stroke"
                 class="traffic-edge"
-                :class="`is-${flowState(edge.data.flow)}`"
+                :class="[`is-${flowState(edge.data.flow)}`, { 'is-hidden': edge.data.flow.hidden }]"
               />
             </g>
           </template>
@@ -353,7 +353,11 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
 </template>
 
 <style scoped>
-/* Highlighted flows are thicker and solid, dimmed ones thin and dashed: never color alone. */
+/*
+ * Highlighted flows are thicker and solid, dimmed ones dashed, hidden ones (a turned-off extension's) dash-dotted:
+ * never color alone. Every stroke keeps the muted token at full opacity, 3:1 or more in every theme; an opacity
+ * would fall below it, and stacked ones (hidden and dimmed) further.
+ */
 .traffic-edge {
   stroke: var(--ui-text-muted);
   stroke-width: 1.5;
@@ -365,9 +369,11 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
 }
 
 .traffic-edge.is-dimmed {
-  /* Still 3:1 against the background: dimmed flows carry information too. */
-  opacity: 0.6;
   stroke-dasharray: 4 4;
+}
+
+.traffic-edge.is-hidden {
+  stroke-dasharray: 10 4 2 4;
 }
 
 /*

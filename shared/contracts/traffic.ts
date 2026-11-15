@@ -33,6 +33,7 @@ const flow = {
   purpose: null,
   hostnames: ['app.homelab.example', 'homelab.example', 'www.homelab.example'],
   hostnameCount: 3,
+  hidden: false,
 };
 
 export const TrafficHost = z.object({
@@ -81,6 +82,11 @@ export const TrafficFlow = z.object({
     examples: [flow.hostnames],
   }),
   hostnameCount: z.number().int().min(0).max(MAX_FLOW_HOSTNAMES).meta({ description: 'How many names it serves', examples: [3] }),
+  hidden: z.boolean().meta({
+    description: 'Derived by an extension turned off in the workspace: shown so paths stay continuous, its hostnames '
+      + 'left out',
+    examples: [false],
+  }),
 }).meta({ id: 'TrafficFlow', description: 'A flow from a client or a service to a listener', examples: [flow] });
 
 const traffic = { hosts: [host], services: [service], listeners: [listener], flows: [flow], truncated: false };

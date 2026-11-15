@@ -450,3 +450,42 @@ describe('computeTrace: hops', () => {
     ]);
   });
 });
+
+describe('computeTrace: hidden hops', () => {
+  const nat = new Set(['nat']);
+
+  it('given a turned-off extension, replaces its resolver\'s hops by trace.hop.hidden with { extension }, keeping stage, entity, id and port (6)', async () => {
+    const result = await trace([entry(NPM_443, APP_NAME, [dns, forward(FORWARD_443)])], {}, { disabled: nat });
+
+    expect(result.steps[0]?.hops[1]).toEqual({
+      entity: 'port-forward', id: FORWARD_443, stage: 'network', label: 'trace.hop.hidden', params: { extension: 'nat' },
+      port: 443,
+    });
+  });
+
+  it('leaves the hops of extensions that are on, the core\'s DNS hops included, unchanged (7)', async () => {
+    const result = await trace([entry(NPM_443, APP_NAME, [dns, forward(FORWARD_443)])], {}, { disabled: nat });
+
+    expect(result.steps[0]?.hops[0]).toEqual(
+      { entity: 'dns-record', id: RECORD, stage: 'dns', label: 'extensions.core.test', params: {} },
+    );
+  });
+
+  it('hides a proxy route\'s hop when the reverse proxy is off (9)', async () => {
+    const flows = [entry(NPM_443, APP_NAME, [dns]), route(ROUTE_APP, APP_3000, APP_NAME)];
+
+    const result = await trace(flows, {}, { disabled: new Set(['reverse-proxy']) });
+
+    expect(result.steps.flatMap(({ hops }) => hops).find(({ entity }) => entity === 'route'))
+      .toMatchObject({ label: 'trace.hop.hidden', params: { extension: 'reverse-proxy' }, stage: 'proxy' });
+  });
+
+  it('walks the same steps whether hops are hidden or not', async () => {
+    const flows = [entry(NPM_443, APP_NAME, [dns, forward(FORWARD_443)]), route(ROUTE_APP, APP_3000, APP_NAME)];
+
+    const shown = await trace(flows);
+    const hidden = await trace(flows, {}, { disabled: new Set(['nat', 'reverse-proxy']) });
+
+    expect(summary(hidden)).toEqual(summary(shown));
+  });
+});

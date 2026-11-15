@@ -5,12 +5,16 @@ import type { TraceWorkspace } from './traces';
 // The core's repositories (flows, listeners…) on WorkspaceRepositories, as in traces.ts.
 import type {} from '../../extensions/core/server/repositories';
 import type { Traffic } from '../../shared/contracts/traffic';
+import type { TrafficOptions } from '../domain/traffic';
 
 /**
  * The traffic graph of a workspace, from its entities and stored flows; each table is read once. The reads are not
  * one snapshot: a flow whose service or listener a concurrent write removed is left out.
  */
-export async function readTraffic({ db, repos, workspaceId }: TraceWorkspace): Promise<Traffic> {
+export async function readTraffic(
+  { db, repos, workspaceId }: TraceWorkspace,
+  options: TrafficOptions = {},
+): Promise<Traffic> {
   const [derived, manual, listeners, services, hosts] = await Promise.all([
     listDerivedFlows(db, workspaceId, { basis: false }), repos.flows.list(), repos.listeners.list(),
     repos.services.list(), repos.hosts.list(),
@@ -27,5 +31,5 @@ export async function readTraffic({ db, repos, workspaceId }: TraceWorkspace): P
         purpose: flow.purpose, hostnames: [], basis: [],
       })),
     ],
-  });
+  }, options);
 }

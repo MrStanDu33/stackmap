@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { ExtensionImpact, WorkspaceExtension } from '#shared/contracts/extensions';
+import type { OrphanItem } from '~/utils/orphan-item';
 
 import { useExtensionLabels, useExtensions } from '~/composables/useExtensions';
+import { inventoryTypes } from '~/extensions/inventory';
+import { valueText } from '~/utils/inventory-cells';
 
 const { t } = useI18n();
 const { session, signOut } = useAccount();
@@ -97,6 +100,86 @@ const toggle = async (id: string, enabled: boolean) => {
   await save(id, enabled);
 };
 
+/** The hidden entities of each turned-off extension that connect to nothing, by extension: null while loading. */
+type Orphans = {
+  items: { entity: string; id: string; fields: Record<string, unknown> }[];
+  count: number;
+  truncated: boolean;
+};
+const orphans = ref<Record<string, Orphans | null | 'error'>>({});
+// Every row whose request runs: two can run at once.
+const orphanBusy = ref<string[]>([]);
+// Named as the inventory names them, so their types are read even though they are off; their references are on.
+const types = computed(() => inventoryTypes((extensions.value ?? [])
+  .map((extension) => ({ ...extension, enabled: true }))));
+const referenceLists = ref<Record<string, { id: string; [field: string]: unknown }[]>>({});
+const entitiesBase = computed(() => `/api/workspaces/${workspace.value?.id ?? ''}/entities`);
+const nameIn = (key: string, entity: Record<string, unknown>): string => {
+  const owner = types.value.find((candidate) => candidate.key === key);
+  const [first] = owner?.columns ?? [];
+  return owner?.title?.(entity, nameOf) ?? (first ? valueText(entity[first.field]) : String(entity.id));
+};
+const nameOf = (key: string, id: unknown): string => {
+  const found = referenceLists.value[key]?.find((item) => item.id === id);
+  return found ? nameIn(key, found) : '';
+};
+const loadOrphans = async (id: string) => {
+  orphans.value[id] = null;
+  try {
+    const list = await $fetch<Orphans>(`${base.value}/${id}/orphans`);
+    const typeOf = (entity: string) => types.value.find(({ key }) => key === `${id}/${entity}`);
+    const references = new Set(list.items.flatMap(({ entity }) => typeOf(entity)?.references ?? []));
+    await Promise.all([...references].filter((key) => !referenceLists.value[key]).map(async (key) => {
+      referenceLists.value[key] = (await $fetch<{ items: { id: string }[] }>(`${entitiesBase.value}/${key}`, { query: { limit: 1000 } })).items;
+    }));
+    orphans.value[id] = list;
+  } catch {
+    orphans.value[id] = 'error';
+  }
+};
+// Whenever the list changes, the turned-off extensions' orphans are read again.
+watch(extensions, (list) => {
+  orphans.value = {};
+  for (const { id } of (list ?? []).filter(({ enabled, state }) => !enabled && state === 'active')) {
+    void loadOrphans(id);
+  }
+}, { immediate: true });
+const orphanItems = (id: string): OrphanItem[] | null => {
+  const list = orphans.value[id];
+  return list && list !== 'error'
+    ? list.items.map(({ entity, id: entityId, fields }) => ({
+        entity, id: entityId, name: nameIn(`${id}/${entity}`, fields), type: labels.entityLabel(id, entity),
+      }))
+    : null;
+};
+const orphanCount = (id: string) => {
+  const list = orphans.value[id];
+  return list && list !== 'error' ? list.count : 0;
+};
+const orphansTruncated = (id: string) => {
+  const list = orphans.value[id];
+  return Boolean(list && list !== 'error' && list.truncated);
+};
+const actOnOrphan = async (extension: string, item: OrphanItem, action: 'delete' | 'keep') => {
+  orphanBusy.value = [...orphanBusy.value, item.id];
+  notice.value = '';
+  failure.value = '';
+  try {
+    const url = `${base.value}/${extension}/orphans/${item.entity}/${item.id}`;
+    await (action === 'delete' ? $fetch(url, { method: 'DELETE' }) : $fetch(`${url}/kept`, { method: 'PUT' }));
+    const list = orphans.value[extension];
+    if (list && list !== 'error') {
+      list.items = list.items.filter(({ id }) => id !== item.id);
+      list.count -= 1;
+    }
+    notice.value = t(action === 'delete' ? 'workspaceExtensions.orphanDeleted' : 'workspaceExtensions.orphanKept', { name: item.name });
+  } catch {
+    failure.value = t('workspaceExtensions.orphanFailed', { name: item.name });
+  } finally {
+    orphanBusy.value = orphanBusy.value.filter((id) => id !== item.id);
+  }
+};
+
 const cancel = async (open: boolean) => {
   if (!open) {
     pending.value = null;
@@ -176,7 +259,24 @@ const cancel = async (open: boolean) => {
         :busy="busy"
         @toggle="toggle"
         @retry="retryList"
-      />
+      >
+        <template #details="{ extension }">
+          <HiddenOrphans
+            v-if="!extension.enabled && extension.state === 'active'"
+            :extension="extension.id"
+            :items="orphanItems(extension.id)"
+            :count="orphanCount(extension.id)"
+            :truncated="orphansTruncated(extension.id)"
+            :failed="orphans[extension.id] === 'error'"
+            :can-manage="canManage"
+            :busy="orphanBusy"
+            @delete="(item) => actOnOrphan(extension.id, item, 'delete')"
+            @keep="(item) => actOnOrphan(extension.id, item, 'keep')"
+            @retry="loadOrphans(extension.id)"
+            @empty="heading?.focus()"
+          />
+        </template>
+      </ExtensionsList>
       <ExtensionToggleConfirm
         v-if="pending"
         :open="true"

@@ -6,6 +6,11 @@ import type { TraceFlow } from './trace';
 import type { Traffic, TrafficFlow } from '../../shared/contracts/traffic';
 
 /** What a traffic graph is built from: the workspace's hosts, services, listeners and stored flows. */
+export interface TrafficOptions {
+  /** Extensions turned off in the workspace: the flows they derive are hidden. */
+  disabled?: ReadonlySet<string>;
+}
+
 export interface TrafficEntities {
   hosts: readonly { id: string; name: string; kind: string }[];
   services: readonly { id: string; name: string; kind: string; hostId: string | null }[];
@@ -26,7 +31,7 @@ const byName = (a: { name: string; id: string }, b: { name: string; id: string }
 const byPort = (a: { port: number; id: string }, b: { port: number; id: string }) =>
   a.port - b.port || a.id.localeCompare(b.id);
 
-const toFlow = (flow: TraceFlow, source: TrafficFlow['source']): TrafficFlow => ({
+const toFlow = (flow: TraceFlow, source: TrafficFlow['source'], hidden: boolean): TrafficFlow => ({
   id: flow.id,
   origin: flow.origin,
   extension: flow.extension,
@@ -36,12 +41,17 @@ const toFlow = (flow: TraceFlow, source: TrafficFlow['source']): TrafficFlow => 
   protocol: flow.protocol,
   encrypted: flow.encrypted,
   purpose: flow.purpose,
-  hostnames: flow.hostnames.toSorted().slice(0, MAX_TRAFFIC_FLOW_HOSTNAMES),
-  hostnameCount: flow.hostnames.length,
+  // A hidden flow shows that a path exists, not what it is made of.
+  hostnames: hidden ? [] : flow.hostnames.toSorted().slice(0, MAX_TRAFFIC_FLOW_HOSTNAMES),
+  hostnameCount: hidden ? 0 : flow.hostnames.length,
+  hidden,
 });
 
 /** The traffic graph: sorted, capped, and with every reference resolving to an item it keeps. */
-export function buildTraffic({ hosts, services, listeners, flows }: TrafficEntities): Traffic {
+export function buildTraffic(
+  { hosts, services, listeners, flows }: TrafficEntities,
+  { disabled = new Set<string>() }: TrafficOptions = {},
+): Traffic {
   let truncated = false;
   const cap = <T>(items: T[], max: number) => {
     truncated ||= items.length > max;
@@ -75,7 +85,8 @@ export function buildTraffic({ hosts, services, listeners, flows }: TrafficEntit
     return source && listenerIds.has(flow.targetListenerId) ? [{ flow, source }] : [];
   });
   // Capped before mapping: only the kept flows' hostnames are sorted.
-  const keptFlows = cap(resolved, MAX_TRAFFIC_FLOWS).map(({ flow, source }) => toFlow(flow, source));
+  const keptFlows = cap(resolved, MAX_TRAFFIC_FLOWS).map(({ flow, source }) =>
+    toFlow(flow, source, flow.extension !== null && disabled.has(flow.extension)));
 
   return { hosts: keptHosts, services: keptServices, listeners: keptListeners, flows: keptFlows, truncated };
 }

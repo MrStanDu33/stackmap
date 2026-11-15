@@ -35,6 +35,9 @@ export async function setExtensionsEnabled(
     if (enabled) {
       await trx.deleteFrom('workspace_extension_disabled')
         .where('workspaceId', '=', workspaceId).where('extension', 'in', ids).execute();
+      // Back on, nothing of it is hidden: the choices to keep its entities hidden have nothing left to say.
+      await trx.deleteFrom('workspace_hidden_entity_kept')
+        .where('workspaceId', '=', workspaceId).where('extension', 'in', ids).execute();
       return;
     }
     const disabledAt = toTimestamp(new Date());

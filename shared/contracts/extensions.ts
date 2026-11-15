@@ -326,3 +326,138 @@ export const setExtensionEnabled = defineContract({
     409: alwaysOn(`${extensionsInstance}/core`),
   },
 });
+
+const orphanParams = extensionParams.extend({
+  entity: kebabId().meta({ description: 'The entity type, declared by the extension', examples: ['port-forward'] }),
+  entityId: text(100).meta({ description: 'The entity\'s id', examples: ['0199d6a0-0000-7000-8000-000000000030'] }),
+});
+const orphansInstance = `${natInstance}/orphans`;
+const orphanInstance = `${orphansInstance}/port-forward/0199d6a0-0000-7000-8000-000000000030`;
+const orphan = {
+  entity: 'port-forward',
+  id: '0199d6a0-0000-7000-8000-000000000030',
+  fields: { hostId: '0199d6a0-0000-7000-8000-000000000002', externalAddress: '203.0.113.10', externalPort: 8080 },
+};
+
+const extensionEnabled = (instance: string) => ({
+  description: 'The extension is on in the workspace, so nothing of it is hidden',
+  schema: Problem,
+  examples: {
+    extension_enabled: {
+      summary: 'The extension is on',
+      value: problemOf('extension_enabled', { detail: 'The nat extension is on: it hides nothing.', instance }),
+    },
+  },
+});
+const orphanConflict = (instance: string, inUse: boolean) => ({
+  description: inUse
+    ? 'The extension is on, a flow is based on the entity, or other entities refer to it'
+    : 'The extension is on, or a flow is based on the entity',
+  schema: Problem,
+  examples: {
+    extension_enabled: {
+      summary: 'The extension is on',
+      value: problemOf('extension_enabled', { detail: 'The nat extension is on: it hides nothing.', instance }),
+    },
+    hidden_entity_connected: {
+      summary: 'A flow is based on it',
+      value: problemOf('hidden_entity_connected', { detail: 'A flow is based on this entity.', instance }),
+    },
+    ...(inUse
+      ? {
+          entity_in_use: {
+            summary: 'Other entities refer to it',
+            value: problemOf('entity_in_use', { detail: 'The entity is still used by 1 route.', instance }),
+          },
+        }
+      : {}),
+  },
+});
+const orphanNotFound = (instance: string) => ({
+  description: 'No such entity of this type in the workspace, no such type in the extension, or no such extension',
+  schema: Problem,
+  examples: {
+    entity_not_found: {
+      summary: 'No such entity',
+      value: problemOf('entity_not_found', { detail: 'No port-forward with this id in the workspace.', instance }),
+    },
+    entity_type_not_found: {
+      summary: 'No such type',
+      value: problemOf('entity_type_not_found', { detail: 'The extension declares no such entity type.', instance }),
+    },
+    extension_not_found: {
+      summary: 'No such extension',
+      value: problemOf('extension_not_found', { detail: 'No installed extension has this id.', instance }),
+    },
+  },
+});
+
+export const listHiddenOrphans = defineContract({
+  method: 'get',
+  path: `${WORKSPACE_EXTENSIONS_PATH}/:extensionId/orphans`,
+  operationId: 'listHiddenOrphans',
+  summary: 'List the hidden entities that connect to nothing',
+  description: 'The entities of an extension turned off in the workspace that no flow is based on any more, less those '
+    + 'kept hidden, at most 200 per entity type. Admins and owners can delete each or keep it hidden.',
+  tags: ['Extensions'],
+  requiredRole: 'viewer',
+  params: extensionParams,
+  responses: {
+    200: {
+      description: 'The disconnected hidden entities',
+      schema: z.object({
+        items: z.array(z.object({
+          entity: kebabId().meta({ description: 'Its entity type', examples: ['port-forward'] }),
+          id: entityId().meta({ description: 'Its id', examples: [orphan.id] }),
+          fields: z.record(z.string().max(100).regex(/^[A-Za-z][\w-]*$/), z.union([
+            text(2000), z.number(), z.boolean(), z.null(), z.array(text(2000)).max(100),
+          ])).meta({
+            description: 'Its fields as the entity API returns them (dates as ISO strings), those holding text, '
+              + 'numbers, booleans, null or lists of text: enough to name it as the inventory does',
+          }),
+        })).max(10_000).meta({
+          description: 'By entity type, then creation order; empty for editors and viewers, who get the count only',
+        }),
+        count: z.number().int().min(0).meta({ description: 'How many are listed, or would be', examples: [1] }),
+        truncated: z.boolean().meta({ description: 'Whether a type had more than 200', examples: [false] }),
+      }),
+      examples: { natOff: { summary: 'One port forward', value: { items: [orphan], count: 1, truncated: false } } },
+    },
+    404: notInstalled(orphansInstance),
+    409: extensionEnabled(orphansInstance),
+  },
+});
+
+export const keepHiddenOrphan = defineContract({
+  method: 'put',
+  path: `${WORKSPACE_EXTENSIONS_PATH}/:extensionId/orphans/:entity/:entityId/kept`,
+  operationId: 'keepHiddenOrphan',
+  summary: 'Keep a hidden entity hidden',
+  description: 'For workspace admins and owners: the entity leaves the list of disconnected hidden entities and stays '
+    + 'hidden. Its mark is cleared when the extension is turned back on.',
+  tags: ['Extensions'],
+  requiredRole: 'admin',
+  params: orphanParams,
+  responses: {
+    204: { description: 'Kept hidden', schema: z.null(), examples: { kept: { summary: 'Kept hidden', value: null } } },
+    404: orphanNotFound(`${orphanInstance}/kept`),
+    409: orphanConflict(`${orphanInstance}/kept`, false),
+  },
+});
+
+export const removeHiddenOrphan = defineContract({
+  method: 'delete',
+  path: `${WORKSPACE_EXTENSIONS_PATH}/:extensionId/orphans/:entity/:entityId`,
+  operationId: 'removeHiddenOrphan',
+  summary: 'Delete a hidden entity that connects to nothing',
+  description: 'For workspace admins and owners: deletes an entity of an extension turned off in the workspace, if no '
+    + 'flow is based on it. Audit-logged like any deletion; it cannot be undone.',
+  tags: ['Extensions'],
+  requiredRole: 'admin',
+  params: orphanParams,
+  responses: {
+    204: { description: 'Deleted', schema: z.null(), examples: { deleted: { summary: 'Deleted', value: null } } },
+    404: orphanNotFound(orphanInstance),
+    409: orphanConflict(orphanInstance, true),
+  },
+});

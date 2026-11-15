@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { ADMIN, DEMO_URL, signInTo, USER } from './support/accounts';
+import { acceptInvitation, ADMIN, DEMO_URL, signInTo, USER } from './support/accounts';
 import { hydrated } from './support/hydration';
 
 import type { Page } from '@playwright/test';
@@ -80,7 +80,7 @@ test.describe('members and invitations', () => {
     const context = await browser.newContext({ baseURL: DEMO_URL, storageState: { cookies: [], origins: [] } });
     const viewer = await context.newPage();
     await signInTo(viewer, DEMO_URL, USER);
-    expect((await viewer.request.post(`${DEMO_URL}/api${link.replace('/invite/', '/invitations/')}/accept`)).status()).toBe(200);
+    expect(await acceptInvitation(viewer, link)).toBe(200);
 
     await viewer.goto(`/w/${workspace.slug}/members`);
 

@@ -144,6 +144,16 @@ export const PROBLEMS = {
     title: 'No such extension',
     description: 'No installed extension has this id.',
   },
+  extension_enabled: {
+    status: 409,
+    title: 'The extension is on',
+    description: 'The extension is on in this workspace: it hides nothing.',
+  },
+  hidden_entity_connected: {
+    status: 409,
+    title: 'The entity is connected',
+    description: 'A flow of the workspace is based on the entity: it is not hidden on its own.',
+  },
   extension_always_on: {
     status: 409,
     title: 'The extension is always on',

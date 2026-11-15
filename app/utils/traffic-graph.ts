@@ -1,3 +1,5 @@
+import { originLabel } from './traffic-index';
+
 import type { ExtensionLabels } from './extension-labels';
 import type { Traffic, TrafficFlow } from '../../shared/contracts/traffic';
 import type { Edge, Node } from '@vue-flow/core';
@@ -185,11 +187,13 @@ export function elkToVueFlow(
       targetHandle: nodeIds.listener(flow.targetListenerId),
       type: 'smoothstep',
       domAttributes: { 'aria-roledescription': t('traffic.role.flow') },
-      ariaLabel: t('traffic.edge', {
+      ariaLabel: [t('traffic.edge', {
         source: flow.source.type === 'client' ? clientName(flow.source.client) : serviceName.get(flow.source.serviceId),
         service: serviceName.get(target?.serviceId ?? ''),
         port: target ? `${String(target.port)}/${target.transport}` : '',
-      }),
+      }), ...(flow.hidden ? [originLabel(flow, t, labels)] : [])].join('. '),
+      // Drawn dash-dotted by the graph's edge template, and said hidden in words: never by its look alone.
+      ...(flow.hidden ? { class: 'hidden-flow' } : {}),
       data: { flow },
     };
   });

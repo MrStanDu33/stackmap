@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { changePassword, DEMO_URL, signInTo, USER } from './support/accounts';
+import { acceptInvitation, changePassword, DEMO_URL, signInTo, USER } from './support/accounts';
 import { hydrated } from './support/hydration';
 
 import type { Page } from '@playwright/test';
@@ -95,7 +95,7 @@ test.describe('users page', () => {
     await signInTo(ownerPage, DEMO_URL, { email: user.email, password: PASSWORD });
     // Its temporary password replaced first (4d): until then, only that is allowed.
     expect(await changePassword(ownerPage, DEMO_URL, PASSWORD, 'their own horse battery')).toBe(204);
-    expect((await ownerPage.request.post(`${DEMO_URL}/api/invitations/${token}/accept`)).status()).toBe(200);
+    expect(await acceptInvitation(ownerPage, token)).toBe(200);
     await owner.close();
     const me = await (await page.request.get(`${DEMO_URL}/api/session`)).json() as { user: { id: string } };
     expect((await page.request.delete(`${DEMO_URL}/api/workspaces/${workspaceId}/members/${me.user.id}`)).status()).toBe(204);

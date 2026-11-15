@@ -6,6 +6,7 @@ import { DIALECTS } from '../../../../tests/support/databases';
 import { useMemberOf } from '../../../../tests/support/sessions';
 import { BUILTIN_REGISTRY, useTestWorkspaces } from '../../../../tests/support/workspaces';
 import { seedDemoStack } from '../../../demo/demo-stack';
+import { setExtensionsEnabled } from '../../../repositories/workspace-extensions';
 import { setDatabase } from '../../../utils/database';
 import { setExtensionRegistry } from '../../../utils/extensions';
 
@@ -120,7 +121,7 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/traffic on %s', (diale
     expect(Object.keys(traffic.listeners[0] ?? {}).sort())
       .toEqual(['id', 'port', 'protocol', 'publishedPort', 'serviceId', 'transport']);
     expect(Object.keys(traffic.flows[0] ?? {}).sort()).toEqual([
-      'deriver', 'encrypted', 'extension', 'hostnameCount', 'hostnames', 'id', 'origin', 'protocol', 'purpose',
+      'deriver', 'encrypted', 'extension', 'hidden', 'hostnameCount', 'hostnames', 'id', 'origin', 'protocol', 'purpose',
       'source', 'targetListenerId',
     ]);
   });
@@ -139,5 +140,40 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/traffic as a member of
     expect(await get(workspaces.b.workspace.id))
       .toMatchObject({ status: 404, json: { code: 'workspace_not_found' } });
     expect((await get(workspaces.a.workspace.id)).status).toBe(200);
+  });
+});
+
+describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/traffic with an extension turned off on %s', (dialect: Dialect) => {
+  const workspaces = useTestWorkspaces(dialect);
+  useMemberOf(workspaces);
+  const db = () => workspaces.db as unknown as Kysely<Database>;
+
+  const seed = async () => {
+    setDatabase(Promise.resolve(db()));
+    setExtensionRegistry(BUILTIN_REGISTRY);
+    await seedDemoStack(workspaces.a.repos);
+    await seedDemoStack(workspaces.b.repos);
+  };
+  const flowsOf = async (workspaceId: string) => ((await get(workspaceId)).json as Traffic).flows;
+
+  it('given NAT off, lists its port forwards\' flows hidden, with empty hostnames (1)', async () => {
+    await seed();
+    await setExtensionsEnabled(db(), workspaces.a.workspace.id, ['nat'], false, null);
+
+    const flows = await flowsOf(workspaces.a.workspace.id);
+
+    const forwarded = flows.filter(({ extension }) => extension === 'nat');
+    expect(forwarded).toHaveLength(2);
+    for (const flow of forwarded) {
+      expect(flow).toMatchObject({ hidden: true, hostnames: [], hostnameCount: 0, source: { type: 'client', client: 'public' } });
+    }
+    expect(flows.filter(({ extension }) => extension !== 'nat').every(({ hidden }) => !hidden)).toBe(true);
+  });
+
+  it('given NAT off in workspace A only, workspace B\'s flows are not hidden (3)', async () => {
+    await seed();
+    await setExtensionsEnabled(db(), workspaces.a.workspace.id, ['nat'], false, null);
+
+    expect((await flowsOf(workspaces.b.workspace.id)).some(({ hidden }) => hidden)).toBe(false);
   });
 });

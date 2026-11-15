@@ -23,6 +23,18 @@ export const DEMO_SESSION = 'tests/e2e/.auth/demo.json';
 const ownAddress = () => `198.51.100.${String(1 + Math.floor(Math.random() * 254))}`;
 
 /**
+ * Accepts an invitation as the page's signed-in account, from an address of its own: accepting is limited per
+ * address, and the tests that accept would otherwise share one. Answers the status.
+ */
+export async function acceptInvitation(page: Page, link: string): Promise<number> {
+  const token = link.split('/').pop() ?? '';
+  const response = await page.request.post(`${DEMO_URL}/api/invitations/${token}/accept`, {
+    headers: { 'x-forwarded-for': ownAddress() },
+  });
+  return response.status();
+}
+
+/**
  * Signs in to a server, as the administrator unless told otherwise, from an address of its own (the servers trust
  * X-Forwarded-For). Cookies are kept per host, not per port, so the demo server's cookie is replaced for the rest of
  * the test.

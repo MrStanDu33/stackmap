@@ -3,7 +3,7 @@ import { ref } from 'vue';
 
 import TrafficDetailPanel from './TrafficDetailPanel.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
-import { DEMO_IDS, DEMO_TRAFFIC } from '../../../tests/support/demo-traffic';
+import { DEMO_IDS, DEMO_TRAFFIC, DEMO_TRAFFIC_NAT_OFF } from '../../../tests/support/demo-traffic';
 
 import type { Traffic } from '../../../shared/contracts/traffic';
 import type { Selection } from '../../utils/traffic-selection';
@@ -117,6 +117,21 @@ export const FlowWithMoreNames: Story = {
       .toBeVisible();
     await userEvent.click(details.getByRole('button', { name: t('traffic.client.public') }));
     await expect(args.onSelect).toHaveBeenCalledWith({ type: 'client', id: 'public' });
+  },
+};
+
+// getByText normalizes the page's whitespace, French non-breaking spaces included, not the expected text.
+const flat = (value: string) => value.replace(/\s+/g, ' ');
+/** A flow of a turned-off extension: its endpoints and a hidden notice, no names or trace links (5). */
+export const HiddenFlow: Story = {
+  args: { selection: { type: 'flow', id: flows.publicHttps }, traffic: DEMO_TRAFFIC_NAT_OFF },
+  play: async ({ canvasElement }) => {
+    const details = panel(canvasElement);
+
+    await expect(details.getByText(flat(t('traffic.hidden', { extension: t('extensions.nat.name') })))).toBeVisible();
+    await expect(details.getByRole('button', { name: t('traffic.client.public') })).toBeVisible();
+    await expect(details.queryByText('www.homelab.example')).toBeNull();
+    await expect(details.queryAllByRole('link')).toEqual([]);
   },
 };
 

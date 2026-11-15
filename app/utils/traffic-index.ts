@@ -1,3 +1,4 @@
+import type { ExtensionLabels } from './extension-labels';
 import type { Translate } from './traffic-graph';
 import type { Selection } from './traffic-selection';
 import type { Traffic, TrafficFlow } from '../../shared/contracts/traffic';
@@ -8,9 +9,18 @@ type Listener = Traffic['listeners'][number];
 export const portLabel = ({ port, transport }: Listener): string => `${String(port)}/${transport}`;
 
 /** Derived by which extension and deriver, or documented by hand. */
-export const originLabel = (flow: Pick<TrafficFlow, 'origin' | 'extension' | 'deriver'>, t: Translate): string => (flow.origin === 'manual'
-  ? t('traffic.origin.manual')
-  : t('traffic.origin.derived', { extension: flow.extension, deriver: flow.deriver }));
+export const originLabel = (
+  flow: Pick<TrafficFlow, 'origin' | 'extension' | 'deriver'> & { hidden?: boolean },
+  t: Translate,
+  labels?: Pick<ExtensionLabels, 'extensionName'>,
+): string => {
+  if (flow.hidden && flow.extension) {
+    return t('traffic.hidden', { extension: labels?.extensionName(flow.extension) ?? flow.extension });
+  }
+  return flow.origin === 'manual'
+    ? t('traffic.origin.manual')
+    : t('traffic.origin.derived', { extension: flow.extension, deriver: flow.deriver });
+};
 
 /** What selecting a flow's source selects: its client or its service. */
 export const sourceOf = ({ source }: TrafficFlow): Selection => (source.type === 'client'

@@ -3,7 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import TrafficGraph from './TrafficGraph.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
 import { layOut } from '../../../.storybook/traffic';
-import { DEMO_IDS, DEMO_TRAFFIC } from '../../../tests/support/demo-traffic';
+import { DEMO_IDS, DEMO_TRAFFIC, DEMO_TRAFFIC_NAT_OFF } from '../../../tests/support/demo-traffic';
 
 import type { Traffic } from '../../../shared/contracts/traffic';
 import type { TrafficLayout } from '../../utils/traffic-graph';
@@ -39,6 +39,15 @@ const nodeOf = (canvasElement: HTMLElement, id: string) => {
     throw new Error(`No node ${id}`);
   }
   return node;
+};
+
+/** The opacity a path is drawn with: its own times its ancestors' in the graph (stacked opacities lose contrast). */
+const drawnOpacity = (path: Element | null) => {
+  let opacity = 1;
+  for (let element = path; element && element.tagName.toLowerCase() !== 'svg'; element = element.parentElement) {
+    opacity *= Number(getComputedStyle(element).opacity);
+  }
+  return opacity;
 };
 
 const flowsIn = (canvasElement: HTMLElement, state: 'highlighted' | 'dimmed') =>
@@ -84,10 +93,31 @@ export const Selected: Story = {
     // The selected node says so; the others are not pressed.
     await expect(nodeOf(canvasElement, `service:${services.npm}`)).toHaveAttribute('aria-pressed', 'true');
     await expect(nodeOf(canvasElement, `service:${services.website}`)).toHaveAttribute('aria-pressed', 'false');
-    // Dimmed flows stay visible (3:1), and lines keep their width whatever the zoom.
+    // Dimmed flows stay 3:1: a token stroke, not an opacity; lines keep their width whatever the zoom (review).
     const dimmed = canvasElement.querySelector<SVGPathElement>(`[data-flow="${flows.database}"] path`);
-    await expect(Number(dimmed ? getComputedStyle(dimmed).opacity : 0)).toBeGreaterThanOrEqual(0.6);
+    await expect(drawnOpacity(dimmed)).toBe(1);
     await expect(dimmed).toHaveAttribute('vector-effect', 'non-scaling-stroke');
+  },
+};
+
+/**
+ * A turned-off extension's flows are drawn dashed, with their own pattern, and a token stroke that keeps 3:1 even
+ * dimmed: never an opacity (4, review).
+ */
+export const HiddenFlow: Story = {
+  args: { traffic: DEMO_TRAFFIC_NAT_OFF, selection: { type: 'service', id: services.database } },
+  // Laid out from the same traffic: its edges carry the hidden flows.
+  loaders: [async ({ globals }) => ({ layout: await layOut(DEMO_TRAFFIC_NAT_OFF, globals.locale) })],
+  play: async ({ canvasElement }) => {
+    const hidden = () => canvasElement.querySelector<SVGPathElement>(`[data-flow="${flows.publicHttps}"] path`);
+    await waitFor(() => expect(hidden()).not.toBeNull());
+    const path = hidden();
+    await expect(path).toHaveClass('is-hidden');
+    const dash = path ? getComputedStyle(path).strokeDasharray : 'none';
+    await expect(dash).not.toBe('none');
+    const dimmed = canvasElement.querySelector<SVGPathElement>(`[data-flow-state="dimmed"]:not([data-flow="${flows.publicHttps}"]) path`);
+    await expect(dash).not.toBe(dimmed ? getComputedStyle(dimmed).strokeDasharray : '');
+    await expect(drawnOpacity(path)).toBe(1);
   },
 };
 

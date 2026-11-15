@@ -1242,7 +1242,8 @@
                             "homelab.example",
                             "www.homelab.example"
                           ],
-                          "hostnameCount": 3
+                          "hostnameCount": 3,
+                          "hidden": false
                         }
                       ],
                       "truncated": false
@@ -3497,6 +3498,626 @@
           },
           "415": {
             "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/extensions/{extensionId}/orphans": {
+      "get": {
+        "operationId": "listHiddenOrphans",
+        "summary": "List the hidden entities that connect to nothing",
+        "description": "The entities of an extension turned off in the workspace that no flow is based on any more, less those kept hidden, at most 200 per entity type. Admins and owners can delete each or keep it hidden.\n\nRequires the viewer role.",
+        "tags": [
+          "Extensions"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "path",
+            "name": "extensionId",
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "description": "The extension's id",
+              "examples": [
+                "nat"
+              ]
+            },
+            "required": true,
+            "description": "The extension's id",
+            "example": "nat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The disconnected hidden entities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "maxItems": 10000,
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "entity": {
+                            "type": "string",
+                            "maxLength": 40,
+                            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+                            "description": "Its entity type",
+                            "examples": [
+                              "port-forward"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "maxLength": 36,
+                            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                            "description": "Its id",
+                            "examples": [
+                              "0199d6a0-0000-7000-8000-000000000030"
+                            ]
+                          },
+                          "fields": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string",
+                              "maxLength": 100,
+                              "pattern": "^[A-Za-z][\\w-]*$"
+                            },
+                            "additionalProperties": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 2000,
+                                  "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "null"
+                                },
+                                {
+                                  "maxItems": 100,
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "maxLength": 2000,
+                                    "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$"
+                                  }
+                                }
+                              ]
+                            },
+                            "description": "Its fields as the entity API returns them (dates as ISO strings), those holding text, numbers, booleans, null or lists of text: enough to name it as the inventory does"
+                          }
+                        },
+                        "required": [
+                          "entity",
+                          "id",
+                          "fields"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "By entity type, then creation order; empty for editors and viewers, who get the count only"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991,
+                      "description": "How many are listed, or would be",
+                      "examples": [
+                        1
+                      ]
+                    },
+                    "truncated": {
+                      "type": "boolean",
+                      "description": "Whether a type had more than 200",
+                      "examples": [
+                        false
+                      ]
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "count",
+                    "truncated"
+                  ],
+                  "additionalProperties": false
+                },
+                "examples": {
+                  "natOff": {
+                    "summary": "One port forward",
+                    "value": {
+                      "items": [
+                        {
+                          "entity": "port-forward",
+                          "id": "0199d6a0-0000-7000-8000-000000000030",
+                          "fields": {
+                            "hostId": "0199d6a0-0000-7000-8000-000000000002",
+                            "externalAddress": "203.0.113.10",
+                            "externalPort": 8080
+                          }
+                        }
+                      ],
+                      "count": 1,
+                      "truncated": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "No installed extension has this id, or a workspace the caller cannot open",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "extension_not_found": {
+                    "summary": "No such extension",
+                    "value": {
+                      "type": "urn:stackmap:problem:extension_not_found",
+                      "title": "No such extension",
+                      "status": 404,
+                      "detail": "No installed extension has this id.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans",
+                      "code": "extension_not_found"
+                    }
+                  },
+                  "workspace_not_found": {
+                    "summary": "No such workspace",
+                    "value": {
+                      "type": "urn:stackmap:problem:workspace_not_found",
+                      "title": "The workspace does not exist",
+                      "status": 404,
+                      "detail": "No workspace with this id that you can open.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans",
+                      "code": "workspace_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The extension is on in the workspace, so nothing of it is hidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "extension_enabled": {
+                    "summary": "The extension is on",
+                    "value": {
+                      "type": "urn:stackmap:problem:extension_enabled",
+                      "title": "The extension is on",
+                      "status": 409,
+                      "detail": "The nat extension is on: it hides nothing.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans",
+                      "code": "extension_enabled"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/extensions/{extensionId}/orphans/{entity}/{entityId}/kept": {
+      "put": {
+        "operationId": "keepHiddenOrphan",
+        "summary": "Keep a hidden entity hidden",
+        "description": "For workspace admins and owners: the entity leaves the list of disconnected hidden entities and stays hidden. Its mark is cleared when the extension is turned back on.\n\nRequires the admin role.",
+        "tags": [
+          "Extensions"
+        ],
+        "x-required-role": "admin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "path",
+            "name": "extensionId",
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "description": "The extension's id",
+              "examples": [
+                "nat"
+              ]
+            },
+            "required": true,
+            "description": "The extension's id",
+            "example": "nat"
+          },
+          {
+            "in": "path",
+            "name": "entity",
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "description": "The entity type, declared by the extension",
+              "examples": [
+                "port-forward"
+              ]
+            },
+            "required": true,
+            "description": "The entity type, declared by the extension",
+            "example": "port-forward"
+          },
+          {
+            "in": "path",
+            "name": "entityId",
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+              "description": "The entity's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000030"
+              ]
+            },
+            "required": true,
+            "description": "The entity's id",
+            "example": "0199d6a0-0000-7000-8000-000000000030"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Kept hidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "kept": {
+                    "summary": "Kept hidden",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No such entity of this type in the workspace, no such type in the extension, or no such extension",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "entity_not_found": {
+                    "summary": "No such entity",
+                    "value": {
+                      "type": "urn:stackmap:problem:entity_not_found",
+                      "title": "The entity does not exist",
+                      "status": 404,
+                      "detail": "No port-forward with this id in the workspace.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030/kept",
+                      "code": "entity_not_found"
+                    }
+                  },
+                  "entity_type_not_found": {
+                    "summary": "No such type",
+                    "value": {
+                      "type": "urn:stackmap:problem:entity_type_not_found",
+                      "title": "No such entity type",
+                      "status": 404,
+                      "detail": "The extension declares no such entity type.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030/kept",
+                      "code": "entity_type_not_found"
+                    }
+                  },
+                  "extension_not_found": {
+                    "summary": "No such extension",
+                    "value": {
+                      "type": "urn:stackmap:problem:extension_not_found",
+                      "title": "No such extension",
+                      "status": 404,
+                      "detail": "No installed extension has this id.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030/kept",
+                      "code": "extension_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The extension is on, or a flow is based on the entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "extension_enabled": {
+                    "summary": "The extension is on",
+                    "value": {
+                      "type": "urn:stackmap:problem:extension_enabled",
+                      "title": "The extension is on",
+                      "status": 409,
+                      "detail": "The nat extension is on: it hides nothing.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030/kept",
+                      "code": "extension_enabled"
+                    }
+                  },
+                  "hidden_entity_connected": {
+                    "summary": "A flow is based on it",
+                    "value": {
+                      "type": "urn:stackmap:problem:hidden_entity_connected",
+                      "title": "The entity is connected",
+                      "status": 409,
+                      "detail": "A flow is based on this entity.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030/kept",
+                      "code": "hidden_entity_connected"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/extensions/{extensionId}/orphans/{entity}/{entityId}": {
+      "delete": {
+        "operationId": "removeHiddenOrphan",
+        "summary": "Delete a hidden entity that connects to nothing",
+        "description": "For workspace admins and owners: deletes an entity of an extension turned off in the workspace, if no flow is based on it. Audit-logged like any deletion; it cannot be undone.\n\nRequires the admin role.",
+        "tags": [
+          "Extensions"
+        ],
+        "x-required-role": "admin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "path",
+            "name": "extensionId",
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "description": "The extension's id",
+              "examples": [
+                "nat"
+              ]
+            },
+            "required": true,
+            "description": "The extension's id",
+            "example": "nat"
+          },
+          {
+            "in": "path",
+            "name": "entity",
+            "schema": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+              "description": "The entity type, declared by the extension",
+              "examples": [
+                "port-forward"
+              ]
+            },
+            "required": true,
+            "description": "The entity type, declared by the extension",
+            "example": "port-forward"
+          },
+          {
+            "in": "path",
+            "name": "entityId",
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+              "description": "The entity's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000030"
+              ]
+            },
+            "required": true,
+            "description": "The entity's id",
+            "example": "0199d6a0-0000-7000-8000-000000000030"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "null"
+                },
+                "examples": {
+                  "deleted": {
+                    "summary": "Deleted",
+                    "value": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No such entity of this type in the workspace, no such type in the extension, or no such extension",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "entity_not_found": {
+                    "summary": "No such entity",
+                    "value": {
+                      "type": "urn:stackmap:problem:entity_not_found",
+                      "title": "The entity does not exist",
+                      "status": 404,
+                      "detail": "No port-forward with this id in the workspace.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030",
+                      "code": "entity_not_found"
+                    }
+                  },
+                  "entity_type_not_found": {
+                    "summary": "No such type",
+                    "value": {
+                      "type": "urn:stackmap:problem:entity_type_not_found",
+                      "title": "No such entity type",
+                      "status": 404,
+                      "detail": "The extension declares no such entity type.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030",
+                      "code": "entity_type_not_found"
+                    }
+                  },
+                  "extension_not_found": {
+                    "summary": "No such extension",
+                    "value": {
+                      "type": "urn:stackmap:problem:extension_not_found",
+                      "title": "No such extension",
+                      "status": 404,
+                      "detail": "No installed extension has this id.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030",
+                      "code": "extension_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The extension is on, a flow is based on the entity, or other entities refer to it",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "extension_enabled": {
+                    "summary": "The extension is on",
+                    "value": {
+                      "type": "urn:stackmap:problem:extension_enabled",
+                      "title": "The extension is on",
+                      "status": 409,
+                      "detail": "The nat extension is on: it hides nothing.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030",
+                      "code": "extension_enabled"
+                    }
+                  },
+                  "hidden_entity_connected": {
+                    "summary": "A flow is based on it",
+                    "value": {
+                      "type": "urn:stackmap:problem:hidden_entity_connected",
+                      "title": "The entity is connected",
+                      "status": 409,
+                      "detail": "A flow is based on this entity.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030",
+                      "code": "hidden_entity_connected"
+                    }
+                  },
+                  "entity_in_use": {
+                    "summary": "Other entities refer to it",
+                    "value": {
+                      "type": "urn:stackmap:problem:entity_in_use",
+                      "title": "The entity is in use",
+                      "status": 409,
+                      "detail": "The entity is still used by 1 route.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030",
+                      "code": "entity_in_use"
+                    }
+                  }
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/InternalError"
@@ -17452,6 +18073,8 @@
               "entity_type_not_found",
               "extension_disabled",
               "extension_not_found",
+              "extension_enabled",
+              "hidden_entity_connected",
               "extension_always_on",
               "entity_not_found",
               "entity_invalid",
@@ -17462,7 +18085,7 @@
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `user_not_found` (404): No account has this id.\n- `email_taken` (409): An account already uses this email.\n- `last_admin` (409): The change would leave the instance without an administrator.\n- `cannot_demote_self` (409): Another administrator has to change this account's role.\n- `cannot_reset_self` (409): Another administrator has to give this account a temporary password.\n- `wrong_password` (400): Changing the password needs the current one.\n- `password_change_required` (403): The account has a temporary password: change it before anything else.\n- `cannot_remove_self` (409): Another administrator has to remove this account.\n- `entity_type_not_found` (404): No active extension declares this extension and entity id with a repository.\n- `extension_disabled` (409): The extension of this entity type is turned off in this workspace; `extension` names it.\n- `extension_not_found` (404): No installed extension has this id.\n- `extension_always_on` (409): This extension cannot be turned off.\n- `entity_not_found` (404): The workspace has no entity of this type with this id.\n- `entity_invalid` (422): The entity breaks one of its rules, or names a kind no active extension provides; `issues` says which.\n- `reference_invalid` (422): A field refers to an entity that is not in the workspace; `field` names it when known.\n- `entity_conflict` (409): Another entity of the workspace has the same unique values; `fields` names them.\n- `entity_in_use` (409): Other entities refer to it; `dependents` says which and how many.\n- `entity_changed` (409): Another write changed the entity while this one was checked: reload it and try again.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `user_not_found` (404): No account has this id.\n- `email_taken` (409): An account already uses this email.\n- `last_admin` (409): The change would leave the instance without an administrator.\n- `cannot_demote_self` (409): Another administrator has to change this account's role.\n- `cannot_reset_self` (409): Another administrator has to give this account a temporary password.\n- `wrong_password` (400): Changing the password needs the current one.\n- `password_change_required` (403): The account has a temporary password: change it before anything else.\n- `cannot_remove_self` (409): Another administrator has to remove this account.\n- `entity_type_not_found` (404): No active extension declares this extension and entity id with a repository.\n- `extension_disabled` (409): The extension of this entity type is turned off in this workspace; `extension` names it.\n- `extension_not_found` (404): No installed extension has this id.\n- `extension_enabled` (409): The extension is on in this workspace: it hides nothing.\n- `hidden_entity_connected` (409): A flow of the workspace is based on the entity: it is not hidden on its own.\n- `extension_always_on` (409): This extension cannot be turned off.\n- `entity_not_found` (404): The workspace has no entity of this type with this id.\n- `entity_invalid` (422): The entity breaks one of its rules, or names a kind no active extension provides; `issues` says which.\n- `reference_invalid` (422): A field refers to an entity that is not in the workspace; `field` names it when known.\n- `entity_conflict` (409): Another entity of the workspace has the same unique values; `fields` names them.\n- `entity_in_use` (409): Other entities refer to it; `dependents` says which and how many.\n- `entity_changed` (409): Another write changed the entity while this one was checked: reload it and try again.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -21795,7 +22418,8 @@
                   "homelab.example",
                   "www.homelab.example"
                 ],
-                "hostnameCount": 3
+                "hostnameCount": 3,
+                "hidden": false
               }
             ],
             "truncated": false
@@ -22208,6 +22832,13 @@
             "examples": [
               3
             ]
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "Derived by an extension turned off in the workspace: shown so paths stay continuous, its hostnames left out",
+            "examples": [
+              false
+            ]
           }
         },
         "required": [
@@ -22221,7 +22852,8 @@
           "encrypted",
           "purpose",
           "hostnames",
-          "hostnameCount"
+          "hostnameCount",
+          "hidden"
         ],
         "additionalProperties": false,
         "description": "A flow from a client or a service to a listener",
@@ -22244,7 +22876,8 @@
               "homelab.example",
               "www.homelab.example"
             ],
-            "hostnameCount": 3
+            "hostnameCount": 3,
+            "hidden": false
           }
         ]
       },

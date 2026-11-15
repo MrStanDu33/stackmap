@@ -42,6 +42,14 @@ describe('indexTraffic', () => {
     expect(originLabel(flow(flows.database), t)).toBe('Documented by hand');
   });
 
+  it('says a hidden flow is hidden, naming its extension when the labels are known (4)', () => {
+    const hidden = { origin: 'derived' as const, extension: 'nat', deriver: 'port-forwards', hidden: true };
+    const labels = { extensionName: (id: string) => (id === 'nat' ? 'Router and NAT' : id) };
+
+    expect(originLabel(hidden, t, labels)).toBe('Hidden: Router and NAT is turned off');
+    expect(originLabel(hidden, t)).toBe('Hidden: nat is turned off');
+  });
+
   it('names a selection: a client, host, service, port or flow, or nothing when it is gone', () => {
     const index = indexTraffic(DEMO_TRAFFIC);
 

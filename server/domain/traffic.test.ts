@@ -55,7 +55,7 @@ describe('buildTraffic', () => {
     expect(built).toEqual({
       id: entry.id, origin: 'derived', extension: 'core', deriver: 'dns', source: { type: 'client', client: 'public' },
       targetListenerId: NPM_443.id, protocol: null, encrypted: null, purpose: null,
-      hostnames: ['app.homelab.example', 'www.homelab.example'], hostnameCount: 2,
+      hostnames: ['app.homelab.example', 'www.homelab.example'], hostnameCount: 2, hidden: false,
     });
   });
 
@@ -148,5 +148,37 @@ describe('buildTraffic', () => {
   it('returns empty lists and truncated false for an empty workspace', () => {
     expect(buildTraffic({ hosts: [], services: [], listeners: [], flows: [] }))
       .toEqual({ hosts: [], services: [], listeners: [], flows: [], truncated: false });
+  });
+});
+
+describe('buildTraffic: hidden flows', () => {
+  const forwarded = () => flow({
+    extension: 'nat', deriver: 'port-forwards', sourceClient: 'public', targetListenerId: NPM_443.id,
+    hostnames: ['app.homelab.example'],
+  });
+
+  it('given a flow derived by a turned-off extension, lists it hidden, with its client and target, and empty hostnames (1)', () => {
+    const entry = forwarded();
+
+    const [built] = buildTraffic(entities({ flows: [entry] }), { disabled: new Set(['nat']) }).flows;
+
+    expect(built).toMatchObject({
+      id: entry.id, extension: 'nat', deriver: 'port-forwards', source: { type: 'client', client: 'public' },
+      targetListenerId: NPM_443.id, hostnames: [], hostnameCount: 0, hidden: true,
+    });
+  });
+
+  it('given its extension on, lists it as before, not hidden (2)', () => {
+    const [built] = buildTraffic(entities({ flows: [forwarded()] }), { disabled: new Set(['reverse-proxy']) }).flows;
+
+    expect(built).toMatchObject({ hostnames: ['app.homelab.example'], hostnameCount: 1, hidden: false });
+  });
+
+  it('never hides a manual flow', () => {
+    const [built] = buildTraffic(entities({ flows: [manual(APP, API_443, 'Fetches the forecasts')] }), {
+      disabled: new Set(['nat', 'reverse-proxy']),
+    }).flows;
+
+    expect(built).toMatchObject({ hidden: false, purpose: 'Fetches the forecasts' });
   });
 });
