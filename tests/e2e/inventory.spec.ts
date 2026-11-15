@@ -28,7 +28,8 @@ const createEntity = async (page: Page, workspaceId: string, type: string, data:
 };
 
 /** The live region that announces this text: the page has others, Nuxt's route announcer among them. */
-const announced = (page: Page, text: string) => page.getByRole('status').filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) });
+const announced = (page: Page, text: string) => page.getByRole('status')
+  .filter({ hasText: new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) });
 
 /**
  * Records every announcement made while its live region is hidden from assistive technologies (by a modal's
@@ -296,6 +297,39 @@ test.describe('inventory', () => {
     await expect(announced(page, `${name} created`)).toBeAttached();
     const row = page.getByRole('table', { name: /Port forwards/ }).getByRole('row', { name: /203\.0\.113\.10:443/ });
     await expect(row).toContainText('192.0.2.10:8443');
+
+    await page.getByRole('button', { name: `Delete ${name}` }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: `Delete ${name}` }).click();
+    await expect(announced(page, `${name} deleted`)).toBeAttached();
+  });
+
+  test('an editor creates a route with two hostnames, the second in text mode, and deletes it (6, 13, 18, 4)', async ({ page }) => {
+    const workspace = await createWorkspace(page);
+    const hostId = await createEntity(page, workspace.id, 'core/host', { name: 'Home server', kind: 'physical' });
+    const npm = await createEntity(page, workspace.id, 'core/service', { name: 'Nginx Proxy Manager', kind: 'reverse-proxy', hostId });
+    const blog = await createEntity(page, workspace.id, 'core/service', { name: 'Blog', kind: 'app', hostId });
+    await createEntity(page, workspace.id, 'core/listener', { serviceId: npm, port: 443, transport: 'tcp' });
+    await createEntity(page, workspace.id, 'core/listener', { serviceId: blog, port: 3000, transport: 'tcp' });
+    await page.goto(`/w/${workspace.slug}/inventory/reverse-proxy/route`);
+    await hydrated(page);
+    await expect(page.getByRole('heading', { level: 1, name: 'Proxy routes' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'New Proxy route' }).click();
+    const dialog = page.getByRole('dialog', { name: 'New Proxy route' });
+    await pick(page, /^Proxy/, 'Nginx Proxy Manager');
+    await dialog.getByRole('textbox', { name: /^Hostname 1/ }).fill('blog.homelab.example');
+    await dialog.getByRole('button', { name: 'Edit as text' }).click();
+    await dialog.getByRole('textbox', { name: /^Hostnames, one per line/ }).press('End');
+    await dialog.getByRole('textbox', { name: /^Hostnames, one per line/ }).pressSequentially('\nwww.blog.homelab.example');
+    await pick(page, /^Upstream/, 'Blog :3000/tcp');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+
+    await expect(dialog).toBeHidden();
+    const name = 'Nginx Proxy Manager → blog.homelab.example (+1)';
+    await expect(announced(page, `${name} created`)).toBeAttached();
+    const row = page.getByRole('table', { name: /Proxy routes/ }).getByRole('row', { name: /www\.blog\.homelab\.example/ });
+    await expect(row).toContainText('Blog :3000/tcp');
+    await expect(row).toContainText('No');
 
     await page.getByRole('button', { name: `Delete ${name}` }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: `Delete ${name}` }).click();

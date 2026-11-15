@@ -22,6 +22,24 @@
         "hostname-taken": "{hostname} is already served by this proxy, in route {route}",
         "invalid-hostname": "Expected a hostname, such as app.homelab.example or *.homelab.example",
         "duplicate-hostname": "{hostname} is listed twice"
+      },
+      "fields": {
+        "route": {
+          "proxyServiceId": "Proxy",
+          "hostnames": "Hostnames",
+          "hostnameNumbered": "Hostname {number}",
+          "addHostname": "Add a hostname",
+          "removeHostname": "Remove hostname {number}",
+          "hostnamesLimit": "{max} hostnames at most",
+          "editAsText": "Edit as text",
+          "editOneByOne": "Edit one by one",
+          "hostnamesText": "Hostnames, one per line",
+          "line": "Line {number}: {message}",
+          "upstreamListenerId": "Upstream",
+          "forceSsl": "Force SSL",
+          "websockets": "WebSockets",
+          "noProxy": "Mark a service as Reverse proxy first"
+        }
       }
     }
   }

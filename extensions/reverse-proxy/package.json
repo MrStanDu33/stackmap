@@ -7,6 +7,7 @@
   "exports": {
     ".": "./manifest.ts",
     "./entities": "./entities/index.ts",
+    "./inventory": "./app/inventory.ts",
     "./server": "./server.ts",
     "./testing": "./testing/index.ts"
   },

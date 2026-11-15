@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BUILTIN_INVENTORIES, findInventoryType, inventoryTypes } from './inventory';
 import core from '../../extensions/core/manifest';
 import natInventory from '../../extensions/nat/app/inventory';
+import proxyInventory from '../../extensions/reverse-proxy/app/inventory';
 import { createTestI18n } from '../../tests/support/i18n';
 
 import type { InstalledExtension } from './inventory';
@@ -40,7 +41,7 @@ describe('built-in inventory registrations', () => {
   });
 
   it('registers NAT\'s port forwards after the core\'s types (1)', () => {
-    expect(BUILTIN_INVENTORIES.map(({ extension }) => extension)).toEqual(['core', 'nat']);
+    expect(BUILTIN_INVENTORIES.map(({ extension }) => extension).slice(0, 2)).toEqual(['core', 'nat']);
     expect(BUILTIN_INVENTORIES[1]?.types.map(({ entity }) => entity)).toEqual(['port-forward']);
   });
 
@@ -69,6 +70,35 @@ describe('built-in inventory registrations', () => {
 
   it('labels the transports with the core\'s labels, as the listener does (review)', () => {
     expect(natInventory.types[0]?.columns.find(({ field }) => field === 'transport')?.labels).toBe('extensions.core.transports');
+  });
+
+  it('registers the reverse proxy\'s routes after NAT\'s types (1)', () => {
+    expect(BUILTIN_INVENTORIES.map(({ extension }) => extension)).toEqual(['core', 'nat', 'reverse-proxy']);
+    expect(BUILTIN_INVENTORIES[2]?.types.map(({ entity }) => entity)).toEqual(['route']);
+  });
+
+  it('shows a route\'s hostnames, proxy, upstream, Force SSL and WebSockets, sorted by hostnames (2)', () => {
+    const columns = proxyInventory.types[0]?.columns ?? [];
+    expect(columns.map(({ field, format, reference }) => ({ field, format, reference }))).toEqual([
+      { field: 'hostnames', format: 'list', reference: undefined },
+      { field: 'proxyServiceId', format: 'reference', reference: 'core/service' },
+      { field: 'upstreamListenerId', format: 'reference', reference: 'core/listener' },
+      { field: 'forceSsl', format: 'boolean', reference: undefined },
+      { field: 'websockets', format: 'boolean', reference: undefined },
+    ]);
+  });
+
+  it('names a route "<proxy> → <first hostname>", with " (+N)" for the others (4)', () => {
+    const [type] = proxyInventory.types;
+    const name = (reference: string, id: unknown) => (reference === 'core/service' && id === 'p1' ? 'NPM' : '');
+    const route = { proxyServiceId: 'p1', hostnames: ['blog.homelab.example'] };
+
+    expect(type?.title?.(route, name)).toBe('NPM → blog.homelab.example');
+    const three = ['blog.homelab.example', 'www.blog.homelab.example', 'b.homelab.example'];
+    expect(type?.title?.({ ...route, hostnames: three }, name))
+      .toBe('NPM → blog.homelab.example (+2)');
+    // A proxy the user cannot see: its hostnames alone, not "→ blog…".
+    expect(type?.title?.({ ...route, proxyServiceId: 'p9' }, name)).toBe('blog.homelab.example');
   });
 
   it('translates every column label and every type\'s plural name in English and French', () => {
