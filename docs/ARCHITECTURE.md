@@ -310,8 +310,12 @@ turning one on turns on what it needs, after a confirmation that lists them. Tur
 3. its flow derivers keep running, so its stored flows are current when it comes back;
 4. rows of it that a core removal would delete with their owner (a host's port forwards: `ownedBy` in its repository
    definition) block that removal instead, as `entity_in_use`;
-5. _(planned, 5c‴)_ its entities that are still connected show as greyed "hidden" boxes in graphs and traces, so paths
-   stay continuous, and once a hidden entity has no connection left, the user chooses to delete it or keep it hidden.
+5. what it contributes to graphs stays, so paths stay continuous, without its details: Traffic draws its flows dashed and
+   muted, said hidden, without their hostnames (`hidden` on each flow); a trace keeps its hops' steps, stages and ports
+   but says only that they are hidden (`trace.hop.hidden`). Both are decided on the server;
+6. its entities that no stored flow is based on any more are listed on the Extensions page (`…/:id/orphans`, at most 200
+   per type); admins delete each (audit-logged, refused while a flow is based on it) or keep it hidden
+   (`workspace_hidden_entity_kept`, cleared when the extension is turned back on).
 
 Removing an extension keeps its data by default (hidden, restored on reinstall); "remove and delete data" shows what
 will be deleted, asks for confirmation, offers an export and is audit-logged. An extension others depend on cannot be
