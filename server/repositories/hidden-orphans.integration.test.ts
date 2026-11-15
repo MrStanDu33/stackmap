@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { deleteOrphan, isConnected, keepHiddenEntity, listHiddenOrphans, MAX_ORPHANS } from './hidden-orphans';
+import { createWorkspaceRepositories } from './index';
 import { setExtensionsEnabled } from './workspace-extensions';
 import { createAccount } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
@@ -102,7 +103,13 @@ describe.each(DIALECTS)('hidden orphans on %s', (dialect: Dialect) => {
   it('deletes an orphan only if, inside the deletion, its extension is still off and no flow is based on it (review)', async () => {
     const { forwards: [connected, orphan] } = await createPortForwards(workspaces.a.repos);
     const { id } = workspaces.a.workspace;
-    const workspace = { db: db(), repos: workspaces.a.repos, workspaceId: id };
+    const build = createWorkspaceRepositories(BUILTIN_REGISTRY.repositories(), {
+      flowDerivers: BUILTIN_REGISTRY.flowDerivers(),
+    });
+    const workspace = {
+      db: db(), repos: workspaces.a.repos, workspaceId: id,
+      reposFor: (trx: Kysely<Database>) => build(trx, { workspaceId: id, actorId: null, kinds: BUILTIN_REGISTRY }),
+    };
     const [definition] = NAT;
     await setExtensionsEnabled(db(), id, ['nat'], false, null);
 

@@ -1,4 +1,5 @@
 import { listDerivedFlows } from './derived-flows';
+import { inTransaction } from './entity-repository';
 import { toTimestamp } from '../database/serialize';
 
 import type { WorkspaceRepositories } from './index';
@@ -8,6 +9,10 @@ import type { Kysely } from 'kysely';
 
 /** Most orphans listed per entity type. */
 export const MAX_ORPHANS = 200;
+
+/** The contract's bounds on a field's text and lists. */
+const MAX_TEXT = 2000;
+const MAX_LIST = 100;
 
 /** Rows read per call while looking for orphans. */
 const PAGE = 1000;
@@ -24,9 +29,12 @@ export interface HiddenOrphan {
 export interface OrphanWorkspace {
   db: Kysely<Database>;
   repos: WorkspaceRepositories;
+  /** The same workspace's repositories on another connection, such as a transaction's. */
+  reposFor: (db: Kysely<Database>) => WorkspaceRepositories | Promise<WorkspaceRepositories>;
   workspaceId: string;
 }
 
+type Remover = { remove: (id: string) => Promise<boolean> };
 type Lister = { list: (filter: object, page: { limit: number; offset: number }) => Promise<Record<string, unknown>[]> };
 
 const key = (entity: string, id: string) => `${entity}:${id}`;
@@ -37,10 +45,12 @@ const fieldsOf = ({ workspaceId: _workspaceId, ...entity }: Record<string, unkno
     if (value instanceof Date) {
       return [[field, value.toISOString()]];
     }
-    if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
-      return [[field, value as Value]];
+    // Within the contract's bounds (text up to 2000 characters, lists up to 100): a field past them is left out.
+    const text = (item: unknown): item is string => typeof item === 'string' && item.length <= MAX_TEXT;
+    if (value === null || typeof value === 'number' || typeof value === 'boolean' || text(value)) {
+      return [[field, value]];
     }
-    return Array.isArray(value) && value.every((item) => typeof item === 'string') ? [[field, value]] : [];
+    return Array.isArray(value) && value.length <= MAX_LIST && value.every(text) ? [[field, value]] : [];
   }));
 
 /** The entity type keys some stored derived flow of the workspace is based on. */
@@ -54,7 +64,7 @@ async function connectedKeys(db: Kysely<Database>, workspaceId: string): Promise
  * on, less those kept hidden; at most MAX_ORPHANS per type, `truncated` when there were more.
  */
 export async function listHiddenOrphans(
-  { db, repos, workspaceId }: OrphanWorkspace,
+  { db, repos, workspaceId }: Omit<OrphanWorkspace, 'reposFor'>,
   definitions: readonly RegisteredRepository[],
 ): Promise<{ items: HiddenOrphan[]; truncated: boolean }> {
   const extensions = [...new Set(definitions.map(({ extension }) => extension))];
@@ -116,12 +126,23 @@ export async function keepHiddenEntity(
 
 /**
  * Deletes a hidden entity through its repository, in one transaction that first checks again that its extension is
- * still off and that no flow is based on it.
+ * still off and that no flow is based on it: a toggle or a new flow since the request started counts.
  */
-export function deleteOrphan(
-  _workspace: OrphanWorkspace,
-  _definition: RegisteredRepository,
-  _id: string,
+export async function deleteOrphan(
+  { db, reposFor, workspaceId }: OrphanWorkspace,
+  definition: RegisteredRepository,
+  id: string,
 ): Promise<'deleted' | 'entity_not_found' | 'extension_enabled' | 'hidden_entity_connected'> {
-  return Promise.resolve('deleted');
+  return inTransaction(db, async (trx) => {
+    const off = await trx.selectFrom('workspace_extension_disabled').select('extension')
+      .where('workspaceId', '=', workspaceId).where('extension', '=', definition.extension).executeTakeFirst();
+    if (!off) {
+      return 'extension_enabled';
+    }
+    if ((await connectedKeys(trx, workspaceId)).has(key(definition.entity, id))) {
+      return 'hidden_entity_connected';
+    }
+    const repos = await reposFor(trx) as unknown as Record<string, Remover | undefined>;
+    return await repos[definition.key]?.remove(id) ? 'deleted' : 'entity_not_found';
+  });
 }

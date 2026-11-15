@@ -14,5 +14,8 @@ export default defineContractHandler(listHiddenOrphans, async ({ params, workspa
     return hidden.problem === 'extension_not_found' ? { status: 404, body } : { status: 409, body };
   }
   const { db, repos, definitions } = hidden;
-  return { status: 200, body: await listOrphans({ db, repos, workspaceId: workspace.id }, definitions) };
+  const { items, truncated } = await listOrphans({ db, repos, workspaceId: workspace.id }, definitions);
+  // Below admin, the count only: the entities are hidden, as the entity API keeps them (review).
+  const manages = workspace.role === 'admin' || workspace.role === 'owner';
+  return { status: 200, body: { items: manages ? items : [], count: items.length, truncated } };
 });

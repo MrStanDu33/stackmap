@@ -5,9 +5,11 @@ import { disabledExtensions } from '../repositories/workspace-extensions';
 
 import type { AuthorizedWorkspace } from './contract-handler';
 import type { Session } from '../../shared/contracts/auth';
+import type { Database } from '../database/types/schema';
 import type { ExtensionRegistry } from '../extensions/registry';
 import type { WorkspaceRepositories } from '../repositories';
 import type { KindCatalog } from '@stackmap/extension-sdk/server';
+import type { Kysely } from 'kysely';
 
 /**
  * The repositories of a workspace the membership check authorized: the only way routes reach a workspace's data, so
@@ -17,9 +19,11 @@ import type { KindCatalog } from '@stackmap/extension-sdk/server';
 export async function workspaceRepositories(
   workspace: AuthorizedWorkspace,
   session: Session | null = null,
+  on?: Kysely<Database>,
 ): Promise<WorkspaceRepositories> {
   const registry = useExtensionRegistry();
-  const db = await useDatabase();
+  // On another connection when given, such as a transaction's.
+  const db = on ?? await useDatabase();
   const disabled = await disabledExtensions(db, workspace.id);
   // Flow derivers keep running for disabled extensions: their stored flows stay current for when they come back.
   return createWorkspaceRepositories(registry.repositories(), { flowDerivers: registry.flowDerivers() })(db, {

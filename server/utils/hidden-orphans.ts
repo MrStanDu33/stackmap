@@ -27,6 +27,7 @@ export const orphanDetail = (code: OrphanProblem) => DETAILS[code];
 export interface HiddenExtension {
   db: Kysely<Database>;
   repos: WorkspaceRepositories;
+  reposFor: (on: Kysely<Database>) => Promise<WorkspaceRepositories>;
   /** The extension's active repository definitions. */
   definitions: RegisteredRepository[];
 }
@@ -48,6 +49,7 @@ export async function hiddenExtension(
   return {
     db,
     repos: await workspaceRepositories(workspace, session),
+    reposFor: (on) => workspaceRepositories(workspace, session, on),
     definitions: registry.repositories().filter((definition) => definition.extension === extension),
   };
 }
@@ -59,7 +61,10 @@ export async function hiddenOrphan(
   workspace: AuthorizedWorkspace,
   { extensionId, entity, entityId }: { extensionId: string; entity: string; entityId: string },
   session: Session,
-): Promise<{ db: Kysely<Database>; repository: Repository } | { problem: OrphanProblem; status: 404 | 409 }> {
+): Promise<
+  { db: Kysely<Database>; repository: Repository; hidden: HiddenExtension; definition: RegisteredRepository }
+  | { problem: OrphanProblem; status: 404 | 409 }
+> {
   const hidden = await hiddenExtension(workspace, extensionId, session);
   if ('problem' in hidden) {
     return { problem: hidden.problem, status: hidden.problem === 'extension_not_found' ? 404 : 409 };
@@ -75,5 +80,5 @@ export async function hiddenOrphan(
   if (await isConnected(hidden.db, workspace.id, entity, entityId)) {
     return { problem: 'hidden_entity_connected', status: 409 };
   }
-  return { db: hidden.db, repository };
+  return { db: hidden.db, repository, hidden, definition };
 }
