@@ -32,6 +32,9 @@ export default defineContractHandler(setUpWorkspaceExtensions, async ({ body, wo
   const db = await useDatabase();
   const done = await inTransaction(db, async (trx) => {
     // Every extension's entities count, on or off: onboarding is for workspaces with nothing in them yet.
+    // shortcut: on Postgres an entity created between this count and the writes is not seen (nothing locks the
+    // workspace; it then shows as hidden, as after a toggle), and a failed extension's rows are not counted; take a
+    // workspace lock shared with entity writes if onboarding ever does more than turn extensions on and off.
     const repos = await workspaceRepositories(workspace, session, trx) as unknown as Record<string, Counter>;
     for (const { key } of registry.repositories()) {
       if (await (repos[key] as Counter).count({}) > 0) {
