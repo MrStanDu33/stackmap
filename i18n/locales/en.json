@@ -465,7 +465,9 @@
     "deleteFailed": "{name} could not be deleted. Check your connection and try again.",
     "yes": "Yes",
     "no": "No",
-    "extensionsFailed": "The extensions could not be loaded."
+    "extensionsFailed": "The extensions could not be loaded.",
+    "typeDisabled": "This type's extension is turned off in this workspace.",
+    "manageExtensions": "Manage extensions"
   },
   "issues": {
     "invalid_type": "Expected {expected}",
@@ -506,5 +508,31 @@
       "object": "an object",
       "null": "nothing"
     }
+  },
+  "workspaceExtensions": {
+    "title": "Extensions",
+    "intro": "Turn on the extensions this workspace uses. Turning one off hides its data without deleting it.",
+    "version": "Version {version}",
+    "on": "On",
+    "off": "Off",
+    "alwaysOn": "Always on",
+    "failed": "Failed",
+    "failedHint": "Not running: an administrator can see why in the diagnostics.",
+    "turnedOn": "{name} turned on",
+    "turnedOff": "{name} turned off",
+    "saveFailed": "{name} could not be changed. Try again.",
+    "loadFailed": "The extensions could not be loaded.",
+    "retry": "Try again",
+    "confirmOffTitle": "Turn off {name}?",
+    "confirmOnTitle": "Turn on {name}?",
+    "hiddenData": "Stays saved but hidden:",
+    "entityCount": "{type}: {count}",
+    "derivedFlows": "no flows derived from them | {count} flow derived from them | {count} flows derived from them",
+    "alsoOff": "Also turned off, as they need it: {names}",
+    "alsoOn": "Also turned on, as it needs them: {names}",
+    "nothingDeleted": "Nothing is deleted. Turning it back on brings everything back.",
+    "turnOff": "Turn off",
+    "turnOn": "Turn on",
+    "cancel": "Cancel"
   }
 }
