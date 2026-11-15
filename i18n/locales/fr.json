@@ -537,16 +537,17 @@
     "turnOn": "Activer",
     "cancel": "Annuler",
     "loading": "Chargement des extensions…",
-    "orphans": "aucune entité masquée n’est déconnectée | {count} entité masquée n’est plus reliée à rien | {count} entités masquées ne sont plus reliées à rien",
+    "orphans": "aucune entité masquée n’est isolée | {count} entité masquée n’est plus reliée à rien | {count} entités masquées ne sont plus reliées à rien",
     "review": "Examiner",
     "deleteOrphan": "Supprimer {name}",
-    "keepOrphan": "Garder {name} masqué",
+    "keepOrphan": "Garder l’entité « {name} » masquée",
     "confirmDeleteOrphan": "Supprimer {name} ? Cette action est irréversible.",
-    "orphanDeleted": "{name} : supprimé",
-    "orphanKept": "{name} : gardé masqué",
-    "orphanFailed": "{name} n’a pas pu être modifié. Réessayez.",
+    "orphanDeleted": "Entité « {name} » supprimée",
+    "orphanKept": "Entité « {name} » gardée masquée",
+    "orphanFailed": "L’entité « {name} » n’a pas pu être modifiée. Réessayez.",
     "orphansLoading": "Chargement des entités masquées…",
     "orphansFailed": "Les entités masquées n’ont pas pu être chargées.",
-    "truncated": "{count} premières affichées."
+    "truncated": "Seules les {count} premières sont affichées.",
+    "reviewOf": "Examiner les entités masquées de l’extension « {extension} »"
   }
 }

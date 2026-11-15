@@ -537,7 +537,7 @@
     "turnOn": "Turn on",
     "cancel": "Cancel",
     "loading": "Loading the extensions…",
-    "orphans": "no hidden entity is disconnected | {count} hidden entity no longer connects to anything | {count} hidden entities no longer connect to anything",
+    "orphans": "no hidden entity is left unconnected | {count} hidden entity no longer connects to anything | {count} hidden entities no longer connect to anything",
     "review": "Review",
     "deleteOrphan": "Delete {name}",
     "keepOrphan": "Keep {name} hidden",
@@ -547,6 +547,7 @@
     "orphanFailed": "{name} could not be changed. Try again.",
     "orphansLoading": "Loading the hidden entities…",
     "orphansFailed": "The hidden entities could not be loaded.",
-    "truncated": "Showing the first {count}."
+    "truncated": "Showing the first {count}.",
+    "reviewOf": "Review the hidden entities of {extension}"
   }
 }
