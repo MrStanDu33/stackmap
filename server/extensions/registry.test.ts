@@ -362,6 +362,49 @@ describe('extension registry: entities', () => {
     ]);
   });
 
+  it('given ownedBy on an entity of a dependency, adds the declaring table to that entity\'s owned rows, with its extension', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'part')], { dependsOn: ['alpha'] });
+    const part = { ...repository('part', 'parts', 'beta_part'), columns: ['thingId'], ownedBy: [{ entity: 'thing', column: 'thingId' }] };
+
+    const registry = createExtensionRegistry([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [part])],
+    });
+
+    expect(registry.repositories().find(({ key }) => key === 'things')?.owned)
+      .toEqual([{ extension: 'beta', entity: 'part', table: 'beta_part', column: 'thingId' }]);
+    expect(registry.repositories().find(({ key }) => key === 'parts')?.owned).toBeUndefined();
+  });
+
+  it('given ownedBy on an entity of an extension it does not depend on, or an unknown entity, fails the extension with a diagnostic', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'part')]);
+    const part = (target: string) =>
+      ({ ...repository('part', 'parts', 'beta_part'), columns: ['thingId'], ownedBy: [{ entity: target, column: 'thingId' }] });
+
+    for (const target of ['thing', 'unknown']) {
+      expect(summary([alpha, beta], {
+        servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [part(target)])],
+      }), target).toEqual([
+        'alpha active',
+        `beta failed: repository "parts" is owned by entity "${target}", which none of its dependencies declares`,
+      ]);
+    }
+  });
+
+  it('given ownedBy through a column its table does not store, fails the extension naming the column', () => {
+    const alpha = withEntities('alpha', [entity('alpha', 'thing')]);
+    const beta = withEntities('beta', [entity('beta', 'part')], { dependsOn: ['alpha'] });
+    const part = { ...repository('part', 'parts', 'beta_part'), columns: ['thingId'], ownedBy: [{ entity: 'thing', column: 'thingRef' }] };
+
+    expect(summary([alpha, beta], {
+      servers: [serverOf(alpha, [repository('thing', 'things', 'alpha_thing')]), serverOf(beta, [part])],
+    })).toEqual([
+      'alpha active',
+      'beta failed: repository "parts" is owned through column "thingRef", which it does not store',
+    ]);
+  });
+
   describe('dependentsOf through a dependency\'s table', () => {
     const alpha = withEntities('alpha', [entity('alpha', 'owner'), entity('alpha', 'thing')]);
     const beta = withEntities('beta', [entity('beta', 'part')], { dependsOn: ['alpha'] });

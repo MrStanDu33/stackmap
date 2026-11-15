@@ -465,7 +465,9 @@
     "deleteFailed": "{name} n’a pas pu être supprimé. Vérifiez votre connexion et réessayez.",
     "yes": "Oui",
     "no": "Non",
-    "extensionsFailed": "Les extensions n’ont pas pu être chargées."
+    "extensionsFailed": "Les extensions n’ont pas pu être chargées.",
+    "typeDisabled": "L’extension de ce type est désactivée dans cet espace de travail.",
+    "manageExtensions": "Gérer les extensions"
   },
   "issues": {
     "invalid_type": "Valeur attendue : {expected}",
@@ -506,5 +508,32 @@
       "object": "un objet",
       "null": "aucune valeur"
     }
+  },
+  "workspaceExtensions": {
+    "title": "Extensions",
+    "intro": "Activez les extensions qu’utilise cet espace de travail. En désactiver une masque ses données sans les supprimer.",
+    "version": "Version {version}",
+    "on": "Activée",
+    "off": "Désactivée",
+    "alwaysOn": "Toujours activée",
+    "failed": "En échec",
+    "failedHint": "Ne fonctionne pas : un administrateur peut en voir la raison dans les diagnostics.",
+    "turnedOn": "Extension « {name} » activée",
+    "turnedOff": "Extension « {name} » désactivée",
+    "saveFailed": "L’extension « {name} » n’a pas pu être modifiée. Réessayez.",
+    "loadFailed": "Les extensions n’ont pas pu être chargées.",
+    "retry": "Réessayer",
+    "confirmOffTitle": "Désactiver {name} ?",
+    "confirmOnTitle": "Activer {name} ?",
+    "hiddenData": "Ces données restent enregistrées mais masquées :",
+    "entityCount": "{type} : {count}",
+    "derivedFlows": "Flux dérivé : {count} | Flux dérivé : {count} | Flux dérivés : {count}",
+    "alsoOff": "Les extensions suivantes en dépendent et seront aussi désactivées : {names}",
+    "alsoOn": "Elle a besoin des extensions suivantes, qui seront aussi activées : {names}",
+    "nothingDeleted": "Rien n’est supprimé. La réactiver restaure tout.",
+    "turnOff": "Désactiver",
+    "turnOn": "Activer",
+    "cancel": "Annuler",
+    "loading": "Chargement des extensions…"
   }
 }

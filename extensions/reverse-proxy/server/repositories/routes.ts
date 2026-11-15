@@ -111,6 +111,8 @@ export const proxyRouteRepository = defineEntityRepository<ProxyRouteFields, Pro
     { field: 'proxyServiceId', table: 'core_service', id: proxyServiceId },
     { field: 'upstreamListenerId', table: 'core_listener', id: upstreamListenerId },
   ],
+  // Deleted with their proxy (on delete cascade).
+  ownedBy: [{ entity: 'service', column: 'proxyServiceId' }],
   dependentsOf: [
     { entity: 'listener', column: 'upstreamListenerId' },
     // Removing a service removes its listeners: explains which routes blocked it.

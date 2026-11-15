@@ -27,6 +27,10 @@
   whose `scope.workspaceId` they must filter by. Test it with `describeScopedRepository` and a factory; reference
   another extension's tables only if you depend on it. When your rows refer to a dependency's entity that must not
   be removed under them, declare `dependentsOf: [{ entity, column }]`: its repository then refuses the removal.
+  Rows deleted with a dependency's entity (`on delete cascade`, such as a router's port forwards) declare
+  `ownedBy: [{ entity, column }]`: while your extension is off in a workspace, they block that removal instead.
+  Declare one for every such cascade; a cascade through the entity's own children (a listener removed with its
+  service) is not covered, so avoid one.
 - Inventory: register your entity types with `defineInventory` in `app/inventory.ts` (exported as `./inventory` and
   listed in `app/extensions/inventory.ts`): a hand-written form per type in `app/components/inventory/<Entity>Form.vue`
   (props `EntityFormProps`, built with `useInventoryForm`, `EntityField`, `ReferenceSelect`, `KindSelect`,

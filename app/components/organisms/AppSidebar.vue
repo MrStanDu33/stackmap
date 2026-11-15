@@ -26,6 +26,10 @@ const items = computed(() => [
     ? [
         { label: t('inventory.title'), 'aria-label': t('inventory.title'), icon: 'i-lucide-boxes', to: `${base.value}/inventory` },
         { label: t('members.title'), 'aria-label': t('members.title'), icon: 'i-lucide-users', to: `${base.value}/members` },
+        {
+          label: t('workspaceExtensions.title'), 'aria-label': t('workspaceExtensions.title'), icon: 'i-lucide-puzzle',
+          to: `${base.value}/extensions`,
+        },
       ]
     : []),
   // Everyone signed in has their own settings.

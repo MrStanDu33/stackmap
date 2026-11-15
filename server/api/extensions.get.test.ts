@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe('GET /api/extensions', () => {
-  it('returns every installed extension with its keys, icon, alwaysOn, dependsOn, enabled and kinds by entity', async () => {
+  it('returns every installed extension with its keys, icon, alwaysOn, dependsOn and kinds by entity', async () => {
     expect(await get([vpn, core])).toEqual({
       status: 200,
       json: {
@@ -63,7 +63,6 @@ describe('GET /api/extensions', () => {
             alwaysOn: true,
             dependsOn: [],
             state: 'active',
-            enabled: true,
             kinds: {
               host: [],
               network: [{ id: 'lan', label: 'extensions.core.kinds.network.lan', icon: 'i-lucide-network' }],
@@ -82,7 +81,6 @@ describe('GET /api/extensions', () => {
             alwaysOn: false,
             dependsOn: ['core'],
             state: 'active',
-            enabled: true,
             kinds: { host: [], network: [{ id: 'vpn', label: 'extensions.vpn.kinds.network.vpn' }], service: [], protocol: [] },
             entities: [],
             locales: [],
@@ -106,6 +104,12 @@ describe('GET /api/extensions', () => {
     expect(json.extensions[0]).toHaveProperty(['kinds', 'network', 0], { id: 'lan', label: 'extensions.core.kinds.network.lan' });
     expect(warned).toHaveBeenCalledWith(expect.stringMatching(/i-lucide-not-a-real-icon/));
     expect(warned).toHaveBeenCalledWith(expect.stringMatching(/i-lucide-nope/));
+  });
+
+  it('lists no enabled field: the instance-wide list cannot know a workspace (17)', async () => {
+    const { json } = await get([core]);
+
+    expect((json as { extensions: object[] }).extensions[0]).not.toHaveProperty('enabled');
   });
 
   it('requires a session', () => {

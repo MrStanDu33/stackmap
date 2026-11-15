@@ -115,6 +115,13 @@ export interface EntityRepositoryDefinition<Fields = unknown, Input = unknown, D
   dependents?: readonly EntityDependent[];
   /** Entities of its dependencies whose removal this entity's rows prevent, through `column` of its own table. */
   dependentsOf?: readonly { entity: string; column: string; through?: DependentPath }[];
+  /**
+   * Entities of its dependencies whose removal deletes this entity's rows (`on delete cascade` through `column`), such
+   * as a router's port forwards. While this extension is off in a workspace, they block that removal instead.
+   * Declare one for every cascade into a dependency's table: rows cascaded through one of its owned children (a
+   * listener removed with its service) are not covered.
+   */
+  ownedBy?: readonly { entity: string; column: string }[];
   /** Checks that need the database, on the changed fields; `id` is the entity's, new on create. */
   check?(
     context: RepositoryContext<DB>, fields: Fields, changed: ReadonlySet<string>, id: string,

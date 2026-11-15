@@ -37,6 +37,8 @@ export const portForwardRepository = defineEntityRepository<PortForwardFields, P
   table: 'nat_portForward',
   schema: portForwardSchema,
   columns: ['hostId', 'externalAddress', 'externalPort', 'transport', 'internalAddress', 'internalPort', 'description'],
+  // Deleted with their host (on delete cascade).
+  ownedBy: [{ entity: 'host', column: 'hostId' }],
   filters: ['hostId'],
   // The unique index covers the host, address, port and transport; the port is the field a form shows it on.
   unique: ['externalPort'],

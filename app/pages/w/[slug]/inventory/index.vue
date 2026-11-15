@@ -9,7 +9,7 @@ const route = useRoute();
 const { t } = useI18n();
 const { session, signOut } = useAccount();
 const { workspaces } = useWorkspaces();
-const { error, retry } = useExtensions();
+const { error, retry } = useExtensions(() => workspaces.value?.find(({ slug }) => slug === route.params.slug)?.id);
 const installed = useState<InstalledExtension[]>('extensions', () => []);
 const slug = computed(() => String(route.params.slug));
 useHead({ title: () => [t('inventory.title'), t('app.name')].join(' · ') });

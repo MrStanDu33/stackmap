@@ -18,9 +18,16 @@ export interface ExtensionLabels {
   extensionName: (extension: string) => string;
 }
 
-/** Labels from the installed extensions, translated when called: they follow the locale. */
-export function extensionLabels(extensions: readonly InstalledExtension[], t: Translate): ExtensionLabels {
+/**
+ * Labels from the installed extensions, translated when called: they follow the locale. Kinds of an extension turned
+ * off in the workspace keep their names, but are not offered.
+ */
+export function extensionLabels(
+  extensions: readonly (InstalledExtension & { enabled?: boolean })[],
+  t: Translate,
+): ExtensionLabels {
   const active = extensions.filter(({ state }) => state === 'active');
+  const offered = active.filter(({ enabled }) => enabled !== false);
   const extension = (id: string) => active.find((candidate) => candidate.id === id);
   const entity = (extensionId: string, entityId: string) =>
     extension(extensionId)?.entities.find(({ id }) => id === entityId);
@@ -30,7 +37,7 @@ export function extensionLabels(extensions: readonly InstalledExtension[], t: Tr
       const found = kinds(of).find(({ id }) => id === kind);
       return found ? t(found.label) : kind;
     },
-    kindOptions: (of) => kinds(of)
+    kindOptions: (of) => offered.flatMap((candidate) => candidate.kinds[of])
       .map(({ id, label, icon }) => ({ value: id, label: t(label), ...(icon ? { icon } : {}) })),
     entityLabel: (extensionId, entityId) => {
       const found = entity(extensionId, entityId);

@@ -1,6 +1,9 @@
+import { entityId } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
+import { problem } from './auth';
 import { defineContract } from './contract';
+import { Problem, problemOf } from './errors';
 import { HOOK, i18nKey, icon, kebabId, LANGUAGE_TAG, LOCALE_CODE, semver, text } from './formats';
 
 /** Longest hook name: `<id>:<name>`, each at most 40 characters. */
@@ -49,7 +52,6 @@ const core = {
   alwaysOn: true,
   dependsOn: [],
   state: 'active',
-  enabled: true,
   kinds: { host: [], network: [lan], service: [], protocol: [] },
   entities: [host],
   locales: [],
@@ -64,7 +66,6 @@ export const Extension = z.object({
   alwaysOn: z.boolean().meta({ description: 'Whether it can never be turned off (the core)', examples: [true] }),
   dependsOn: z.array(kebabId()).max(50).meta({ description: 'Ids of the extensions it needs' }),
   state,
-  enabled: z.boolean().meta({ description: 'Always true until extensions can be turned off per workspace', examples: [true] }),
   kinds: z.object({
     host: kindsOf('hosts'),
     network: kindsOf('networks'),
@@ -165,5 +166,163 @@ export const getExtensionDiagnostics = defineContract({
         },
       },
     },
+  },
+});
+
+const nat = {
+  ...core,
+  id: 'nat',
+  version: '1.0.0',
+  name: 'extensions.nat.name',
+  description: 'extensions.nat.description',
+  icon: 'i-lucide-arrow-right-left',
+  alwaysOn: false,
+  dependsOn: ['core'],
+  enabled: false,
+  kinds: { host: [], network: [], service: [], protocol: [] },
+  entities: [{ id: 'port-forward', label: 'extensions.nat.entities.port-forward' }],
+};
+
+export const WorkspaceExtension = Extension.extend({
+  enabled: z.boolean().meta({ description: 'Whether it is on in this workspace; the core always is', examples: [false] }),
+}).meta({ id: 'WorkspaceExtension', description: 'An installed extension, on or off in a workspace', examples: [nat] });
+
+/** An installed extension as a workspace sees it, on or off. */
+export type WorkspaceExtension = z.infer<typeof WorkspaceExtension>;
+
+/** The example workspace id the other contracts use. */
+const WORKSPACE_ID = '0199d6a0-0000-7000-8000-000000000001';
+
+const WORKSPACE_EXTENSIONS_PATH = '/api/workspaces/:workspaceId/extensions';
+const extensionsInstance = WORKSPACE_EXTENSIONS_PATH.replace(':workspaceId', WORKSPACE_ID);
+const natInstance = `${extensionsInstance}/nat`;
+
+const workspaceParams = z.object({
+  workspaceId: entityId().meta({ description: 'The workspace\'s id', examples: [WORKSPACE_ID] }),
+});
+const extensionParams = workspaceParams.extend({
+  extensionId: kebabId().meta({ description: 'The extension\'s id', examples: ['nat'] }),
+});
+
+const notInstalled = (instance: string) => ({
+  description: 'No installed extension has this id, or a workspace the caller cannot open',
+  schema: Problem,
+  examples: {
+    extension_not_found: {
+      summary: 'No such extension',
+      value: problemOf('extension_not_found', { detail: 'No installed extension has this id.', instance }),
+    },
+    workspace_not_found: {
+      summary: 'No such workspace',
+      value: problemOf('workspace_not_found', { detail: 'No workspace with this id that you can open.', instance }),
+    },
+  },
+});
+const alwaysOn = (instance: string) => problem(
+  'The extension cannot be turned off (the core)',
+  'extension_always_on',
+  'The core extension cannot be turned off.',
+  instance,
+);
+
+export const listWorkspaceExtensions = defineContract({
+  method: 'get',
+  path: WORKSPACE_EXTENSIONS_PATH,
+  operationId: 'listWorkspaceExtensions',
+  summary: 'List the extensions of a workspace',
+  description: 'Every installed extension as `GET /api/extensions` lists it, with whether it is on in this workspace. '
+    + 'Workspace pages build their kinds, types and labels from this list.',
+  tags: ['Extensions'],
+  requiredRole: 'viewer',
+  params: workspaceParams,
+  responses: {
+    200: {
+      description: 'The installed extensions, on or off in the workspace',
+      schema: z.object({
+        extensions: z.array(WorkspaceExtension).max(100).meta({ description: 'Dependencies first, then by id' }),
+      }),
+      examples: {
+        natOff: { summary: 'NAT turned off', value: { extensions: [{ ...core, enabled: true }, nat] } },
+      },
+    },
+  },
+});
+
+const ExtensionChange = z.object({
+  id: kebabId().meta({ description: 'The extension that changes', examples: ['nat'] }),
+  enabled: z.boolean().meta({ description: 'Whether it is on after the change', examples: [false] }),
+}).meta({ id: 'ExtensionChange', description: 'An extension turned on or off', examples: [{ id: 'nat', enabled: false }] });
+
+export const ExtensionImpact = ExtensionChange.extend({
+  entities: z.array(z.object({
+    entity: kebabId().meta({ description: 'The entity type', examples: ['port-forward'] }),
+    count: z.number().int().min(0).meta({ description: 'How many the workspace has', examples: [3] }),
+  })).max(50).meta({ description: 'Its entities by type; empty when it comes on' }),
+  derivedFlows: z.number().int().min(0).meta({ description: 'How many stored flows it derives; 0 when it comes on', examples: [2] }),
+}).meta({
+  id: 'ExtensionImpact',
+  description: 'An extension that a toggle would change, with what stays saved but hidden when it goes off',
+  examples: [{ id: 'nat', enabled: false, entities: [{ entity: 'port-forward', count: 3 }], derivedFlows: 2 }],
+});
+
+/** An extension a toggle would change, as the confirmation shows it. */
+export type ExtensionImpact = z.infer<typeof ExtensionImpact>;
+
+const impactExample = {
+  changes: [{ id: 'nat', enabled: false, entities: [{ entity: 'port-forward', count: 3 }], derivedFlows: 2 }],
+};
+
+export const previewExtensionToggle = defineContract({
+  method: 'get',
+  path: `${WORKSPACE_EXTENSIONS_PATH}/:extensionId/impact`,
+  operationId: 'previewExtensionToggle',
+  summary: 'Preview turning an extension on or off',
+  description: 'What turning the extension on or off would change in the workspace: the extensions that change with '
+    + 'it (its dependents going off, its dependencies coming on) and, for each one going off, how many of its '
+    + 'entities and derived flows stay saved but hidden. Changes nothing.',
+  tags: ['Extensions'],
+  requiredRole: 'viewer',
+  params: extensionParams,
+  query: z.strictObject({
+    enabled: z.enum(['true', 'false']).transform((value) => value === 'true')
+      .meta({ description: 'Whether to preview turning it on (`true`) or off (`false`)', examples: ['false'] }),
+  }),
+  responses: {
+    200: {
+      description: 'The extensions that would change, the asked one first',
+      schema: z.object({
+        changes: z.array(ExtensionImpact).max(100).meta({ description: 'Empty when it is already in the asked state' }),
+      }),
+      examples: { natOff: { summary: 'Turning NAT off', value: impactExample } },
+    },
+    404: notInstalled(`${natInstance}/impact`),
+    409: alwaysOn(`${extensionsInstance}/core/impact`),
+  },
+});
+
+export const setExtensionEnabled = defineContract({
+  method: 'put',
+  path: `${WORKSPACE_EXTENSIONS_PATH}/:extensionId`,
+  operationId: 'setExtensionEnabled',
+  summary: 'Turn an extension on or off',
+  description: 'For workspace admins and owners. Turning an extension off also turns off the extensions that need '
+    + 'it; turning one on also turns on those it needs. Nothing is deleted: its entities stay saved but hidden, and '
+    + 'its entity API answers `409 extension_disabled`, until it is turned back on.',
+  tags: ['Extensions'],
+  requiredRole: 'admin',
+  params: extensionParams,
+  body: z.strictObject({
+    enabled: z.boolean().meta({ description: 'Whether to turn it on', examples: [false] }),
+  }).meta({ description: 'The state asked for', examples: [{ enabled: false }] }),
+  responses: {
+    200: {
+      description: 'The extensions that changed, the asked one first; empty when it already was in that state',
+      schema: z.object({
+        changed: z.array(ExtensionChange).max(100).meta({ description: 'The extensions that changed' }),
+      }),
+      examples: { natOff: { summary: 'NAT turned off', value: { changed: [{ id: 'nat', enabled: false }] } } },
+    },
+    404: notInstalled(natInstance),
+    409: alwaysOn(`${extensionsInstance}/core`),
   },
 });

@@ -134,6 +134,21 @@ export const PROBLEMS = {
     title: 'No such entity type',
     description: 'No active extension declares this extension and entity id with a repository.',
   },
+  extension_disabled: {
+    status: 409,
+    title: 'The extension is turned off',
+    description: 'The extension of this entity type is turned off in this workspace; `extension` names it.',
+  },
+  extension_not_found: {
+    status: 404,
+    title: 'No such extension',
+    description: 'No installed extension has this id.',
+  },
+  extension_always_on: {
+    status: 409,
+    title: 'The extension is always on',
+    description: 'This extension cannot be turned off.',
+  },
   entity_not_found: {
     status: 404,
     title: 'The entity does not exist',
@@ -293,6 +308,10 @@ export const Problem = z.object({
   dependents: z.array(ProblemDependent).max(MAX_ISSUES).optional().meta({
     description: 'For `entity_in_use`: what refers to the entity; empty when it could not be told',
   }),
+  extension: kebabId().optional().meta({
+    description: 'For `extension_disabled`: the extension turned off in the workspace',
+    examples: ['nat'],
+  }),
 }).meta({
   id: 'Problem',
   description: 'An API error, as RFC 9457 Problem Details (`application/problem+json`)',
@@ -320,7 +339,7 @@ export const problemOf = (
   { detail, instance, ...extra }: {
     detail: string;
     instance: string;
-  } & Pick<Problem, 'issues' | 'workspaces' | 'field' | 'fields' | 'dependents'>,
+  } & Pick<Problem, 'issues' | 'workspaces' | 'field' | 'fields' | 'dependents' | 'extension'>,
 ): Problem => ({
   type: `urn:stackmap:problem:${code}`,
   title: PROBLEMS[code].title,

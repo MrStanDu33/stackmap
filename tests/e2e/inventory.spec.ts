@@ -200,14 +200,14 @@ test.describe('inventory', () => {
 
   test('when the extensions cannot be loaded, the inventory says so in the app\'s frame, and Retry recovers (review)', async ({ page }) => {
     const workspace = await createWorkspace(page);
-    await page.route('**/api/extensions', (route) => route.abort());
+    await page.route('**/api/workspaces/*/extensions', (route) => route.abort());
     await page.goto(`/w/${workspace.slug}/inventory`);
     await hydrated(page);
 
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: 'Inventory' })).toBeVisible();
     await expect(main.getByRole('alert')).toContainText('could not be loaded');
-    await page.unroute('**/api/extensions');
+    await page.unroute('**/api/workspaces/*/extensions');
     await main.getByRole('button', { name: 'Retry' }).click();
     await expect(page).toHaveURL(`${DEMO_URL}/w/${workspace.slug}/inventory/core/site`);
   });

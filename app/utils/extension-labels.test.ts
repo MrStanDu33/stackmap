@@ -4,9 +4,9 @@ import { extensionLabels } from './extension-labels';
 import { createTestI18n } from '../../tests/support/i18n';
 
 import type { Translate } from './traffic-graph';
-import type { InstalledExtension } from '../../shared/contracts/extensions';
+import type { WorkspaceExtension } from '../../shared/contracts/extensions';
 
-const core: InstalledExtension = {
+const core: WorkspaceExtension = {
   id: 'core',
   version: '1.0.0',
   name: 'extensions.core.name',
@@ -29,7 +29,7 @@ const core: InstalledExtension = {
   locales: [],
 };
 
-const proxy: InstalledExtension = {
+const proxy: WorkspaceExtension = {
   ...core,
   id: 'reverse-proxy',
   name: 'extensions.reverse-proxy.name',
@@ -87,5 +87,17 @@ describe('useExtensions', () => {
     expect(followed.kindLabel('host', 'vm')).toBe('Virtual machine');
     i18n.global.locale.value = 'fr';
     expect(followed.kindLabel('host', 'vm')).toBe('Machine virtuelle');
+  });
+
+  it('given an extension turned off in the workspace, does not offer its kinds in a select (37)', () => {
+    const labels = extensionLabels([core, { ...proxy, enabled: false }], translator('en'));
+    expect(labels.kindOptions('service').map(({ value }) => value)).toEqual(['external-api']);
+  });
+
+  it('given an extension turned off in the workspace, still names its kinds and entity types (21, 37)', () => {
+    const labels = extensionLabels([core, { ...proxy, enabled: false }], translator('en'));
+    expect(labels.kindLabel('service', 'reverse-proxy')).toBe('Reverse proxy');
+    expect(labels.entityLabel('reverse-proxy', 'route')).toBe('Proxy route');
+    expect(labels.extensionName('reverse-proxy')).toBe('Reverse proxy');
   });
 });

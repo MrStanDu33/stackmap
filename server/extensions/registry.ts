@@ -17,7 +17,20 @@ export type ExtensionState = 'active' | 'failed';
 
 /** A repository definition, with the extensions whose tables it may refer to: its own and its dependencies. */
 /** A definition with its extension, the extensions whose tables it may refer to, and every dependent on it. */
-export type RegisteredRepository = EntityRepositoryDefinition & { extension: string; tableOwners: readonly string[] };
+export type RegisteredRepository = EntityRepositoryDefinition & {
+  extension: string;
+  tableOwners: readonly string[];
+  /** Rows of its dependents' extensions deleted with an entity, from their `ownedBy`. */
+  owned?: readonly OwnedRows[];
+};
+
+/** Rows of another extension's table that are deleted with an entity (`on delete cascade` through `column`). */
+export interface OwnedRows {
+  extension: string;
+  entity: string;
+  table: string;
+  column: string;
+}
 
 export interface RegisteredExtension {
   manifest: ExtensionManifest;
@@ -150,6 +163,16 @@ function dependentsOfErrors({ manifest, server }: Entry, installed: ReadonlyMap<
       if (through && !stores(through.table, through.column)) {
         errors.push(`repository "${key}" counts as a dependent through "${through.table}.${through.column}", `
           + 'which no repository of its dependencies stores');
+      }
+    }
+  }
+  for (const { key, columns, ownedBy = [] } of server?.repositories ?? []) {
+    for (const { entity, column } of ownedBy) {
+      if (!entities.has(entity)) {
+        errors.push(`repository "${key}" is owned by entity "${entity}", which none of its dependencies declares`);
+      }
+      if (!columns.includes(column)) {
+        errors.push(`repository "${key}" is owned through column "${column}", which it does not store`);
       }
     }
   }
@@ -400,13 +423,23 @@ export function createExtensionRegistry(
           owners: manifest.dependsOn,
           dependent: { entity: definition.entity, table: definition.table, column, ...(through ? { through } : {}) },
         }))));
+      const ownedRows = entries.flatMap(({ manifest, server }) => (server?.repositories ?? []).flatMap((definition) =>
+        (definition.ownedBy ?? []).map(({ entity, column }) => ({
+          entity,
+          owners: manifest.dependsOn,
+          rows: { extension: manifest.id, entity: definition.entity, table: definition.table, column },
+        }))));
       return entries.flatMap(({ manifest, server }) => (server?.repositories ?? []).map((definition) => {
         const added = declared
           .filter(({ entity, owners }) => entity === definition.entity && owners.includes(manifest.id))
           .map(({ dependent }) => dependent);
+        const owned = ownedRows
+          .filter(({ entity, owners }) => entity === definition.entity && owners.includes(manifest.id))
+          .map(({ rows }) => rows);
         return {
           ...definition,
           ...(added.length > 0 ? { dependents: [...(definition.dependents ?? []), ...added] } : {}),
+          ...(owned.length > 0 ? { owned } : {}),
           extension: manifest.id,
           tableOwners: tableOwnersOf(manifest),
         };

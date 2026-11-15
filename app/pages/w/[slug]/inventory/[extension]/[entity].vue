@@ -26,12 +26,12 @@ const route = useRoute();
 const router = useRouter();
 const { session, signOut } = useAccount();
 const { workspaces, refresh: refreshWorkspaces } = useWorkspaces();
-const { error: extensionsError, retry: retryExtensions } = useExtensions();
 const installed = useState<InstalledExtension[]>('extensions', () => []);
 const labels = useExtensionLabels();
 
 const slug = computed(() => String(route.params.slug));
 const workspace = computed(() => workspaces.value?.find((candidate) => candidate.slug === slug.value));
+const { error: extensionsError, retry: retryExtensions } = useExtensions(() => workspace.value?.id);
 const canCreate = computed(() => session.value?.user.role === 'admin');
 const canEdit = computed(() => WRITERS.has(workspace.value?.role ?? ''));
 
@@ -39,9 +39,15 @@ const types = computed(() => inventoryTypes(installed.value));
 const type = computed(() => findInventoryType(
   types.value, String(route.params.extension), String(route.params.entity),
 ));
-const notFound = computed(() => installed.value.length > 0 && !type.value);
+// A type of an extension turned off in the workspace: its data is kept, but hidden.
+const typeDisabled = computed(() => installed.value.some(({ id, state, enabled, entities }) =>
+  id === route.params.extension && state === 'active' && enabled === false
+  && entities.some((entity) => entity.id === route.params.entity)));
+const notFound = computed(() => installed.value.length > 0 && !type.value && !typeDisabled.value);
 const typeLabel = computed(() => (type.value ? labels.entityLabel(type.value.extension, type.value.entity) : ''));
-const pluralLabel = computed(() => (type.value ? labels.entityPlural(type.value.extension, type.value.entity) : ''));
+const pluralLabel = computed(() => (type.value || typeDisabled.value
+  ? labels.entityPlural(String(route.params.extension), String(route.params.entity))
+  : ''));
 const groups = computed(() => [...new Set(types.value.map(({ extension }) => extension))].map((extension) => ({
   extension,
   label: labels.extensionName(extension),
@@ -331,6 +337,21 @@ const remove = async () => {
       >
         {{ t('inventory.loading') }}
       </p>
+      <div
+        v-else-if="typeDisabled"
+        class="flex flex-col items-start gap-3"
+      >
+        <p>{{ t('inventory.typeDisabled') }}</p>
+        <UButton
+          v-if="workspace?.role === 'admin' || workspace?.role === 'owner'"
+          :to="`/w/${slug}/extensions`"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-puzzle"
+        >
+          {{ t('inventory.manageExtensions') }}
+        </UButton>
+      </div>
       <EntityTable
         v-else-if="type"
         ref="table"

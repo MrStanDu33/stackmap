@@ -279,7 +279,8 @@ admin approves it again _(install flows: phase 5; community extensions: after v1
   registry order. A key a language does not translate falls back to English, so a pack may lag behind the app.
   English and French stay complete.
 - **Diagnostics**: `GET /api/extensions` lists the extensions with their state, kinds, entities and languages (strings
-  are i18n keys; `enabled` is `true` until the per-workspace toggles). `GET /api/extensions/diagnostics` (admin) adds
+  are i18n keys); `GET /api/workspaces/:id/extensions` adds whether each is on in the workspace, and is what workspace
+  pages read. `GET /api/extensions/diagnostics` (admin) adds
   their errors (credentials masked; the logs keep them whole), declared code, hooks provided and handled, and per
   language the coverage, missing keys and conflicts. Logs name the extension (`[extension:<id>]`);
   `STACKMAP_DEBUG=extensions` traces every hook call on the server (handlers, durations, errors), and
@@ -297,13 +298,20 @@ otherwise it fails.
 _(Planned.)_ Extensions will also contribute fields on other extensions' entities, flow types, templates, wizard
 questions and themes, and domain events will join the hooks as the features that emit them arrive.
 
-Admins install and remove extensions, and workspace admins turn them on or off _(planned, phase 5; who may do it is a
-permission)_. Turning one off never deletes data:
+Admins install and remove extensions, and workspace admins and owners turn them on or off at `/w/<slug>/extensions`
+(later a permission). A workspace stores only the extensions it turned off (`workspace_extension_disabled`), so a new
+extension is on everywhere and a reinstalled one finds its old state. Turning one off turns off what needs it, and
+turning one on turns on what it needs, after a confirmation that lists them. Turning one off never deletes data:
 
-1. if its entities carry live flows, the admin is warned first;
-2. its types disappear from palettes, forms, search and filters;
-3. its entities that are still connected show as greyed "hidden" boxes in graphs and traces, so paths stay continuous;
-4. once a hidden entity has no connection left, the user chooses to delete it or keep it hidden.
+1. the confirmation counts its entities and the flows it derives, which stay saved but hidden
+   (`GET …/extensions/:id/impact`);
+2. its types disappear from the inventory and its kinds from kind selects (an entity that has one keeps it), and its
+   entity API answers `409 extension_disabled`, before reading the body;
+3. its flow derivers keep running, so its stored flows are current when it comes back;
+4. rows of it that a core removal would delete with their owner (a host's port forwards: `ownedBy` in its repository
+   definition) block that removal instead, as `entity_in_use`;
+5. _(planned, 5c‴)_ its entities that are still connected show as greyed "hidden" boxes in graphs and traces, so paths
+   stay continuous, and once a hidden entity has no connection left, the user chooses to delete it or keep it hidden.
 
 Removing an extension keeps its data by default (hidden, restored on reinstall); "remove and delete data" shows what
 will be deleted, asks for confirmation, offers an export and is audit-logged. An extension others depend on cannot be

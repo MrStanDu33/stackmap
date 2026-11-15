@@ -195,10 +195,24 @@ export function entityContracts(manifest: ExtensionManifest, definition: EntityR
       },
     },
   };
+  const disabledExample = (at: string) => ({
+    extension_disabled: {
+      summary: 'The extension is turned off',
+      value: problemOf('extension_disabled', {
+        detail: `The ${manifest.id} extension is turned off in this workspace.`, instance: at, extension: manifest.id,
+      }),
+    },
+  });
+  const disabled = (at: string) => ({
+    description: 'The extension of this entity type is turned off in the workspace',
+    schema: Problem,
+    examples: disabledExample(at),
+  });
   const conflict = (changed: boolean) => ({
     description: changed
-      ? 'Another entity has the same unique values, or the entity changed while this write was checked'
-      : 'Another entity has the same unique values',
+      ? 'Another entity has the same unique values, the entity changed while this write was checked, or the '
+      + 'extension is turned off in the workspace'
+      : 'Another entity has the same unique values, or the extension is turned off in the workspace',
     schema: Problem,
     examples: {
       entity_conflict: {
@@ -217,6 +231,7 @@ export function entityContracts(manifest: ExtensionManifest, definition: EntityR
             },
           }
         : {}),
+      ...disabledExample(changed ? itemInstance : instance),
     },
   });
 
@@ -249,6 +264,7 @@ export function entityContracts(manifest: ExtensionManifest, definition: EntityR
           examples: [{ items: [example], total: 1, limit: DEFAULT_PAGE, offset: 0 }],
         })),
         404: typeNotFound,
+        409: disabled(instance),
       },
     }),
     create: defineContract({
@@ -277,7 +293,7 @@ export function entityContracts(manifest: ExtensionManifest, definition: EntityR
       tags,
       requiredRole: 'viewer',
       params: entityParams,
-      responses: { 200: ok(`The ${label}`, example), 404: notFound },
+      responses: { 200: ok(`The ${label}`, example), 404: notFound, 409: disabled(itemInstance) },
     }),
     update: defineContract({
       method: 'patch',
@@ -308,12 +324,18 @@ export function entityContracts(manifest: ExtensionManifest, definition: EntityR
       responses: {
         204: { description: 'Removed', schema: z.null(), examples: { removed: { summary: 'Removed', value: null } } },
         404: notFound,
-        409: problem(
-          'Other entities refer to it; `dependents` says which',
-          'entity_in_use',
-          'The entity is still used by 2 service.',
-          itemInstance,
-        ),
+        409: {
+          description: 'Other entities refer to it (`dependents` says which), or the extension is turned off in the '
+            + 'workspace',
+          schema: Problem,
+          examples: {
+            entity_in_use: {
+              summary: 'Other entities refer to it',
+              value: problemOf('entity_in_use', { detail: 'The entity is still used by 2 service.', instance: itemInstance }),
+            },
+            ...disabledExample(itemInstance),
+          },
+        },
       },
     }),
   };

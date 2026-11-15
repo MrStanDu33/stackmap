@@ -17,6 +17,7 @@ import { fromBoolean, fromJson, fromTimestamp, toBoolean, toJson, toTimestamp } 
 
 import type { Dependent } from './errors';
 import type { Database } from '../database/types/schema';
+import type { OwnedRows } from '../extensions/registry';
 import type {
   EntityReference, EntityRepositoryDefinition, Page, RepositoryContext as DefinitionContext, RepositoryScope,
   ScopedRepository,
@@ -86,7 +87,9 @@ function serialized<T>(db: Kysely<Database>, write: () => Promise<T>): Promise<T
  * named columns.
  */
 export function createEntityRepository<Fields, Input, DB>(
-  definition: EntityRepositoryDefinition<Fields, Input, DB> & { extension: string; tableOwners?: readonly string[] },
+  definition: EntityRepositoryDefinition<Fields, Input, DB> & {
+    extension: string; tableOwners?: readonly string[]; owned?: readonly OwnedRows[];
+  },
 ): (context: RepositoryContext) => ScopedRepository<unknown, unknown, unknown, object> {
   const { table } = definition;
   for (const column of [...definition.columns, ...(definition.filters ?? []), ...(definition.ownedFields ?? [])]) {
@@ -235,7 +238,23 @@ export function createEntityRepository<Fields, Input, DB>(
           .executeTakeFirst();
         return { entity, count: Number(row?.count ?? 0) };
       }));
-      return counts.filter(({ count }) => count > 0);
+      // Rows a removal would delete with it, of an extension turned off: hidden, so never deleted unseen. Read in the
+      // removal's transaction, so a toggle made since the request started counts.
+      const owners = [...new Set((definition.owned ?? []).map(({ extension }) => extension))];
+      const off = owners.length === 0
+        ? []
+        : await trx.selectFrom('workspace_extension_disabled').select('extension')
+            .where('workspaceId', '=', scope.workspaceId).where('extension', 'in', owners).execute();
+      const hidden = (definition.owned ?? []).filter(({ extension }) => off.some((row) => row.extension === extension));
+      const owned = await Promise.all(hidden.map(async ({ entity, table: rows, column }) => {
+        const row = await loose(trx).selectFrom(rows)
+          .select((expression) => expression.fn.countAll().as('count'))
+          .where('workspaceId', '=', scope.workspaceId)
+          .where(column, '=', id)
+          .executeTakeFirst();
+        return { entity, count: Number(row?.count ?? 0) };
+      }));
+      return [...counts, ...owned].filter(({ count }) => count > 0);
     };
 
     return {

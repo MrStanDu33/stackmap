@@ -1,7 +1,9 @@
 import { changePassword, updatePreferences } from './account';
 import { getSession, getSetup, setUp, signIn, signOut } from './auth';
 import { BUILTIN_ENTITY_CONTRACTS } from './entities';
-import { getExtensionDiagnostics, listExtensions } from './extensions';
+import {
+  getExtensionDiagnostics, listExtensions, listWorkspaceExtensions, previewExtensionToggle, setExtensionEnabled,
+} from './extensions';
 import { acceptInvitation, createInvitation, getInvitation, revokeInvitation } from './invitations';
 import { listMembers, removeMember, updateMember } from './members';
 import { getHealth, getOpenApiDocument } from './system';
@@ -17,5 +19,6 @@ export const CONTRACTS: readonly Contract[] = [
   getHealth, getOpenApiDocument, getSetup, setUp, getSession, signIn, signOut, listExtensions, getExtensionDiagnostics,
   listWorkspaces, createWorkspace, getTrace, getTraffic, listMembers, updateMember, removeMember, createInvitation,
   revokeInvitation, getInvitation, acceptInvitation, listUsers, createUser, updateUser, setUserPassword, removeUser,
-  updatePreferences, changePassword, ...BUILTIN_ENTITY_CONTRACTS,
+  updatePreferences, changePassword, listWorkspaceExtensions, previewExtensionToggle, setExtensionEnabled,
+  ...BUILTIN_ENTITY_CONTRACTS,
 ];
