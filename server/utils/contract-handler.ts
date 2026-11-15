@@ -273,7 +273,10 @@ export interface ServeOptions {
    * no body.
    */
   body?: z.ZodType;
-  /** Chooses the body schema once the caller is authorized, as `body` would; wins over it. */
+  /**
+   * Chooses the body schema as `body` would, and wins over it. It runs only once the caller is authorized, so it may
+   * read the caller's workspace.
+   */
   bodyFor?: (caller: Caller) => Promise<z.ZodType | undefined>;
 }
 

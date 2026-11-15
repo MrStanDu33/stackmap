@@ -238,8 +238,14 @@ export function createEntityRepository<Fields, Input, DB>(
           .executeTakeFirst();
         return { entity, count: Number(row?.count ?? 0) };
       }));
-      // Rows a removal would delete with it, of an extension turned off: hidden, so never deleted unseen.
-      const hidden = (definition.owned ?? []).filter(({ extension }) => scope.disabledExtensions?.has(extension));
+      // Rows a removal would delete with it, of an extension turned off: hidden, so never deleted unseen. Read in the
+      // removal's transaction, so a toggle made since the request started counts.
+      const owners = [...new Set((definition.owned ?? []).map(({ extension }) => extension))];
+      const off = owners.length === 0
+        ? []
+        : await trx.selectFrom('workspace_extension_disabled').select('extension')
+            .where('workspaceId', '=', scope.workspaceId).where('extension', 'in', owners).execute();
+      const hidden = (definition.owned ?? []).filter(({ extension }) => off.some((row) => row.extension === extension));
       const owned = await Promise.all(hidden.map(async ({ entity, table: rows, column }) => {
         const row = await loose(trx).selectFrom(rows)
           .select((expression) => expression.fn.countAll().as('count'))

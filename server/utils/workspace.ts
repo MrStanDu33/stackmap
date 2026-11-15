@@ -26,7 +26,6 @@ export async function workspaceRepositories(
     workspaceId: workspace.id,
     actorId: session?.user.id ?? null,
     kinds: enabledKinds(registry, disabled),
-    disabledExtensions: disabled,
   });
 }
 
