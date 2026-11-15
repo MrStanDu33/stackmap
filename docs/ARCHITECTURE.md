@@ -320,10 +320,12 @@ turning one on turns on what it needs, after a confirmation that lists them. Tur
    it hidden (`workspace_hidden_entity_kept`, cleared when the extension is turned back on).
 
 A new workspace starts with onboarding: creating one opens `/w/<slug>/onboarding`, "What's in your stack?", one
-plain question per optional extension (its manifest's `onboarding`, else its name), all unchecked. Continuing turns on
-the extensions chosen and what they need, and every other one off, in one request (`PUT …/extensions`); skipping keeps
-them all on. The server accepts it only while the workspace holds no entity of any extension (`409
-workspace_not_empty`), so the demo workspace and workspaces in use change one extension at a time, as above.
+group per optional extension, named by its question (its manifest's `onboarding`, else its name), with a checkbox per
+entity type and kind it adds, all unchecked. Checking an item also checks the items of the extensions it needs (free to
+uncheck). Continuing turns on every extension with an item checked and what they need, and every other one off, in one
+request (`PUT …/extensions`); skipping keeps them all on. The items only help choose: they are not stored. The server
+accepts it only while the workspace holds no entity of any extension (`409 workspace_not_empty`), so the demo
+workspace and workspaces in use change one extension at a time, as above.
 
 Removing an extension keeps its data by default (hidden, restored on reinstall); "remove and delete data" shows what
 will be deleted, asks for confirmation, offers an export and is audit-logged. An extension others depend on cannot be
