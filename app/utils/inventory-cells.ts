@@ -47,6 +47,8 @@ export function cellText(entity: Record<string, unknown>, column: InventoryColum
       const port = entity[column.port ?? ''];
       return endpoint(valueText(value), typeof port === 'number' ? port : null);
     }
+    case 'boolean':
+      return context.t(value === true ? 'inventory.yes' : 'inventory.no');
     case 'date':
       return new Intl.DateTimeFormat(context.locale, { dateStyle: 'medium' }).format(new Date(valueText(value)));
     default:
