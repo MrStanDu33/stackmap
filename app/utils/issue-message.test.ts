@@ -40,6 +40,14 @@ describe('issueMessage', () => {
     expect(issueMessage(issue('common.too-many-custom-fields', { maximum: 50 }), i18nFor('en'))).toContain('50');
   });
 
+  it('says which value an invalid-value issue expected, by its format, in the current language', () => {
+    const invalid = (format: string) => issue('common.invalid-value', { format });
+
+    expect(issueMessage(invalid('ipv4'), i18nFor('en'))).toBe(i18nFor('en').t('issues.format.ipv4'));
+    expect(issueMessage(invalid('ipv4'), i18nFor('fr'))).toBe(i18nFor('fr').t('issues.format.ipv4'));
+    expect(issueMessage(invalid('unheard-of'), i18nFor('en'))).toBe(i18nFor('en').t('issues.common.invalid-value'));
+  });
+
   it('falls back to the issue\'s English message when the code has no translation', () => {
     expect(issueMessage(issue('core.not-a-rule'), i18nFor('fr'))).toBe('English fallback');
     expect(issueMessage(issue('vpn.peer-unknown'), i18nFor('en'))).toBe('English fallback');

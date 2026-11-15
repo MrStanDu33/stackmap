@@ -13,8 +13,9 @@ const meta = {
   component: EntitySlideover,
   args: {
     open: true,
-    title: t('inventory.new', { type: TYPE() }),
-    typeLabel: TYPE(),
+    // i18n keys, translated when the story renders: in its locale, not the one the file loaded in.
+    title: 'inventory.new',
+    typeLabel: 'extensions.core.entities.host',
     formId: 'host-form',
     readonly: false,
     saving: false,
@@ -27,7 +28,14 @@ const meta = {
   // A stand-in form in the slot: what every type's form renders.
   render: (args) => ({
     components: { EntitySlideover },
-    setup: () => ({ args }),
+    setup: () => ({
+      args: {
+        ...args,
+        // Props reach stories untyped from the .vue file: typed here.
+        title: i18n.global.te(args.title as string) ? t(args.title as string, { type: TYPE(), name: 'nas' }) : args.title as string,
+        typeLabel: t(args.typeLabel as string),
+      },
+    }),
     template: `<EntitySlideover v-bind="args">
       <form id="host-form" @submit.prevent>
         <label for="host-form-name">Name</label><input id="host-form-name" name="name">
@@ -57,7 +65,7 @@ export const New: Story = {
 
 /** Edit: titled with the entity's name (22). */
 export const Edit: Story = {
-  args: { title: t('inventory.edit', { name: 'nas' }) },
+  args: { title: 'inventory.edit' },
   play: async () => {
     await panel(t('inventory.edit', { name: 'nas' }));
   },
@@ -95,7 +103,8 @@ export const Issues: Story = {
     const dialog = await panel(t('inventory.new', { type: TYPE() }));
     const summary = dialog.getByRole('alert');
     await waitFor(() => expect(summary).toHaveFocus());
-    await expect(summary).toHaveTextContent(t('inventory.errorSummary', { type: TYPE() }));
+    // Whitespace normalized, as toHaveTextContent does to the page: French has non-breaking spaces.
+    await expect(summary).toHaveTextContent(t('inventory.errorSummary', { type: TYPE() }).replace(/\s+/g, ' '));
     await expect(summary).toHaveTextContent('Unrecognized key: colour');
     await userEvent.click(within(summary).getByRole('link', { name: /Too short/ }));
     await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveFocus();
@@ -104,7 +113,7 @@ export const Issues: Story = {
 
 /** Changed by someone else: said, with Reload, which asks before discarding the changes (30). */
 export const Changed: Story = {
-  args: { title: t('inventory.edit', { name: 'nas' }), state: 'changed', dirty: true },
+  args: { title: 'inventory.edit', state: 'changed', dirty: true },
   play: async ({ args }) => {
     const dialog = await panel(t('inventory.edit', { name: 'nas' }));
     await expect(dialog.getByRole('alert')).toHaveTextContent(t('inventory.changed'));
@@ -117,7 +126,7 @@ export const Changed: Story = {
 
 /** Deleted meanwhile: said (31). */
 export const Gone: Story = {
-  args: { title: t('inventory.edit', { name: 'nas' }), state: 'gone' },
+  args: { title: 'inventory.edit', state: 'gone' },
   play: async () => {
     const dialog = await panel(t('inventory.edit', { name: 'nas' }));
     await expect(dialog.getByRole('alert')).toHaveTextContent(t('inventory.gone'));
@@ -152,6 +161,8 @@ export const DiscardQuestion: Story = {
     let confirm = await waitFor(() => within(document.body).getByRole('alertdialog', { name: t('inventory.discard') }));
     await userEvent.click(within(confirm).getByRole('button', { name: t('inventory.keepEditing') }));
     await expect(args['onUpdate:open']).not.toHaveBeenCalled();
+    // Gone before Escape: a question still closing would take the key.
+    await waitFor(() => expect(within(document.body).queryByRole('alertdialog')).toBeNull());
 
     await userEvent.keyboard('{Escape}');
     confirm = await waitFor(() => within(document.body).getByRole('alertdialog', { name: t('inventory.discard') }));

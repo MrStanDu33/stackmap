@@ -8,7 +8,8 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 const { t } = i18n.global;
 const plural = (extension: string, entity: string) => t(`extensions.${extension}.entitiesPlural.${entity}`);
 
-const GROUPS = [
+/** The navigation, translated when the story renders: in its locale, not the one the file loaded in. */
+const groups = () => [
   {
     extension: 'core',
     label: t('extensions.core.name'),
@@ -26,10 +27,10 @@ const GROUPS = [
 const meta = {
   title: 'Templates/InventoryTemplate',
   component: InventoryTemplate,
-  args: { groups: GROUPS, current: 'core/host', title: plural('core', 'host'), notFound: false, backTo: '/w/home/inventory' },
+  args: { groups: [], current: 'core/host', title: 'extensions.core.entitiesPlural.host', notFound: false, backTo: '/w/home/inventory' },
   render: (args) => ({
     components: { InventoryTemplate },
-    setup: () => ({ args }),
+    setup: () => ({ args: { ...args, groups: groups(), title: t(args.title) } }),
     template: '<InventoryTemplate v-bind="args"><p>Table</p></InventoryTemplate>',
   }),
 } satisfies Meta<typeof InventoryTemplate>;
@@ -56,7 +57,7 @@ export const Default: Story = {
 
 /** A type not in the inventory: said, with a link back, and no content (4). */
 export const NotFound: Story = {
-  args: { notFound: true, current: undefined, title: t('inventory.notFound') },
+  args: { notFound: true, current: undefined, title: 'inventory.notFound' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 

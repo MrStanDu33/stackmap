@@ -22,6 +22,13 @@ const meta = {
     readonly: false,
     'onUpdate:modelValue': fn(),
   },
+  // Errors are i18n keys, translated when the story renders: in its locale.
+  render: (args) => ({
+    components: { ReferenceSelect },
+    // Props reach stories untyped from the .vue file: typed here.
+    setup: () => ({ args: { ...args, errors: (args.errors as string[]).map((key) => t(key)) } }),
+    template: '<ReferenceSelect v-bind="args" />',
+  }),
 } satisfies Meta<typeof ReferenceSelect>;
 
 export default meta;
@@ -73,13 +80,15 @@ export const Searching: Story = {
     await userEvent.keyboard('off');
     await waitFor(() => expect([...document.querySelectorAll('[role="option"]')].map(({ textContent }) => textContent.trim()))
       .toEqual(['Office']));
+    // Closed again, as the other stories do, before the page is checked with axe.
     await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(document.querySelector('[role="listbox"]')).toBeNull());
   },
 };
 
 /** An error is said in the field's description, and the field is marked invalid (25). */
 export const WithError: Story = {
-  args: { errors: [t('inventory.referenceGone')] },
+  args: { errors: ['inventory.referenceGone'] },
   play: async ({ canvasElement }) => {
     await expect(select(canvasElement)).toHaveAttribute('aria-invalid', 'true');
     await expect(select(canvasElement)).toHaveAccessibleDescription(expect.stringContaining(t('inventory.referenceGone')) as string);

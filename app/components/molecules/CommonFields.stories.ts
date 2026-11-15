@@ -59,7 +59,7 @@ export const Default: Story = {
 /** Tags: typed and added with Enter, each once (34). */
 export const Tags: Story = {
   play: async ({ canvasElement, args }) => {
-    const tags = within(canvasElement).getByRole('combobox', { name: new RegExp(`^${t('inventory.common.tags')}`) });
+    const tags = within(canvasElement).getByRole('textbox', { name: new RegExp(`^${t('inventory.common.tags')}`) });
     await userEvent.type(tags, 'storage{Enter}backup{Enter}');
     await expect(args['onUpdate:modelValue']).toHaveBeenLastCalledWith(expect.objectContaining({ tags: ['storage', 'backup'] }));
   },

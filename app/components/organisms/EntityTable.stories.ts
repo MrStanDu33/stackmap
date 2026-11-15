@@ -15,6 +15,8 @@ const { t } = i18n.global;
 const kind = (id: string) => t(`extensions.core.kinds.host.${id}`);
 const TYPE = () => t('extensions.core.entities.host');
 const PLURAL = () => t('extensions.core.entitiesPlural.host');
+// Testing Library normalizes the page's whitespace, French non-breaking spaces included, not the expected text.
+const text = (value: string) => value.replace(/\s+/g, ' ');
 
 const display = (entity: EntityRow, { field, format }: InventoryColumn): string => {
   const value = entity[field];
@@ -34,8 +36,9 @@ const meta = {
   title: 'Organisms/EntityTable',
   component: EntityTable,
   args: {
-    typeLabel: TYPE(),
-    pluralLabel: PLURAL(),
+    // i18n keys, translated when the story renders: in its locale, not the one the file loaded in.
+    typeLabel: 'extensions.core.entities.host',
+    pluralLabel: 'extensions.core.entitiesPlural.host',
     columns: HOST_COLUMNS,
     entities: HOSTS,
     total: HOSTS.length,
@@ -62,7 +65,13 @@ const meta = {
         query.value = next;
         (args['onUpdate:query'] as (value: InventoryQuery) => void)(next);
       };
-      return { args, query, update };
+      const translated = {
+        ...args,
+        typeLabel: t(args.typeLabel),
+        pluralLabel: t(args.pluralLabel),
+        notice: args.notice ? t(args.notice, { name: 'nas' }) : '',
+      };
+      return { args: translated, query, update };
     },
     template: '<EntityTable v-bind="args" :query="query" @update:query="update" />',
   }),
@@ -125,7 +134,7 @@ export const Filters: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const kindFilter = canvas.getByRole('combobox', { name: t('inventory.filterKind') });
-    await expect(await optionTexts(kindFilter)).toEqual([kind('physical'), kind('vm'), kind('vps'), kind('router')]);
+    await expect(await optionTexts(kindFilter)).toEqual([t('inventory.all'), kind('physical'), kind('vm'), kind('vps'), kind('router')]);
     await pick(kindFilter, kind('physical'));
     await waitFor(() => expect(firstCells(canvasElement)).toEqual(['nas', 'old-nas']));
 
@@ -141,7 +150,8 @@ export const Paged: Story = {
     const canvas = within(canvasElement);
     await expect(bodyRows(canvasElement)).toHaveLength(50);
     const pages = within(canvas.getByRole('navigation', { name: t('inventory.pagination') }));
-    await userEvent.click(pages.getByRole('button', { name: '2' }));
+    // Nuxt UI names its page buttons in its own locale ("Page 2"), which the app sets.
+    await userEvent.click(pages.getByRole('button', { name: /\D2$/ }));
     await expect(args['onUpdate:query']).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
     await waitFor(() => expect(firstCells(canvasElement)[0]).toBe('host-0051'));
   },
@@ -151,7 +161,7 @@ export const Paged: Story = {
 export const Truncated: Story = {
   args: { entities: manyHosts(1000), total: 1234 },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(t('inventory.truncated', { shown: 1000, total: 1234 }))).toBeVisible();
+    await expect(within(canvasElement).getByText(text(t('inventory.truncated', { shown: 1000, total: 1234 })))).toBeVisible();
   },
 };
 
@@ -160,7 +170,7 @@ export const Empty: Story = {
   args: { entities: [], total: 0 },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(t('inventory.empty', { type: PLURAL() }))).toBeVisible();
+    await expect(canvas.getByText(text(t('inventory.empty', { type: PLURAL() })))).toBeVisible();
     await expect(canvas.queryByRole('table')).toBeNull();
     const buttons = canvas.getAllByRole('button', { name: t('inventory.new', { type: TYPE() }) });
     await userEvent.click(buttons[buttons.length - 1] ?? canvasElement);
@@ -173,7 +183,7 @@ export const EmptyViewer: Story = {
   args: { entities: [], total: 0, canEdit: false },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(t('inventory.empty', { type: PLURAL() }))).toBeVisible();
+    await expect(canvas.getByText(text(t('inventory.empty', { type: PLURAL() })))).toBeVisible();
     await expect(canvas.queryByRole('button', { name: t('inventory.new', { type: TYPE() }) })).toBeNull();
   },
 };
@@ -205,7 +215,7 @@ export const LoadError: Story = {
 export const Loading: Story = {
   args: { entities: null },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(t('inventory.loading', { type: PLURAL() }))).toBeInTheDocument();
+    await expect(within(canvasElement).getByText(text(t('inventory.loading', { type: PLURAL() })))).toBeInTheDocument();
     await expect(within(canvasElement).queryByRole('table')).toBeNull();
   },
 };
@@ -246,9 +256,9 @@ export const UnknownReference: Story = {
 
 /** An outcome is announced politely: "nas saved" (24). */
 export const Notice: Story = {
-  args: { notice: t('inventory.saved', { name: 'nas' }) },
+  args: { notice: 'inventory.saved' },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole('status')).toHaveTextContent(t('inventory.saved', { name: 'nas' }));
+    await expect(within(canvasElement).getByRole('status')).toHaveTextContent(text(t('inventory.saved', { name: 'nas' })));
   },
 };
 
@@ -258,8 +268,8 @@ export const Sites: Story = {
     entities: SITES,
     total: SITES.length,
     columns: [{ field: 'name', label: 'extensions.core.fields.site.name' }],
-    typeLabel: t('extensions.core.entities.site'),
-    pluralLabel: t('extensions.core.entitiesPlural.site'),
+    typeLabel: 'extensions.core.entities.site',
+    pluralLabel: 'extensions.core.entitiesPlural.site',
     kindField: undefined,
     kindEntity: undefined,
   },
