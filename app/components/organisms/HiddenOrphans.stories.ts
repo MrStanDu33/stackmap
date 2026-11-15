@@ -35,7 +35,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const count = (n: number) => t('workspaceExtensions.orphans', { count: n }, n);
-const review = (canvasElement: HTMLElement) => within(canvasElement).getByRole('button', { name: t('workspaceExtensions.review') });
+// Named after its extension: each turned-off extension has one (review).
+const review = (canvasElement: HTMLElement) => within(canvasElement).getByRole('button', {
+  name: t('workspaceExtensions.reviewOf', { extension: t('extensions.nat.name') }),
+});
 const dialog = () => within(document.body).getByRole('alertdialog');
 const name = (index: number) => ITEMS[index]?.name ?? '';
 
@@ -93,6 +96,20 @@ export const Delete: Story = {
   },
 };
 
+/** Cancelling a deletion, or a deletion that fails, gives the focus back to Delete (review). */
+export const CancelReturnsFocus: Story = {
+  play: async ({ canvasElement }) => {
+    const deleteFirst = () => within(canvasElement).getByRole('button', { name: t('workspaceExtensions.deleteOrphan', { name: name(0) }) });
+    await userEvent.click(review(canvasElement));
+    await userEvent.click(deleteFirst());
+    await waitFor(() => expect(dialog()).toBeVisible());
+
+    await userEvent.click(within(dialog()).getByRole('button', { name: t('workspaceExtensions.cancel') }));
+
+    await waitFor(() => expect(deleteFirst()).toHaveFocus());
+  },
+};
+
 /** Keep hidden needs no confirmation (21). */
 export const Keep: Story = {
   play: async ({ canvasElement, args }) => {
@@ -139,7 +156,8 @@ export const Busy: Story = {
   play: async ({ canvasElement, args }) => {
     await userEvent.click(review(canvasElement));
     const keep = within(canvasElement).getByRole('button', { name: t('workspaceExtensions.keepOrphan', { name: name(0) }) });
-    await expect(keep).toHaveAttribute('aria-busy', 'true');
+    // Said unavailable while it runs, yet focusable: disabled would drop the focus (review).
+    await expect(keep).toHaveAttribute('aria-disabled', 'true');
     await userEvent.click(keep);
     await expect(args.onKeep).not.toHaveBeenCalled();
   },

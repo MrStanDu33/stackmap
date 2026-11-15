@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isConnected, keepHiddenEntity, listHiddenOrphans, MAX_ORPHANS } from './hidden-orphans';
+import { deleteOrphan, isConnected, keepHiddenEntity, listHiddenOrphans, MAX_ORPHANS } from './hidden-orphans';
 import { setExtensionsEnabled } from './workspace-extensions';
 import { createAccount } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
@@ -97,5 +97,21 @@ describe.each(DIALECTS)('hidden orphans on %s', (dialect: Dialect) => {
 
     expect(items).toHaveLength(MAX_ORPHANS);
     expect(truncated).toBe(true);
+  });
+
+  it('deletes an orphan only if, inside the deletion, its extension is still off and no flow is based on it (review)', async () => {
+    const { forwards: [connected, orphan] } = await createPortForwards(workspaces.a.repos);
+    const { id } = workspaces.a.workspace;
+    const workspace = { db: db(), repos: workspaces.a.repos, workspaceId: id };
+    const [definition] = NAT;
+    await setExtensionsEnabled(db(), id, ['nat'], false, null);
+
+    await expect(deleteOrphan(workspace, definition!, connected?.id ?? '')).resolves.toBe('hidden_entity_connected');
+    await setExtensionsEnabled(db(), id, ['nat'], true, null);
+    await expect(deleteOrphan(workspace, definition!, orphan?.id ?? '')).resolves.toBe('extension_enabled');
+    await setExtensionsEnabled(db(), id, ['nat'], false, null);
+    await expect(deleteOrphan(workspace, definition!, orphan?.id ?? '')).resolves.toBe('deleted');
+    await expect(deleteOrphan(workspace, definition!, orphan?.id ?? '')).resolves.toBe('entity_not_found');
+    expect(await workspaces.a.repos.portForwards.count({})).toBe(1);
   });
 });

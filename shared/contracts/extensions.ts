@@ -415,10 +415,13 @@ export const listHiddenOrphans = defineContract({
             description: 'Its fields as the entity API returns them (dates as ISO strings), those holding text, '
               + 'numbers, booleans, null or lists of text: enough to name it as the inventory does',
           }),
-        })).max(1000).meta({ description: 'By entity type, then creation order' }),
+        })).max(10_000).meta({
+          description: 'By entity type, then creation order; empty for editors and viewers, who get the count only',
+        }),
+        count: z.number().int().min(0).meta({ description: 'How many are listed, or would be', examples: [1] }),
         truncated: z.boolean().meta({ description: 'Whether a type had more than 200', examples: [false] }),
       }),
-      examples: { natOff: { summary: 'One port forward', value: { items: [orphan], truncated: false } } },
+      examples: { natOff: { summary: 'One port forward', value: { items: [orphan], count: 1, truncated: false } } },
     },
     404: notInstalled(orphansInstance),
     409: extensionEnabled(orphansInstance),

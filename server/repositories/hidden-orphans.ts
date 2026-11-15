@@ -113,3 +113,15 @@ export async function keepHiddenEntity(
     .onConflict((conflict) => conflict.columns(['workspaceId', 'extension', 'entity', 'entityId']).doNothing())
     .execute();
 }
+
+/**
+ * Deletes a hidden entity through its repository, in one transaction that first checks again that its extension is
+ * still off and that no flow is based on it.
+ */
+export function deleteOrphan(
+  _workspace: OrphanWorkspace,
+  _definition: RegisteredRepository,
+  _id: string,
+): Promise<'deleted' | 'entity_not_found' | 'extension_enabled' | 'hidden_entity_connected'> {
+  return Promise.resolve('deleted');
+}

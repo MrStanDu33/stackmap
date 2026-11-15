@@ -29,6 +29,7 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/extensions/:extensionI
         entity: 'port-forward', id: orphan?.id,
         fields: expect.objectContaining({ externalAddress: '203.0.113.10', externalPort: 8080, transport: 'tcp' }) as unknown,
       }],
+      count: 1,
       truncated: false,
     });
   });
@@ -42,11 +43,13 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/extensions/:extensionI
     expect(json).toMatchObject({ code: 'extension_enabled' });
   });
 
-  it('gives a viewer the list too, for its count, and answers 404 to a non-member (12, 22)', async () => {
+  it('gives an editor or viewer the count only, none of the hidden entities\' fields, and answers 404 to a non-member (12, 22, review)', async () => {
     await createPortForwards(workspaces.a.repos);
     await turnOffNat();
-    await signInAs('viewer');
-    expect((await get(path())).json).toMatchObject({ items: [expect.anything()] });
+    for (const role of ['viewer', 'editor'] as const) {
+      await signInAs(role);
+      expect((await get(path())).json, role).toEqual({ items: [], count: 1, truncated: false });
+    }
     await signInAs('owner', 'b');
     expect((await get(path())).status).toBe(404);
   });
