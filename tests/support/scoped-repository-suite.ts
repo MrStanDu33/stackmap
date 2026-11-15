@@ -137,7 +137,7 @@ export function describeScopedRepository(c: RepositoryCase): void {
       expect(await repository(a.repos).get(entity.id)).toEqual(updated);
     });
 
-    it('given an empty patch, changes nothing but updatedAt and updatedBy', async () => {
+    it('given an empty patch, changes nothing, updatedAt and updatedBy included', async () => {
       const { a } = c.workspaces;
       const entity = await create(a.repos);
       vi.setSystemTime(UPDATED);
@@ -145,7 +145,8 @@ export function describeScopedRepository(c: RepositoryCase): void {
       const asSystem = c.workspaces.repositories(a.workspace.id, { actorId: null });
       const updated = await repository(asSystem).update(entity.id, {});
 
-      expect(updated).toEqual({ ...entity, updatedAt: UPDATED, updatedBy: null });
+      expect(updated).toEqual(entity);
+      expect(await repository(a.repos).get(entity.id)).toEqual(entity);
     });
 
     it('given invalid input, fails with a validation error listing every issue with its path, and writes nothing', async () => {

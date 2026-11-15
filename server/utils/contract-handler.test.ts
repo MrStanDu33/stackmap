@@ -315,7 +315,9 @@ describe('defineContractHandler: Problem Details', () => {
       detail: expect.stringMatching(/\S/) as string,
       instance: '/api/things/abc',
       code: 'validation_failed',
-      issues: [{ path: 'params.id', message: expect.any(String) as string }],
+      issues: [{
+        path: 'params.id', message: expect.any(String) as string, code: 'invalid_format', params: { format: 'regex' },
+      }],
     });
   });
 

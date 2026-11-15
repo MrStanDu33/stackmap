@@ -1,3 +1,6 @@
+import { boundIssue, toIssues } from './issues';
+
+import type { CodedIssue } from './issues';
 import type { EntityIssue } from '@stackmap/extension-sdk/entities';
 import type { z } from 'zod';
 
@@ -8,12 +11,24 @@ export type { EntityIssue };
  * repository throws is unexpected.
  */
 
+/**
+ * An issue for a log. Zod's messages and unknown-kind's name no stored value; a custom check's (an extension's, coded
+ * `<extension>.<rule>`, or an uncoded one) may echo addresses and names, which logs must not carry: its code stands in.
+ */
+const describe = ({ path, code, message }: CodedIssue): string =>
+  (code === 'custom' || code.includes('.') ? `${path} (${code})` : `${path}: ${message}`);
+
 /** The input does not match the entity's schema, or names a kind no active extension provides. */
 export class EntityValidationError extends Error {
   override name = 'EntityValidationError';
 
-  constructor(readonly issues: EntityIssue[]) {
-    super(`Invalid entity: ${issues.map(({ path, message }) => `${path}: ${message}`).join('; ')}`);
+  readonly issues: CodedIssue[];
+
+  constructor(issues: EntityIssue[]) {
+    const coded = issues
+      .map(({ path, message, code = 'custom', params = {} }) => boundIssue({ path, code, params, message }));
+    super(`Invalid entity: ${coded.map(describe).join('; ')}`);
+    this.issues = coded;
   }
 }
 
@@ -21,8 +36,11 @@ export class EntityValidationError extends Error {
 export class WorkspaceReferenceError extends Error {
   override name = 'WorkspaceReferenceError';
 
-  constructor(readonly field: string, readonly id: string) {
-    super(`${field} refers to ${id}, which is not in this workspace.`);
+  /** Without a field when a foreign key refused the write and no declared reference explains it. */
+  constructor(readonly field: string | null, readonly id: string | null) {
+    super(field === null
+      ? 'A reference points to an entity that is not in this workspace.'
+      : `${field} refers to ${id ?? 'an entity'}, which is not in this workspace.`);
   }
 }
 
@@ -66,8 +84,7 @@ export class EntityInUseError extends Error {
 export function parseEntity<T, I>(schema: z.ZodType<T, I>, value: unknown): T {
   const result = schema.safeParse(value);
   if (!result.success) {
-    const issues = result.error.issues.map(({ path, message }) => ({ path: path.map(String).join('.'), message }));
-    throw new EntityValidationError(issues);
+    throw new EntityValidationError(toIssues(result.error.issues));
   }
   return result.data;
 }

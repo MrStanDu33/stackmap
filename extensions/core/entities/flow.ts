@@ -26,9 +26,9 @@ export type FlowInput = CommonInput & {
 export type FlowPatch = Partial<FlowInput>;
 
 export const flowSchema: EntitySchema<FlowFields, FlowInput> = defineEntitySchema({
-  sourceServiceId: entityId(),
-  targetListenerId: entityId(),
-  protocol: kindId().nullable().default(null),
-  purpose: line(200).nullable().default(null),
-  encrypted: z.boolean().nullable().default(null),
+  sourceServiceId: entityId().meta({ description: 'The service that opens the connection', examples: ['0199d6a0-0000-7000-8000-000000000003'] }),
+  targetListenerId: entityId().meta({ description: 'The listener it connects to', examples: ['0199d6a0-0000-7000-8000-000000000005'] }),
+  protocol: kindId().nullable().default(null).meta({ description: 'The application protocol, from an active extension', examples: ['https'] }),
+  purpose: line(200).nullable().default(null).meta({ description: 'Why the connection exists', examples: ['Backups'] }),
+  encrypted: z.boolean().nullable().default(null).meta({ description: 'Whether the traffic is encrypted, null when unknown', examples: [true] }),
 });

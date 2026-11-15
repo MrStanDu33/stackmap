@@ -38,6 +38,8 @@ async function checkAddresses({ db, scope }: Context, { addresses }: HostFields)
       ? [{
           path: `addresses.${String(index)}.address`,
           message: `${address} is not in ${network.name} (${network.cidr})`,
+          code: 'core.address-outside-network',
+          params: { address, network: network.name, cidr: network.cidr },
         }]
       : [];
   });

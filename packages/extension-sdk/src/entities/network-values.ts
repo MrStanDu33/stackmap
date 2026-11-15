@@ -156,16 +156,30 @@ export function normalizeDnsName(text: string, minLabels = 1): string | undefine
   return labels.every((label) => DNS_LABEL.test(label)) ? name : undefined;
 }
 
-/** A string schema that stores the normalized value, or fails with the message. */
-const normalized = (maxLength: number, normalize: (text: string) => string | undefined, message: () => string) =>
-  z.string().max(maxLength).transform((text, context) => {
-    const value = normalize(text);
-    if (value === undefined) {
-      context.addIssue({ code: 'custom', message: message() });
-      return z.NEVER;
-    }
-    return value;
-  });
+/** For a refine: only on a value the earlier checks passed, so a value too long is not also reported as malformed. */
+export const whenValid = ({ issues }: z.core.ParsePayload): boolean => issues.length === 0;
+
+/** The characters of an IP address and of a CIDR range, before the refine checks their form (and in the API docs). */
+export const IP_CHARACTERS = /^[\dA-Fa-f:.]+$/;
+export const CIDR_CHARACTERS = /^[\dA-Fa-f:.]+\/\d{1,3}$/;
+/** The characters of a DNS name, wildcard and trailing dot included. */
+export const DNS_CHARACTERS = /^[\w*.-]+$/;
+
+/**
+ * A string schema that stores the normalized value, or fails with the message. A check and an overwrite rather than a
+ * transform, so the schema keeps its type and documents responses too.
+ */
+const normalized = (
+  maxLength: number,
+  characters: RegExp,
+  normalize: (text: string) => string | undefined,
+  format: string,
+  message: string,
+) => z.string().max(maxLength).regex(characters)
+  .refine((text) => normalize(text) !== undefined, {
+    message, params: { code: 'common.invalid-value', format }, when: whenValid,
+  })
+  .overwrite((text) => normalize(text) ?? text);
 
 /** Long enough for any IPv6 form, `ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255` included. */
 const MAX_IP = 45;
@@ -175,21 +189,30 @@ const ofVersion = (version: 4 | 6) => (text: string) => {
   return ip?.version === version ? formatIp(ip) : undefined;
 };
 
-export const ipAddress = () => normalized(MAX_IP, normalizeIp, () => 'Expected an IPv4 or IPv6 address');
-export const ipv4Address = () => normalized(MAX_IP, ofVersion(4), () => 'Expected an IPv4 address');
-export const ipv6Address = () => normalized(MAX_IP, ofVersion(6), () => 'Expected an IPv6 address');
+export const ipAddress = () => normalized(MAX_IP, IP_CHARACTERS, normalizeIp, 'ip', 'Expected an IPv4 or IPv6 address');
+export const ipv4Address = () => normalized(MAX_IP, IP_CHARACTERS, ofVersion(4), 'ipv4', 'Expected an IPv4 address');
+export const ipv6Address = () => normalized(MAX_IP, IP_CHARACTERS, ofVersion(6), 'ipv6', 'Expected an IPv6 address');
 
-export const cidr = () => z.string().max(MAX_IP + 4).transform((text, context) => {
+const formatCidr = (text: string) => {
   const checked = checkCidr(text);
-  if ('error' in checked) {
-    context.addIssue({ code: 'custom', message: checked.error });
-    return z.NEVER;
-  }
-  return `${formatIp(checked.cidr)}/${String(checked.cidr.prefix)}`;
-});
+  return 'error' in checked ? text : `${formatIp(checked.cidr)}/${String(checked.cidr.prefix)}`;
+};
+
+export const cidr = () => z.string().max(MAX_IP + 4).regex(CIDR_CHARACTERS)
+  .refine((text) => !('error' in checkCidr(text)), {
+    error: (issue) => {
+      const checked = checkCidr(String(issue.input));
+      return 'error' in checked ? checked.error : 'Expected a CIDR range';
+    },
+    params: { code: 'common.invalid-value', format: 'cidr' },
+    when: whenValid,
+  })
+  .overwrite(formatCidr);
 
 export const dnsName = ({ minLabels = 1 }: { minLabels?: number } = {}) => normalized(
   MAX_DNS_NAME + 1,
+  DNS_CHARACTERS,
   (text) => normalizeDnsName(text, minLabels),
-  () => (minLabels > 1 ? `Expected a DNS name of at least ${String(minLabels)} labels` : 'Expected a DNS name'),
+  minLabels > 1 ? `dns-name-${String(minLabels)}` : 'dns-name',
+  minLabels > 1 ? `Expected a DNS name of at least ${String(minLabels)} labels` : 'Expected a DNS name',
 );

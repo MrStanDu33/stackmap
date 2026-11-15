@@ -3,6 +3,7 @@ import { afterEach, beforeEach } from 'vitest';
 
 import { openTestDatabase } from './databases';
 import { migrateToLatest } from '../../server/database/migrator';
+import { toBoolean } from '../../server/database/serialize';
 import { BUILTIN_EXTENSION_SERVERS, BUILTIN_EXTENSIONS } from '../../server/extensions/builtin';
 import { migrateExtensions } from '../../server/extensions/migrations';
 import { createExtensionRegistry } from '../../server/extensions/registry';
@@ -58,9 +59,10 @@ export interface TestWorkspaces {
 
 /**
  * Gives each test of the enclosing `describe` a fresh database, migrated like the app (its migrations, then the
- * built-in extensions'), with two workspaces, A and B, and their repositories.
+ * built-in extensions'), with two workspaces, A and B, and their repositories. With `actorAccount`, ACTOR is an
+ * account, as the audit needs; without, the instance has no account, as tests of the setup need.
  */
-export function useTestWorkspaces(dialect: Dialect): TestWorkspaces {
+export function useTestWorkspaces(dialect: Dialect, { actorAccount = false } = {}): TestWorkspaces {
   let database: TestDatabase | undefined;
   let build: ReturnType<typeof createWorkspaceRepositories> | undefined;
   let a: TestWorkspace | undefined;
@@ -79,6 +81,13 @@ export function useTestWorkspaces(dialect: Dialect): TestWorkspaces {
     database = await openTestDatabase(dialect);
     await migrateToLatest(database.db);
     await migrateExtensions(database.db, BUILTIN_REGISTRY, quiet);
+    if (actorAccount) {
+      // Audit events record their actor only when it is an account.
+      const now = new Date().toISOString();
+      await database.db.insertInto('user').values({
+        id: ACTOR, name: 'Actor A', email: 'actor-a@homelab.example', emailVerified: toBoolean(false), createdAt: now, updatedAt: now,
+      } as never).execute();
+    }
     build = createWorkspaceRepositories(BUILTIN_REGISTRY.repositories(), {
       flowDerivers: BUILTIN_REGISTRY.flowDerivers(),
     });

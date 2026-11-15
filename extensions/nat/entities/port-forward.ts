@@ -34,13 +34,13 @@ export type PortForwardPatch = Partial<PortForwardInput>;
 const isIpv6 = (address: string) => address.includes(':');
 
 export const portForwardSchema: EntitySchema<PortForwardFields, PortForwardInput> = defineEntitySchema({
-  hostId: entityId(),
-  externalAddress: ipAddress(),
-  externalPort: port(),
-  transport: z.enum(TRANSPORTS),
-  internalAddress: ipAddress(),
-  internalPort: port(),
-  description: line(200).nullable().default(null),
+  hostId: entityId().meta({ description: 'The host that forwards, such as the router', examples: ['0199d6a0-0000-7000-8000-000000000002'] }),
+  externalAddress: ipAddress().meta({ description: 'The address it receives on', examples: ['203.0.113.10'] }),
+  externalPort: port().meta({ description: 'The port it receives on', examples: [443] }),
+  transport: z.enum(TRANSPORTS).meta({ description: 'The transport protocol', examples: ['tcp'] }),
+  internalAddress: ipAddress().meta({ description: 'The address it forwards to', examples: ['192.0.2.20'] }),
+  internalPort: port().meta({ description: 'The port it forwards to', examples: [8443] }),
+  description: line(200).nullable().default(null).meta({ description: 'What the forward is for', examples: ['Blog'] }),
 }, (forward: PortForwardFields, context) => {
   // NAT66 and NAT64 are out of scope: a forward stays within one IP version.
   if (isIpv6(forward.externalAddress) !== isIpv6(forward.internalAddress)) {
@@ -48,6 +48,7 @@ export const portForwardSchema: EntitySchema<PortForwardFields, PortForwardInput
       code: 'custom',
       path: ['internalAddress'],
       message: 'Expected an address of the same IP version as the external one',
+      params: { code: 'nat.ip-version-mismatch' },
     });
   }
   return forward;

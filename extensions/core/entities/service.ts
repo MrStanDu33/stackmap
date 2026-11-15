@@ -23,9 +23,9 @@ export type ServiceInput = CommonInput & {
 export type ServicePatch = Partial<ServiceInput>;
 
 export const serviceSchema: EntitySchema<ServiceFields, ServiceInput> = defineEntitySchema({
-  name: entityName(),
-  kind: kindId(),
-  hostId: entityId().nullable().default(null),
-  image: line(300).nullable().default(null),
-  containerName: line(100).nullable().default(null),
+  name: entityName().meta({ description: 'The service\'s name', examples: ['blog'] }),
+  kind: kindId().meta({ description: 'The service kind, from an active extension', examples: ['app'] }),
+  hostId: entityId().nullable().default(null).meta({ description: 'The host the service runs on', examples: ['0199d6a0-0000-7000-8000-000000000002'] }),
+  image: line(300).nullable().default(null).meta({ description: 'The container image', examples: ['ghcr.io/example/blog:1.4'] }),
+  containerName: line(100).nullable().default(null).meta({ description: 'The container\'s name', examples: ['blog'] }),
 });

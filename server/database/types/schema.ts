@@ -13,6 +13,7 @@ export interface Database {
   user: UserTable;
   userPreference: UserPreferenceTable;
   rateLimit: RateLimitTable;
+  audit_event: AuditEventTable;
 }
 
 /**
@@ -107,4 +108,19 @@ export interface UserPreferenceTable {
   locale: string | null;
   landingPage: string | null;
   updatedAt: string;
+}
+
+/** One entity write: who, what and which fields, never their values. Deleted with its workspace. */
+export interface AuditEventTable {
+  id: string;
+  workspaceId: string;
+  /** Null for writes without an actor (demo seed, system) and once the account is deleted. */
+  actorId: string | null;
+  action: string;
+  extension: string;
+  entity: string;
+  entityId: string;
+  /** JSON array of field names. */
+  fields: string;
+  createdAt: string;
 }

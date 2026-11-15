@@ -108,3 +108,24 @@ describe('common entity fields', () => {
     expect(parse({ tags: ['web', 'prod', 'web'] }).data?.tags).toEqual(['web', 'prod']);
   });
 });
+
+describe('entity refine', () => {
+  type Pair = CommonFields & { name: string; first: string; second: string };
+  const pairSchema = defineEntitySchema<Pair, CommonInput & { name: string; first: string; second: string }>(
+    { name: entityName(), first: entityName(), second: entityName() },
+    (pair, context) => {
+      if (pair.first === pair.second) {
+        context.addIssue({ code: 'custom', path: ['second'], message: 'Twice', params: { code: 'test.twice' } });
+      }
+      return pair;
+    },
+  );
+
+  it('runs alongside an issue on a field it does not read, so one answer lists every issue', () => {
+    expect(issuePaths(pairSchema.input.safeParse({ name: '', first: 'a', second: 'a' }))).toEqual(['name', 'second']);
+  });
+
+  it('is skipped when a field it reads failed: its rule holds for valid values only', () => {
+    expect(issuePaths(pairSchema.input.safeParse({ name: 'n', first: '', second: '' }))).toEqual(['first', 'second']);
+  });
+});

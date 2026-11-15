@@ -26,7 +26,7 @@ Each feature starts with its acceptance criteria as test names, reviewed before 
 - [x] **3. Vertical slice**: workspace-scoped repositories and test factories; hosts, networks, services, listeners,
       domains, DNS records and proxy routes → derived flows → hop-by-hop trace on a read-only graph, with the demo
       stack.
-- [ ] **4. Accounts and workspaces**: first-run setup, login, roles, invitations, user settings, password reset CLI.
+- [x] **4. Accounts and workspaces**: first-run setup, login, roles, invitations, user settings, password reset CLI.
 - [ ] **5. Extensions and inventory**: installing, updating, toggling (per workspace) and removing extensions, with a
       warning for extensions that run code; onboarding ("What's in your stack?"), the built-in extensions, CRUD tables,
       search and the command palette.

@@ -25,13 +25,21 @@ export interface RepositoryScope {
   kinds: KindCatalog;
 }
 
+/** A slice of a list: `limit` entities after the first `offset`. */
+export interface Page {
+  limit: number;
+  offset: number;
+}
+
 /** Reads and writes one entity type of one workspace; nothing outside that workspace is visible. */
 export interface ScopedRepository<Entity, Input, Patch, Filter extends object = never> {
   create: (input: Input) => Promise<Entity>;
   /** Undefined when the workspace has no such entity. */
   get: (id: string) => Promise<Entity | undefined>;
-  /** In creation order. */
-  list: (filter?: Filter) => Promise<Entity[]>;
+  /** In creation order; one page of them when a page is given. */
+  list: (filter?: Filter, page?: Page) => Promise<Entity[]>;
+  /** How many entities match the filter. */
+  count: (filter?: Filter) => Promise<number>;
   /** Undefined when the workspace has no such entity. */
   update: (id: string, patch: Patch) => Promise<Entity | undefined>;
   /** False when the workspace has no such entity. */

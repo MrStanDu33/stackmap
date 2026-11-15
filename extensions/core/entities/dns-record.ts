@@ -1,4 +1,4 @@
-import { ASCII, defineEntitySchema, entityId, line, normalizeDnsName, normalizeIp } from '@stackmap/extension-sdk/entities';
+import { ASCII, defineEntitySchema, whenValid, entityId, line, normalizeDnsName, normalizeIp } from '@stackmap/extension-sdk/entities';
 import { z } from 'zod';
 
 import type { CommonFields, CommonInput, EntityMeta, EntitySchema } from '@stackmap/extension-sdk/entities';
@@ -34,17 +34,18 @@ export type DnsRecordPatch = Partial<DnsRecordInput>;
 /** `@`, or labels relative to the domain; `*` only as the first label, `_` only to start one (`_dmarc`). */
 const RECORD_LABEL = /^(?:_?(?!-)[a-z0-9-]{1,63}(?<!-))$/;
 
-const recordName = () => z.string().min(1).max(253).transform((text, context) => {
+const isRecordName = (text: string) => {
   const name = text.toLowerCase();
-  const labels = name.split('.');
-  const valid = ASCII.test(text) && (name === '@'
-    || labels.every((label, index) => RECORD_LABEL.test(label) || (index === 0 && label === '*')));
-  if (!valid) {
-    context.addIssue({ code: 'custom', message: 'Expected @ or a name relative to the domain, such as www or *.dev' });
-    return z.NEVER;
-  }
-  return name;
-});
+  return ASCII.test(text) && (name === '@'
+    || name.split('.').every((label, index) => RECORD_LABEL.test(label) || (index === 0 && label === '*')));
+};
+
+const recordName = () => z.string().min(1).max(253).regex(/^[\w*.@-]*$/)
+  .refine(isRecordName, {
+    message: 'Expected @ or a name relative to the domain, such as www or *.dev', params: { code: 'core.invalid-record-name' },
+    when: whenValid,
+  })
+  .overwrite((text) => text.toLowerCase());
 
 const IP_VERSION = { A: 4, AAAA: 6 } as const;
 
@@ -72,16 +73,16 @@ const EXPECTED_VALUE: Record<DnsRecordType, string> = {
 };
 
 export const dnsRecordSchema: EntitySchema<DnsRecordFields, DnsRecordInput> = defineEntitySchema({
-  domainId: entityId(),
-  name: recordName(),
-  type: z.enum(DNS_RECORD_TYPES),
-  value: z.string().min(1).max(4000),
-  view: z.enum(DNS_VIEWS).default('public'),
-  proxied: z.boolean().default(false),
+  domainId: entityId().meta({ description: 'The domain the record belongs to', examples: ['0199d6a0-0000-7000-8000-000000000004'] }),
+  name: recordName().meta({ description: 'The name relative to the domain, @ for the domain itself', examples: ['blog'] }),
+  type: z.enum(DNS_RECORD_TYPES).meta({ description: 'The record type', examples: ['A'] }),
+  value: line(4000).min(1).meta({ description: 'The record\'s value, checked against its type', examples: ['192.0.2.20'] }),
+  view: z.enum(DNS_VIEWS).default('public').meta({ description: 'Where the record resolves', examples: ['public'] }),
+  proxied: z.boolean().default(false).meta({ description: 'Whether a proxy in front of the DNS answers instead of the value', examples: [false] }),
 }, (record: DnsRecordFields, context) => {
   const value = normalizeValue(record.type, record.value);
   if (value === undefined) {
-    context.addIssue({ code: 'custom', path: ['value'], message: `A ${record.type} record points to ${EXPECTED_VALUE[record.type]}` });
+    context.addIssue({ code: 'custom', path: ['value'], message: `A ${record.type} record points to ${EXPECTED_VALUE[record.type]}`, params: { code: 'core.invalid-record-value', type: record.type } });
     return record;
   }
   return { ...record, value };

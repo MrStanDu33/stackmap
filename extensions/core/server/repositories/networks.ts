@@ -30,7 +30,12 @@ async function checkAddresses(
     .execute();
   return addresses
     .filter(({ address }) => !cidrContains(cidr, address))
-    .map(({ address, name }) => ({ path: 'cidr', message: `${address} (${name}) is not in ${cidr}` }));
+    .map(({ address, name }) => ({
+      path: 'cidr',
+      message: `${address} (${name}) is not in ${cidr}`,
+      code: 'core.address-outside-cidr',
+      params: { address, host: name, cidr },
+    }));
 }
 
 export const networkRepository = defineEntityRepository<NetworkFields, NetworkInput, CoreDatabase>({
