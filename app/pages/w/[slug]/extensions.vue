@@ -30,21 +30,33 @@ const busy = ref<string | null>(null);
 const notice = ref('');
 const failure = ref('');
 const pending = ref<{ id: string; enabled: boolean; changes: ExtensionImpact[] } | null>(null);
-// The switch that asked: it gets the focus back once the toggle is done or cancelled.
+// The switch that asked: it gets the focus back once the toggle is done or cancelled; the heading does when it is gone.
 let trigger: HTMLElement | null = null;
+const heading = useTemplateRef<HTMLElement>('heading');
 const refocus = async () => {
   await nextTick();
-  trigger?.focus();
+  (trigger?.isConnected ? trigger : heading.value)?.focus();
+};
+const retryList = async () => {
+  await retry();
+  await nextTick();
+  heading.value?.focus();
+};
+const retryWorkspaces = async () => {
+  await refreshWorkspaces();
+  await nextTick();
+  heading.value?.focus();
 };
 
 const save = async (id: string, enabled: boolean) => {
   pending.value = null;
   busy.value = id;
   const name = labels.extensionName(id);
+  let done = '';
   try {
     await $fetch(`${base.value}/${id}`, { method: 'PUT', body: { enabled } });
     await retry();
-    notice.value = t(enabled ? 'workspaceExtensions.turnedOn' : 'workspaceExtensions.turnedOff', { name });
+    done = t(enabled ? 'workspaceExtensions.turnedOn' : 'workspaceExtensions.turnedOff', { name });
   } catch {
     failure.value = t('workspaceExtensions.saveFailed', { name });
     // A role lowered meanwhile turns the switches into text.
@@ -52,10 +64,15 @@ const save = async (id: string, enabled: boolean) => {
   } finally {
     busy.value = null;
     await refocus();
+    // After the focus moves, so that reading the switch does not cut the announcement off.
+    notice.value = done;
   }
 };
 
 const toggle = async (id: string, enabled: boolean) => {
+  if (busy.value) {
+    return;
+  }
   trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   // Emptied first, so the same message twice is announced again.
   notice.value = '';
@@ -96,7 +113,11 @@ const cancel = async (open: boolean) => {
     :can-create="canCreate"
     @sign-out="signOut"
   >
-    <h1 class="text-2xl font-semibold">
+    <h1
+      ref="heading"
+      tabindex="-1"
+      class="text-2xl font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+    >
       {{ t('workspaceExtensions.title') }}
     </h1>
 
@@ -108,7 +129,7 @@ const cancel = async (open: boolean) => {
       <p>{{ t('workspaceExtensions.loadFailed') }}</p>
       <UButton
         icon="i-lucide-refresh-cw"
-        @click="refreshWorkspaces()"
+        @click="retryWorkspaces"
       >
         {{ t('workspaceExtensions.retry') }}
       </UButton>
@@ -154,7 +175,7 @@ const cancel = async (open: boolean) => {
         :can-manage="canManage"
         :busy="busy"
         @toggle="toggle"
-        @retry="retry"
+        @retry="retryList"
       />
       <ExtensionToggleConfirm
         v-if="pending"

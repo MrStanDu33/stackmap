@@ -8,7 +8,7 @@ defineProps<{
   /** The list could not be loaded. */
   failed: boolean;
   canManage: boolean;
-  /** The extension being saved. */
+  /** The extension being saved: its switch keeps the focus, and ignores toggles until then. */
   busy: string | null;
 }>();
 // The switches show the stored state: the page changes it once a toggle is confirmed and saved.
@@ -35,12 +35,14 @@ const { t } = useI18n();
   </div>
   <div
     v-else-if="!extensions"
-    aria-busy="true"
     class="flex flex-col gap-3"
   >
+    <span class="sr-only">{{ t('workspaceExtensions.loading') }}</span>
+    <!-- Nuxt UI's skeletons are each an English "loading" alert: the text above says it once, translated. -->
     <USkeleton
       v-for="row in 3"
       :key="row"
+      aria-hidden="true"
       class="h-20 w-full"
     />
   </div>
@@ -71,7 +73,10 @@ const { t } = useI18n();
               {{ t('workspaceExtensions.failed') }}
             </UBadge>
           </div>
-          <p class="text-muted">
+          <p
+            :id="`extension-${extension.id}-description`"
+            class="text-muted"
+          >
             {{ t(extension.description) }}
           </p>
           <p class="text-sm text-muted">
@@ -79,6 +84,7 @@ const { t } = useI18n();
           </p>
           <p
             v-if="extension.state === 'failed'"
+            :id="`extension-${extension.id}-failed`"
             class="text-sm"
           >
             {{ t('workspaceExtensions.failedHint') }}
@@ -94,10 +100,11 @@ const { t } = useI18n();
           v-else-if="canManage"
           :model-value="extension.enabled"
           :aria-label="t(extension.name)"
-          :disabled="busy === extension.id"
+          :aria-describedby="[`extension-${extension.id}-description`,
+                              ...(extension.state === 'failed' ? [`extension-${extension.id}-failed`] : [])].join(' ')"
           :aria-busy="busy === extension.id ? 'true' : undefined"
           class="shrink-0"
-          @update:model-value="(value: boolean) => emit('toggle', extension.id, value)"
+          @update:model-value="(value: boolean) => busy !== extension.id && emit('toggle', extension.id, value)"
         />
         <p
           v-else

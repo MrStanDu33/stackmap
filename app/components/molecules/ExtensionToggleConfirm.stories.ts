@@ -49,8 +49,9 @@ export const TurnOffWithData: Story = {
 export const Described: Story = {
   play: async () => {
     await waitFor(() => expect(dialog()).toBeVisible());
-    await expect(dialog()).toHaveAccessibleDescription(expect.stringContaining(text(t('workspaceExtensions.nothingDeleted'))) as string);
-    await expect(dialog()).toHaveAccessibleDescription(expect.stringContaining(text(t('workspaceExtensions.hiddenData'))) as string);
+    // Accessible descriptions keep French non-breaking spaces: compared as translated.
+    await expect(dialog()).toHaveAccessibleDescription(expect.stringContaining(t('workspaceExtensions.nothingDeleted')) as string);
+    await expect(dialog()).toHaveAccessibleDescription(expect.stringContaining(t('workspaceExtensions.hiddenData')) as string);
   },
 };
 

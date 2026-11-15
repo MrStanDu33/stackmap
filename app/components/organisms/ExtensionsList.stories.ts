@@ -93,12 +93,11 @@ export const SwitchDescription: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const flat = (value: string) => value.replace(/\s+/g, ' ');
+    // Accessible descriptions keep French non-breaking spaces: compared as translated.
     await expect(canvas.getByRole('switch', { name: name('reverse-proxy') }))
-      .toHaveAccessibleDescription(flat(t('extensions.reverse-proxy.description')));
-    await expect(canvas.getByRole('switch', { name: name('nat') })).toHaveAccessibleDescription(
-      flat(`${t('extensions.nat.description')} ${t('workspaceExtensions.failedHint')}`),
-    );
+      .toHaveAccessibleDescription(t('extensions.reverse-proxy.description'));
+    await expect(canvas.getByRole('switch', { name: name('nat') }))
+      .toHaveAccessibleDescription(`${t('extensions.nat.description')} ${t('workspaceExtensions.failedHint')}`);
   },
 };
 
