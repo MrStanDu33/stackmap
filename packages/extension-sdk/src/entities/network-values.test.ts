@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cidr, cidrContains, dnsName, ipAddress, ipv4Address, ipv6Address, normalizeIp } from './network-values';
+import { cidr, cidrContains, dnsName, endpoint, ipAddress, ipv4Address, ipv6Address, normalizeIp } from './network-values';
 
 import type { z } from 'zod';
 
@@ -94,5 +94,13 @@ describe('DNS names', () => {
     expect(dnsName().safeParse('café.example').success).toBe(false);
     // The Kelvin sign lowercases to an ASCII k: refused, not silently rewritten.
     expect(dnsName().safeParse('\u212Aelvin.example').success).toBe(false);
+  });
+});
+
+describe('endpoint', () => {
+  it('writes <address>:<port>, an IPv6 address in brackets, the address alone without port', () => {
+    expect(endpoint('203.0.113.10', 443)).toBe('203.0.113.10:443');
+    expect(endpoint('2001:db8::1', 443)).toBe('[2001:db8::1]:443');
+    expect(endpoint('203.0.113.10', null)).toBe('203.0.113.10');
   });
 });

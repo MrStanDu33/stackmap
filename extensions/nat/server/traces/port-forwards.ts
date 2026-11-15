@@ -1,3 +1,5 @@
+import { endpoint } from '@stackmap/extension-sdk/entities';
+
 import type { PortForward } from '../../entities';
 import type { Host } from '@stackmap/extension-core/entities';
 import type { TraceHop, TraceHopResolver } from '@stackmap/extension-sdk/server';
@@ -17,8 +19,6 @@ export function resolvePortForwardHops(
 ): TraceHop[] {
   const given = new Set(ids);
   const hostNames = new Map(hosts.map(({ id, name }) => [id, name]));
-  const endpoint = (address: string, port: number) =>
-    (address.includes(':') ? `[${address}]:${String(port)}` : `${address}:${String(port)}`);
   // A forward whose router is gone (references normally prevent it) has nothing to say: no hop.
   return portForwards.filter(({ id, hostId }) => given.has(id) && hostNames.has(hostId)).map((forward) => ({
     entity: 'port-forward',

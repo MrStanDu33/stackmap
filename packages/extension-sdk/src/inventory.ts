@@ -52,7 +52,7 @@ export function defineInventory<Form>(
     ...(declared.has(entity) ? [] : [`"${entity}" is not an entity of the manifest`]),
     ...(types.findIndex((other) => other.entity === entity) === index ? [] : [`"${entity}" is listed twice`]),
     ...(columns.length === 0 ? [`"${entity}" has no column`] : []),
-    ...columns.flatMap(({ field, label, format, reference, labels }) => [
+    ...columns.flatMap(({ field, label, format, reference, labels, port }) => [
       ...(label.startsWith(prefix) ? [] : [`"${entity}.${field}": its label ${label} is not under ${prefix}`]),
       ...(format === 'reference' && !REFERENCE.test(reference ?? '')
         ? [`"${entity}.${field}": a reference column needs <extension>/<entity>, not ${reference ?? 'nothing'}`]
@@ -60,6 +60,7 @@ export function defineInventory<Form>(
       ...(format === 'enum' && !labels?.startsWith(prefix)
         ? [`"${entity}.${field}": an enum column needs labels under ${prefix}, not ${labels ?? 'nothing'}`]
         : []),
+      ...(format === 'endpoint' && !port ? [`"${entity}.${field}": an endpoint column needs the field holding its port`] : []),
     ]),
   ]);
   if (problems.length > 0) {
