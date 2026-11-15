@@ -27,6 +27,9 @@ const createEntity = async (page: Page, workspaceId: string, type: string, data:
   return (await response.json() as { id: string }).id;
 };
 
+/** The live region that announces this text: the page has others, Nuxt's route announcer among them. */
+const announced = (page: Page, text: string) => page.getByRole('status').filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) });
+
 const openHosts = async (page: Page, slug: string, query = '') => {
   await page.goto(`/w/${slug}/inventory/core/host${query}`);
   await hydrated(page);
@@ -78,7 +81,7 @@ test.describe('inventory', () => {
     await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole('status')).toHaveText('nas created');
+    await expect(announced(page, 'nas created')).toBeAttached();
     const row = page.getByRole('table', { name: /Hosts/ }).getByRole('row', { name: /nas/ });
     await expect(row).toContainText('Physical server');
     await expect(row).toContainText('192.0.2.10');
@@ -120,7 +123,7 @@ test.describe('inventory', () => {
     await dialog.getByRole('button', { name: 'Save' }).click();
 
     expect((await patch).postDataJSON()).toEqual({ os: 'Debian 13' });
-    await expect(page.getByRole('status')).toHaveText('nas saved');
+    await expect(announced(page, 'nas saved')).toBeAttached();
     await expect(page.getByRole('button', { name: 'Edit nas' })).toBeFocused();
   });
 
@@ -165,7 +168,7 @@ test.describe('inventory', () => {
     await page.getByRole('button', { name: 'Delete nas' }).click();
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete nas' }).click();
 
-    await expect(page.getByRole('status')).toHaveText('nas deleted');
+    await expect(announced(page, 'nas deleted')).toBeAttached();
     await expect(page.getByRole('heading', { level: 1, name: 'Hosts' })).toBeFocused();
     await expect(page.getByText('No Hosts yet')).toBeVisible();
   });
@@ -200,7 +203,7 @@ test.describe('inventory', () => {
 
     await page.getByRole('searchbox', { name: 'Search' }).fill('storage');
     await expect(page).toHaveURL(/[?&]q=storage/);
-    await expect(page.getByRole('status')).toHaveText('1 result');
+    await expect(announced(page, '1 result')).toBeAttached();
     await page.getByRole('button', { name: 'Sort by Kind' }).click();
     await expect(page).toHaveURL(/[?&]sort=kind/);
 
