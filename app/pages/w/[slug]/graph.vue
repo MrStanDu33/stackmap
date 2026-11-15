@@ -19,8 +19,8 @@ const view = computed({
 // On the client only, so a failing request can be shown and retried.
 const { workspaces, error: workspaceError, refresh: refreshWorkspaces, remembered } = useWorkspaces();
 // Kinds and protocols are translated from the installed extensions.
-useExtensions();
 const workspace = computed(() => workspaces.value?.find(({ slug }) => slug === route.params.slug));
+useExtensions(() => workspace.value?.id);
 // No workspace at all: the page says how to get one rather than leading nowhere.
 const noWorkspace = computed(() => workspaces.value?.length === 0);
 // The same page whether the workspace does not exist or is not the user's.

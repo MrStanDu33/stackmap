@@ -23,9 +23,9 @@ const labels = useExtensionLabels();
 const NONE = '(none)';
 const options = computed(() => {
   const kinds = labels.kindOptions(props.entity);
-  // A kind no active extension provides is kept, said unavailable, so that saving does not drop it.
+  // A kind no enabled extension provides is kept, said unavailable under its name if known, so saving keeps it.
   const unavailable = props.modelValue && !kinds.some(({ value }) => value === props.modelValue)
-    ? [{ value: props.modelValue, label: t('inventory.unavailable', { id: props.modelValue }) }]
+    ? [{ value: props.modelValue, label: t('inventory.unavailable', { id: labels.kindLabel(props.entity, props.modelValue) }) }]
     : [];
   return [...(props.nullable ? [{ value: NONE, label: t('inventory.none') }] : []), ...kinds, ...unavailable];
 });

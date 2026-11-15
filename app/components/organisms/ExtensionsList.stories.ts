@@ -86,7 +86,9 @@ export const Failed: Story = {
   },
   play: async ({ canvasElement }) => {
     await expect(item(canvasElement, 'nat').getByText(t('workspaceExtensions.failed'))).toBeVisible();
-    await expect(item(canvasElement, 'nat').getByText(t('workspaceExtensions.failedHint'))).toBeVisible();
+    // toHaveTextContent normalizes the page's whitespace, French non-breaking spaces included, not the expected text.
+    await expect(within(canvasElement).getByRole('heading', { name: name('nat') }).closest('li'))
+      .toHaveTextContent(t('workspaceExtensions.failedHint').replace(/\s+/g, ' '));
     await expect(item(canvasElement, 'nat').getByRole('switch', { name: name('nat') })).toBeEnabled();
     await expect(item(canvasElement, 'reverse-proxy').queryByText(t('workspaceExtensions.failed'))).toBeNull();
   },
