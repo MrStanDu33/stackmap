@@ -37,11 +37,31 @@ export const TurnOffWithData: Story = {
     await expect(dialog()).toHaveTextContent(text(t('workspaceExtensions.entityCount', {
       type: t('extensions.nat.entitiesPlural.port-forward'), count: 3,
     })));
-    await expect(dialog()).toHaveTextContent(text(t('workspaceExtensions.derivedFlows', 2)));
+    await expect(dialog()).toHaveTextContent(text(t('workspaceExtensions.derivedFlows', { count: 2 }, 2)));
     await expect(dialog()).toHaveTextContent(text(t('workspaceExtensions.nothingDeleted')));
     await waitFor(() => expect(within(dialog()).getByRole('button', { name: t('workspaceExtensions.cancel') })).toHaveFocus());
     await userEvent.click(within(dialog()).getByRole('button', { name: t('workspaceExtensions.turnOff') }));
     await expect(args.onConfirm).toHaveBeenCalled();
+  },
+};
+
+/** The dialog is described by its message: what stays hidden and that nothing is deleted (review). */
+export const Described: Story = {
+  play: async () => {
+    await waitFor(() => expect(dialog()).toBeVisible());
+    await expect(dialog()).toHaveAccessibleDescription(expect.stringContaining(text(t('workspaceExtensions.nothingDeleted'))) as string);
+    await expect(dialog()).toHaveAccessibleDescription(expect.stringContaining(text(t('workspaceExtensions.hiddenData'))) as string);
+  },
+};
+
+/** Counts are formatted in the page's language, flows included (review). */
+export const LargeCounts: Story = {
+  args: { changes: [{ id: 'nat', enabled: false, entities: [{ entity: 'port-forward', count: 1200 }], derivedFlows: 3400 }] },
+  play: async () => {
+    await waitFor(() => expect(dialog()).toBeVisible());
+    const number = (value: number) => new Intl.NumberFormat(i18n.global.locale.value).format(value);
+    await expect(dialog()).toHaveTextContent(text(t('workspaceExtensions.derivedFlows', { count: number(3400) }, 3400)));
+    await expect(dialog()).toHaveTextContent(text(number(1200)));
   },
 };
 

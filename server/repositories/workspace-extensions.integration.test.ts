@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { EntityInUseError } from './errors';
 import { extensionStates, setExtensionsEnabled } from './workspace-extensions';
 import { deleteWorkspace } from './workspaces';
 import { createAccount } from '../../tests/support/accounts';
 import { DIALECTS } from '../../tests/support/databases';
+import { createPortForwards } from '../../tests/support/nat';
 import { useTestWorkspaces } from '../../tests/support/workspaces';
 
 import type { Dialect } from '../../tests/support/databases';
@@ -76,5 +78,18 @@ describe.each(DIALECTS)('workspace extension choices on %s', (dialect: Dialect) 
     await db().deleteFrom('user').where('id', '=', ada.user.id).execute();
 
     expect(await states(id)).toMatchObject({ nat: false });
+  });
+
+  it('reads the choice inside the removal: repositories built before NAT was turned off still keep its rows (review)', async () => {
+    const { repos, workspace } = workspaces.a;
+    const { router } = await createPortForwards(repos);
+
+    // As a request that read the choices just before an admin turned NAT off.
+    await setExtensionsEnabled(db(), workspace.id, ['nat'], false, null);
+
+    await expect(repos.hosts.remove(router.id)).rejects.toMatchObject({
+      constructor: EntityInUseError, dependents: [{ entity: 'port-forward', count: 2 }],
+    });
+    expect(await repos.portForwards.count({})).toBe(2);
   });
 });

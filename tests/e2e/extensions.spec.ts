@@ -141,6 +141,20 @@ test.describe('workspace extensions', () => {
     await expect(page.getByRole('table').getByRole('row')).toHaveCount(3);
   });
 
+  test('when the list cannot be loaded, Try again recovers and moves the focus to the heading, as the retry button goes (33, review)', async ({ page }) => {
+    const workspace = await createWorkspace(page);
+    await page.route('**/api/workspaces/*/extensions', (route) => route.abort());
+    await page.goto(`/w/${workspace.slug}/extensions`);
+    await hydrated(page);
+    await expect(page.getByRole('alert')).toContainText('The extensions could not be loaded.');
+
+    await page.unroute('**/api/workspaces/*/extensions');
+    await page.getByRole('button', { name: 'Try again' }).click();
+
+    await expect(page.getByRole('switch', { name: 'Router and NAT' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Extensions' })).toBeFocused();
+  });
+
   test('given the sidebar, every member reaches the Extensions page, marked current on it (34)', async ({ page }) => {
     const workspace = await createWorkspace(page);
     await page.goto(`/w/${workspace.slug}/graph`);

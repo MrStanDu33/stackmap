@@ -62,6 +62,16 @@ describe.each(DIALECTS)('entity routes of an extension turned off on %s', (diale
     expect(json).toEqual(disabled('nat'));
   });
 
+  it('answers 404 workspace_not_found, not 409, to a non-member calling a turned-off type (review)', async () => {
+    await turnOff('nat');
+    await signInAs('owner', 'b');
+
+    const { status, json } = await routes.create(path('nat/port-forward'), { body: { externalPort: 'not a port' } });
+
+    expect(status).toBe(404);
+    expect(json).toMatchObject({ code: 'workspace_not_found' });
+  });
+
   it('answers as before in a workspace where NAT is on', async () => {
     await createPortForwards(workspaces.b.repos);
     await turnOff('nat');

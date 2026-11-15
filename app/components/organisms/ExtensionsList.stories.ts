@@ -67,14 +67,38 @@ export const Toggle: Story = {
   },
 };
 
-/** The switch of the extension being saved is busy; the others stay usable. */
+/**
+ * The switch of the extension being saved is busy but keeps the focus (it stays enabled) and ignores clicks; the
+ * others stay usable (review).
+ */
 export const Busy: Story = {
   args: { canManage: true, busy: 'nat' },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const nat = canvas.getByRole('switch', { name: name('nat') });
+    await expect(nat).toBeEnabled();
+    await expect(nat).toHaveAttribute('aria-busy', 'true');
+    await userEvent.click(nat);
+    await expect(nat).toHaveFocus();
+    await expect(args.onToggle).not.toHaveBeenCalled();
+    await expect(canvas.getByRole('switch', { name: name('reverse-proxy') })).toBeEnabled();
+  },
+};
+
+/** A switch is described by its extension's description, and by why it failed when it did (review). */
+export const SwitchDescription: Story = {
+  args: {
+    canManage: true,
+    extensions: EXTENSIONS.map((extension) => (extension.id === 'nat' ? { ...extension, state: 'failed' as const } : extension)),
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('switch', { name: name('nat') })).toBeDisabled();
-    await expect(canvas.getByRole('switch', { name: name('nat') })).toHaveAttribute('aria-busy', 'true');
-    await expect(canvas.getByRole('switch', { name: name('reverse-proxy') })).toBeEnabled();
+    const flat = (value: string) => value.replace(/\s+/g, ' ');
+    await expect(canvas.getByRole('switch', { name: name('reverse-proxy') }))
+      .toHaveAccessibleDescription(flat(t('extensions.reverse-proxy.description')));
+    await expect(canvas.getByRole('switch', { name: name('nat') })).toHaveAccessibleDescription(
+      flat(`${t('extensions.nat.description')} ${t('workspaceExtensions.failedHint')}`),
+    );
   },
 };
 
@@ -94,13 +118,14 @@ export const Failed: Story = {
   },
 };
 
-/** While the list loads, it is busy and lists nothing. */
+/** While the list loads, it lists nothing and says so in words, in the page's language; no empty alerts (review). */
 export const Loading: Story = {
   args: { extensions: null },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryAllByRole('listitem')).toEqual([]);
-    await expect(canvasElement.querySelector('[aria-busy="true"]')).not.toBeNull();
+    await expect(canvas.queryAllByRole('alert')).toEqual([]);
+    await expect(canvas.getByText(t('workspaceExtensions.loading'))).toBeInTheDocument();
   },
 };
 
