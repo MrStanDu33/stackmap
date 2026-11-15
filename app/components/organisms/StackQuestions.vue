@@ -93,9 +93,12 @@ const submit = () => {
       {{ t('onboarding.failed') }}
     </p>
     <div class="flex flex-wrap gap-2">
+      <!-- Not `loading`, which disables the button and drops the focus: an error is then read from here. -->
       <UButton
         type="submit"
-        :loading="busy"
+        :icon="busy ? 'i-lucide-loader-circle' : undefined"
+        :ui="{ leadingIcon: 'motion-safe:animate-spin' }"
+        :aria-busy="busy ? 'true' : undefined"
       >
         {{ t('onboarding.continue') }}
       </UButton>

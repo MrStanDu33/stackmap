@@ -24,6 +24,22 @@ useHead({
     : [t('onboarding.title'), workspace.value?.name, t('app.name')]).filter(Boolean).join(' · '),
 });
 
+// It appears once the list arrives: focus goes to it, so it is heard.
+const notFoundHeading = useTemplateRef<HTMLElement>('notFoundHeading');
+watch(notFound, async (missing) => {
+  if (missing) {
+    await nextTick();
+    notFoundHeading.value?.focus();
+  }
+});
+const heading = useTemplateRef<HTMLElement>('heading');
+// The retry button goes away with the error: focus moves to the page's heading rather than being lost.
+const retryLoad = async () => {
+  await (workspaceError.value ? refreshWorkspaces() : retry());
+  await nextTick();
+  heading.value?.focus();
+};
+
 const graph = computed(() => `/w/${String(route.params.slug)}/graph`);
 const busy = ref(false);
 const error = ref<'not-empty' | 'failed' | null>(null);
@@ -55,7 +71,11 @@ const submit = async (enabled: string[]) => {
     :can-create="canCreate"
     @sign-out="signOut"
   >
-    <h1 class="text-2xl font-semibold">
+    <h1
+      ref="heading"
+      tabindex="-1"
+      class="text-2xl font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+    >
       {{ t('onboarding.title') }}
     </h1>
 
@@ -64,10 +84,10 @@ const submit = async (enabled: string[]) => {
       role="alert"
       class="flex flex-col items-start gap-3 rounded-md border border-error p-4"
     >
-      <p>{{ t('workspaceExtensions.loadFailed') }}</p>
+      <p>{{ t('onboarding.loadFailed') }}</p>
       <UButton
         icon="i-lucide-refresh-cw"
-        @click="workspaceError ? refreshWorkspaces() : retry()"
+        @click="retryLoad"
       >
         {{ t('workspaceExtensions.retry') }}
       </UButton>
@@ -82,7 +102,11 @@ const submit = async (enabled: string[]) => {
       v-else-if="notFound"
       class="flex flex-col items-start gap-2 rounded-md border border-default p-6"
     >
-      <h2 class="text-lg font-semibold">
+      <h2
+        ref="notFoundHeading"
+        tabindex="-1"
+        class="text-lg font-semibold outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      >
         {{ t('workspace.notFound') }}
       </h2>
       <p class="text-muted">
