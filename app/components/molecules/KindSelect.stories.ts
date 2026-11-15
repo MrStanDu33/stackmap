@@ -2,7 +2,8 @@ import { expect, fn, within } from 'storybook/test';
 
 import KindSelect from './KindSelect.vue';
 import { optionTexts, pick } from '../../../.storybook/inventory';
-import { i18n } from '../../../.storybook/nuxt-shims';
+import { i18n, useState } from '../../../.storybook/nuxt-shims';
+import { INSTALLED_EXTENSIONS } from '../../../tests/support/extensions';
 
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
@@ -44,6 +45,29 @@ export const Unavailable: Story = {
   args: { modelValue: 'mainframe' },
   play: async ({ canvasElement }) => {
     await expect(select(canvasElement)).toHaveTextContent(t('inventory.unavailable', { id: 'mainframe' }));
+  },
+};
+
+/**
+ * A kind of an extension turned off in the workspace is not offered; an entity that has it keeps it, said
+ * unavailable under its name (37).
+ */
+export const FromDisabledExtension: Story = {
+  args: { entity: 'service', modelValue: 'reverse-proxy' },
+  render: (args) => ({
+    components: { KindSelect },
+    setup: () => {
+      // After the preview's decorator, which loads every extension on.
+      useState('extensions').value = INSTALLED_EXTENSIONS
+        .map((extension) => ({ ...extension, enabled: extension.id !== 'reverse-proxy' }));
+      return { args };
+    },
+    template: '<KindSelect v-bind="args" />',
+  }),
+  play: async ({ canvasElement }) => {
+    const proxy = t('extensions.reverse-proxy.kinds.service.reverse-proxy');
+    await expect(select(canvasElement)).toHaveTextContent(t('inventory.unavailable', { id: proxy }));
+    await expect(await optionTexts(select(canvasElement))).not.toContain(proxy);
   },
 };
 

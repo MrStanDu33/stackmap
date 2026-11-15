@@ -2,7 +2,7 @@ import { createApp, createRouter, toWebHandler } from 'h3';
 
 import type { EventHandler } from 'h3';
 
-type Method = 'get' | 'post' | 'patch' | 'delete';
+type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
 /** A documentation address (RFC 5737): attempts are limited per address. */
 export const TEST_IP = '192.0.2.30';

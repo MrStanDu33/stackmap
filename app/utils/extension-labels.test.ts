@@ -88,4 +88,16 @@ describe('useExtensions', () => {
     i18n.global.locale.value = 'fr';
     expect(followed.kindLabel('host', 'vm')).toBe('Machine virtuelle');
   });
+
+  it('given an extension turned off in the workspace, does not offer its kinds in a select (37)', () => {
+    const labels = extensionLabels([core, { ...proxy, enabled: false }], translator('en'));
+    expect(labels.kindOptions('service').map(({ value }) => value)).toEqual(['external-api']);
+  });
+
+  it('given an extension turned off in the workspace, still names its kinds and entity types (21, 37)', () => {
+    const labels = extensionLabels([core, { ...proxy, enabled: false }], translator('en'));
+    expect(labels.kindLabel('service', 'reverse-proxy')).toBe('Reverse proxy');
+    expect(labels.entityLabel('reverse-proxy', 'route')).toBe('Proxy route');
+    expect(labels.extensionName('reverse-proxy')).toBe('Reverse proxy');
+  });
 });

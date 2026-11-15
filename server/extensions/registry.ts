@@ -17,7 +17,20 @@ export type ExtensionState = 'active' | 'failed';
 
 /** A repository definition, with the extensions whose tables it may refer to: its own and its dependencies. */
 /** A definition with its extension, the extensions whose tables it may refer to, and every dependent on it. */
-export type RegisteredRepository = EntityRepositoryDefinition & { extension: string; tableOwners: readonly string[] };
+export type RegisteredRepository = EntityRepositoryDefinition & {
+  extension: string;
+  tableOwners: readonly string[];
+  /** Rows of its dependents' extensions deleted with an entity, from their `ownedBy`. */
+  owned?: readonly OwnedRows[];
+};
+
+/** Rows of another extension's table that are deleted with an entity (`on delete cascade` through `column`). */
+export interface OwnedRows {
+  extension: string;
+  entity: string;
+  table: string;
+  column: string;
+}
 
 export interface RegisteredExtension {
   manifest: ExtensionManifest;

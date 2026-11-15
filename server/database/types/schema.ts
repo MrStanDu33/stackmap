@@ -14,6 +14,7 @@ export interface Database {
   userPreference: UserPreferenceTable;
   rateLimit: RateLimitTable;
   audit_event: AuditEventTable;
+  workspace_extension_disabled: WorkspaceExtensionDisabledTable;
 }
 
 /**
@@ -123,4 +124,14 @@ export interface AuditEventTable {
   /** JSON array of field names. */
   fields: string;
   createdAt: string;
+}
+
+/** An extension turned off in a workspace; no row means it is on, so a newly installed extension is on everywhere. */
+export interface WorkspaceExtensionDisabledTable {
+  workspaceId: string;
+  /** The extension's id, with no foreign key: the choice outlives an uninstall, so reinstalling restores it. */
+  extension: string;
+  disabledAt: string;
+  /** Null once the account is deleted, or without an actor. */
+  disabledBy: string | null;
 }
