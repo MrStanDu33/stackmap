@@ -27,6 +27,12 @@
   whose `scope.workspaceId` they must filter by. Test it with `describeScopedRepository` and a factory; reference
   another extension's tables only if you depend on it. When your rows refer to a dependency's entity that must not
   be removed under them, declare `dependentsOf: [{ entity, column }]`: its repository then refuses the removal.
+- Inventory: register your entity types with `defineInventory` in `app/inventory.ts` (exported as `./inventory` and
+  listed in `app/extensions/inventory.ts`): a hand-written form per type in `app/components/inventory/<Entity>Form.vue`
+  (props `EntityFormProps`, built with `useInventoryForm`, `EntityField`, `ReferenceSelect`, `KindSelect`,
+  `ChoiceSelect` and `CommonFields`; read-only renders text, never disabled controls), its table columns and, when its
+  first column does not name it alone, a title. Label fields `extensions.<id>.fields.<entity>.<field>`, plural names
+  `extensions.<id>.entitiesPlural.<entity>` and issue codes `extensions.<id>.issues.<rule>`, in every locale.
 - Hooks: handle the app's hooks, your own (`<id>:<name>`, declared in `contributes.hooks`) and those of extensions you
   depend on or enhance (`enhances`). Payloads are plain JSON: ids and summaries, not whole entities. A handler that
   throws is logged and skipped; it never breaks the app.
