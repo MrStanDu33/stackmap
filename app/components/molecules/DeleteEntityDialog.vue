@@ -4,6 +4,8 @@ const props = defineProps<{
   open: boolean;
   name: string;
   busy: boolean;
+  /** The deletion failed for another reason than its dependents: said in the dialog, which stays open. */
+  failed?: boolean;
   /** The dependents a refusal named, `unknown` when it named none, `null` before any refusal. */
   inUse: { label: string; count: number }[] | 'unknown' | null;
 }>();

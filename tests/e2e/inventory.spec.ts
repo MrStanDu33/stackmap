@@ -30,6 +30,26 @@ const createEntity = async (page: Page, workspaceId: string, type: string, data:
 /** The live region that announces this text: the page has others, Nuxt's route announcer among them. */
 const announced = (page: Page, text: string) => page.getByRole('status').filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) });
 
+/**
+ * Records every announcement made while its live region is hidden from assistive technologies (by a modal's
+ * aria-hidden or inert): screen readers do not read those (review).
+ */
+const watchHiddenAnnouncements = (page: Page) => page.evaluate(() => {
+  const hidden: string[] = [];
+  (window as unknown as { hiddenAnnouncements: string[] }).hiddenAnnouncements = hidden;
+  new MutationObserver((records) => {
+    for (const { target } of records) {
+      const region = (target instanceof Element ? target : target.parentElement)?.closest('[role="status"], [role="alert"]');
+      const text = region?.textContent.trim();
+      if (region && text && region.closest('[aria-hidden="true"], [inert]')) {
+        hidden.push(text);
+      }
+    }
+  }).observe(document.body, { subtree: true, childList: true, characterData: true });
+});
+const hiddenAnnouncements = (page: Page) =>
+  page.evaluate(() => (window as unknown as { hiddenAnnouncements: string[] }).hiddenAnnouncements);
+
 const openHosts = async (page: Page, slug: string, query = '') => {
   await page.goto(`/w/${slug}/inventory/core/host${query}`);
   await hydrated(page);
@@ -78,6 +98,7 @@ test.describe('inventory', () => {
     await pick(page, /^Kind/, 'Physical server');
     await dialog.getByRole('button', { name: 'Add an address' }).click();
     await dialog.getByRole('textbox', { name: /^Address 1/ }).fill('192.0.2.10');
+    await watchHiddenAnnouncements(page);
     await dialog.getByRole('button', { name: 'Save' }).click();
 
     await expect(dialog).toBeHidden();
@@ -86,6 +107,7 @@ test.describe('inventory', () => {
     await expect(row).toContainText('Physical server');
     await expect(row).toContainText('192.0.2.10');
     await expect(page.getByRole('button', { name: 'New Host' })).toBeFocused();
+    expect(await hiddenAnnouncements(page)).toEqual([]);
   });
 
   test('an invalid address shows its translated issue under the field, and the summary links to it (25, 27)', async ({ page }) => {
@@ -103,7 +125,7 @@ test.describe('inventory', () => {
 
     const summary = dialog.getByRole('alert');
     await expect(summary).toBeFocused();
-    await expect(summary).toContainText('The Host could not be saved');
+    await expect(summary).toContainText('Not saved');
     await expect(address).toHaveAttribute('aria-invalid', 'true');
     await expect(address).toHaveAccessibleDescription(/address/i);
     await summary.getByRole('link').first().click();
@@ -166,11 +188,27 @@ test.describe('inventory', () => {
     await openHosts(page, workspace.slug);
 
     await page.getByRole('button', { name: 'Delete nas' }).click();
+    await watchHiddenAnnouncements(page);
     await page.getByRole('alertdialog').getByRole('button', { name: 'Delete nas' }).click();
 
     await expect(announced(page, 'nas deleted')).toBeAttached();
     await expect(page.getByRole('heading', { level: 1, name: 'Hosts' })).toBeFocused();
-    await expect(page.getByText('No Hosts yet')).toBeVisible();
+    await expect(page.getByText('Nothing here yet')).toBeVisible();
+    expect(await hiddenAnnouncements(page)).toEqual([]);
+  });
+
+  test('when the extensions cannot be loaded, the inventory says so in the app\'s frame, and Retry recovers (review)', async ({ page }) => {
+    const workspace = await createWorkspace(page);
+    await page.route('**/api/extensions', (route) => route.abort());
+    await page.goto(`/w/${workspace.slug}/inventory`);
+    await hydrated(page);
+
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { level: 1, name: 'Inventory' })).toBeVisible();
+    await expect(main.getByRole('alert')).toContainText('could not be loaded');
+    await page.unroute('**/api/extensions');
+    await main.getByRole('button', { name: 'Retry' }).click();
+    await expect(page).toHaveURL(`${DEMO_URL}/w/${workspace.slug}/inventory/core/site`);
   });
 
   test('a viewer sees no New, Edit or Delete, and opens a row read-only (18)', async ({ page, browser }) => {

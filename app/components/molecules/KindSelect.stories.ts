@@ -71,6 +71,10 @@ export const Nullable: Story = {
 export const ReadOnly: Story = {
   args: { readonly: true },
   play: async ({ canvasElement }) => {
-    await expect(select(canvasElement)).toBeDisabled();
+    // Its value as read-only text, reachable and at full contrast, not a disabled select (review).
+    const value = within(canvasElement).getByRole('textbox', { name: /^Kind/ });
+    await expect(value).toHaveAttribute('readonly');
+    await expect(value).toHaveValue(kind('physical'));
+    await expect(within(canvasElement).queryByRole('combobox')).toBeNull();
   },
 };

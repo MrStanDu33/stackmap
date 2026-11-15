@@ -70,6 +70,17 @@ describe('defineInventory', () => {
     })])).toThrow(/listener/);
   });
 
+  it('refuses an enum column without labels, or with labels outside extensions.<id>. (review)', () => {
+    const label = 'extensions.reverse-proxy.fields.route.forceSsl';
+    expect(() => defineInventory(manifest, [route({ columns: [{ field: 'forceSsl', label, format: 'enum' }] })])).toThrow(/forceSsl/);
+    expect(() => defineInventory(manifest, [route({
+      columns: [{ field: 'forceSsl', label, format: 'enum', labels: 'extensions.core.transports' }],
+    })])).toThrow(/extensions\.core\.transports/);
+    expect(defineInventory(manifest, [route({
+      columns: [{ field: 'forceSsl', label, format: 'enum', labels: 'extensions.reverse-proxy.ssl' }],
+    })]).types[0]?.columns[0]?.labels).toBe('extensions.reverse-proxy.ssl');
+  });
+
   it('refuses a type without columns', () => {
     expect(() => defineInventory(manifest, [route({ columns: [] })])).toThrow(/route/);
   });

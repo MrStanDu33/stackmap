@@ -60,6 +60,8 @@ export const New: Story = {
     await waitFor(() => expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveFocus());
     await expect(dialog.getByRole('button', { name: t('inventory.save') })).toHaveAttribute('form', 'host-form');
     await expect(dialog.getByRole('button', { name: t('inventory.save') })).toHaveAttribute('type', 'submit');
+    // The asterisk of required fields is explained in words (review).
+    await expect(dialog.getByText(t('inventory.requiredHint'))).toBeVisible();
   },
 };
 
@@ -77,17 +79,21 @@ export const ReadOnly: Story = {
   play: async ({ args }) => {
     const dialog = await panel('nas');
     await expect(dialog.queryByRole('button', { name: t('inventory.save') })).toBeNull();
+    await expect(dialog.queryByText(t('inventory.requiredHint'))).toBeNull();
     await userEvent.click(dialog.getByRole('button', { name: t('inventory.close') }));
     await expect(args['onUpdate:open']).toHaveBeenCalledWith(false);
   },
 };
 
-/** Saving: Save is busy and cannot be pressed again (UI states). */
+/** Saving: Save says it is busy and unavailable, yet keeps the focus, which a disabled button would drop (review). */
 export const Saving: Story = {
   args: { saving: true },
   play: async () => {
     const dialog = await panel(t('inventory.new', { type: TYPE() }));
-    await expect(dialog.getByRole('button', { name: t('inventory.save') })).toBeDisabled();
+    const save = dialog.getByRole('button', { name: t('inventory.save') });
+    await expect(save).toHaveAttribute('aria-disabled', 'true');
+    await expect(save).toHaveAttribute('aria-busy', 'true');
+    await expect(save).not.toBeDisabled();
   },
 };
 
@@ -159,6 +165,8 @@ export const DiscardQuestion: Story = {
     const dialog = await panel(t('inventory.new', { type: TYPE() }));
     await userEvent.click(dialog.getByRole('button', { name: t('inventory.cancel') }));
     let confirm = await waitFor(() => within(document.body).getByRole('alertdialog', { name: t('inventory.discard') }));
+    // The least destructive answer takes the focus (review).
+    await waitFor(() => expect(within(confirm).getByRole('button', { name: t('inventory.keepEditing') })).toHaveFocus());
     await userEvent.click(within(confirm).getByRole('button', { name: t('inventory.keepEditing') }));
     await expect(args['onUpdate:open']).not.toHaveBeenCalled();
     // Gone before Escape: a question still closing would take the key.

@@ -99,7 +99,10 @@ export const WithError: Story = {
 export const ReadOnly: Story = {
   args: { readonly: true, modelValue: IDS.home },
   play: async ({ canvasElement }) => {
-    await expect(select(canvasElement)).toBeDisabled();
-    await expect(select(canvasElement)).toHaveTextContent('Home');
+    // Its value as read-only text, reachable and at full contrast, not a disabled select (review).
+    const value = within(canvasElement).getByRole('textbox', { name: /^Site/ });
+    await expect(value).toHaveAttribute('readonly');
+    await expect(value).toHaveValue('Home');
+    await expect(within(canvasElement).queryByRole('combobox')).toBeNull();
   },
 };

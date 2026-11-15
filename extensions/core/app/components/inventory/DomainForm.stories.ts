@@ -56,5 +56,7 @@ export const ReadOnly: Story = {
   play: async ({ canvasElement }) => {
     await expect(name(canvasElement)).toHaveAttribute('readonly');
     await expect(within(canvasElement).queryByRole('button', { name: t('inventory.save') })).toBeNull();
+    // Values as read-only text, reachable and at full contrast: no disabled controls (review).
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
   },
 };

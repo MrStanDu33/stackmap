@@ -29,6 +29,9 @@ export const Empty: Story = {
     await expect(fieldOf(canvasElement, 'combobox', 'listener', 'transport')).toHaveTextContent(t('extensions.core.transports.tcp'));
     await pick(fieldOf(canvasElement, 'combobox', 'listener', 'protocol'), protocol('https'));
     await expect(fieldOf(canvasElement, 'textbox', 'listener', 'bindAddress')).toHaveValue('0.0.0.0');
+    // The range is said, since the form does not let the browser check it (review).
+    await expect(fieldOf(canvasElement, 'spinbutton', 'listener', 'port'))
+      .toHaveAccessibleDescription(t('extensions.core.fields.listener.portHint'));
     await save(canvasElement);
     await expect(args.onSubmit).toHaveBeenCalledWith({
       serviceId: IDS.blog, port: 443, transport: 'tcp', protocol: 'https', bindAddress: '0.0.0.0', publishedPort: null,
@@ -66,7 +69,10 @@ export const ReadOnly: Story = {
   args: { entity: LISTENERS[0], readonly: true },
   play: async ({ canvasElement }) => {
     await expect(fieldOf(canvasElement, 'spinbutton', 'listener', 'port')).toHaveAttribute('readonly');
-    await expect(fieldOf(canvasElement, 'combobox', 'listener', 'serviceId')).toBeDisabled();
+    await expect(fieldOf(canvasElement, 'textbox', 'listener', 'serviceId')).toHaveValue('Blog');
+    await expect(fieldOf(canvasElement, 'textbox', 'listener', 'transport')).toHaveValue(t('extensions.core.transports.tcp'));
+    // Values as read-only text, reachable and at full contrast: no disabled controls (review).
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
     await expect(within(canvasElement).queryByRole('button', { name: t('inventory.save') })).toBeNull();
   },
 };

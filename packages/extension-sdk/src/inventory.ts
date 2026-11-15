@@ -2,7 +2,7 @@ import type { ExtensionManifest, KindEntity } from './manifest';
 
 const REFERENCE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 
-export const COLUMN_FORMATS = ['text', 'kind', 'reference', 'date', 'boolean', 'number', 'list'] as const;
+export const COLUMN_FORMATS = ['text', 'kind', 'reference', 'date', 'boolean', 'number', 'list', 'enum'] as const;
 export type ColumnFormat = (typeof COLUMN_FORMATS)[number];
 
 /** A column of an inventory table: a field of the entity, its label, and how its value shows. */
@@ -15,6 +15,8 @@ export interface InventoryColumn {
   reference?: string;
   /** For a `kind` column: whose kinds its values are. */
   kind?: KindEntity;
+  /** For an `enum` column: the i18n key prefix of its values' labels, `<prefix>.<value>`. */
+  labels?: string;
 }
 
 /** An entity type in the inventory: its hand-written form, loaded when opened, and its table's columns. */

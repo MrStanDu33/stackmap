@@ -64,7 +64,10 @@ export const ReadOnly: Story = {
   args: { entity: NETWORKS[0], readonly: true },
   play: async ({ canvasElement }) => {
     await expect(fieldOf(canvasElement, 'textbox', 'network', 'name')).toHaveAttribute('readonly');
-    await expect(fieldOf(canvasElement, 'combobox', 'network', 'kind')).toBeDisabled();
+    await expect(fieldOf(canvasElement, 'textbox', 'network', 'kind')).toHaveValue(t('extensions.core.kinds.network.lan'));
+    await expect(fieldOf(canvasElement, 'textbox', 'network', 'siteId')).toHaveValue('Home');
+    // Values as read-only text, reachable and at full contrast: no disabled controls (review).
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
     await expect(within(canvasElement).queryByRole('button', { name: t('inventory.save') })).toBeNull();
   },
 };

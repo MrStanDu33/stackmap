@@ -1,4 +1,4 @@
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import HostForm from './HostForm.vue';
 import { COMMON_DEFAULTS, fieldOf, formArgs, formRender, save } from '../../../../../.storybook/entity-form';
@@ -20,10 +20,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const kind = (id: string) => t(`extensions.core.kinds.host.${id}`);
-const address = (canvasElement: HTMLElement, n: number) =>
-  within(canvasElement).getByRole('textbox', { name: new RegExp(`^${t('extensions.core.fields.host.address')} ${String(n)}`) });
-const network = (canvasElement: HTMLElement, n: number) =>
-  within(canvasElement).getByRole('combobox', { name: new RegExp(`^${t('extensions.core.fields.host.networkId')} ${String(n)}`) });
+// Numbered through their own keys: the language sets where the number goes (review).
+const address = (canvasElement: HTMLElement, n: number) => within(canvasElement)
+  .getByRole('textbox', { name: new RegExp(`^${t('extensions.core.fields.host.addressNumbered', { number: n })}`) });
+const network = (canvasElement: HTMLElement, n: number, role: 'combobox' | 'textbox' = 'combobox') => within(canvasElement)
+  .getByRole(role, { name: new RegExp(`^${t('extensions.core.fields.host.networkNumbered', { number: n })}`) });
 
 /** A new host: name, kind, OS, site and no address yet; empty optional fields as null (39). */
 export const Empty: Story = {
@@ -66,6 +67,22 @@ export const Addresses: Story = {
     await expect(args.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       addresses: [{ address: '192.0.2.20', networkId: IDS.lan }],
     }));
+    // The removed row's button had the focus: it goes to the row now in its place (review).
+    await waitFor(() => expect(canvas.getByRole('button', { name: t('extensions.core.fields.host.removeAddress', { number: 1 }) }))
+      .toHaveFocus());
+    // The last row removed: to Add an address.
+    await userEvent.click(canvas.getByRole('button', { name: t('extensions.core.fields.host.removeAddress', { number: 1 }) }));
+    await waitFor(() => expect(canvas.getByRole('button', { name: t('extensions.core.fields.host.addAddress') })).toHaveFocus());
+  },
+};
+
+/** An issue on the addresses as a whole: tied to their group, which the summary can link to (review). */
+export const GroupIssue: Story = {
+  args: { entity: HOSTS[0], issues: { addresses: ['At most 32 addresses'] } },
+  play: async ({ canvasElement }) => {
+    const group = within(canvasElement).getByRole('group', { name: t('extensions.core.fields.host.addresses') });
+    await expect(group).toHaveAccessibleDescription(expect.stringContaining('At most 32 addresses') as string);
+    await expect(group).toHaveAttribute('id', 'host-form-addresses');
   },
 };
 
@@ -101,5 +118,9 @@ export const ReadOnly: Story = {
     const canvas = within(canvasElement);
     await expect(address(canvasElement, 1)).toHaveAttribute('readonly');
     await expect(canvas.queryByRole('button', { name: t('extensions.core.fields.host.addAddress') })).toBeNull();
+    await expect(fieldOf(canvasElement, 'textbox', 'host', 'kind')).toHaveValue(kind('physical'));
+    await expect(network(canvasElement, 1, 'textbox')).toHaveValue('LAN');
+    // Values as read-only text, reachable and at full contrast: no disabled controls (review).
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
   },
 };

@@ -98,6 +98,9 @@ export const Default: Story = {
     await expect(bodyRows(canvasElement)[1]).toHaveTextContent(kind('physical'));
     await expect(bodyRows(canvasElement)[1]).toHaveTextContent('Home');
     await expect(grid.getAllByRole('columnheader')[0]).toHaveAttribute('aria-sort', 'ascending');
+    // Headers are named by their column, which screen readers repeat on each cell; aria-sort says the order (review).
+    await expect(grid.getAllByRole('columnheader')[1]).toHaveAccessibleName(t('extensions.core.fields.host.kind'));
+    await expect(grid.getByRole('button', { name: t('extensions.core.fields.host.kind') })).toBeVisible();
   },
 };
 
@@ -105,7 +108,7 @@ export const Default: Story = {
 export const Sorting: Story = {
   play: async ({ canvasElement, args }) => {
     const grid = within(table(canvasElement));
-    const byKind = grid.getByRole('button', { name: t('inventory.sortBy', { column: t('extensions.core.fields.host.kind') }) });
+    const byKind = grid.getByRole('button', { name: t('extensions.core.fields.host.kind') });
 
     await userEvent.click(byKind);
     await expect(args['onUpdate:query']).toHaveBeenLastCalledWith({ ...DEFAULT_INVENTORY_QUERY, sort: 'kind', dir: 'asc' });
@@ -161,7 +164,10 @@ export const Paged: Story = {
 export const Truncated: Story = {
   args: { entities: manyHosts(1000), total: 1234 },
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText(text(t('inventory.truncated', { shown: 1000, total: 1234 })))).toBeVisible();
+    // Counts in the locale's format: 1,234 / 1 234 (review).
+    const number = (value: number) => new Intl.NumberFormat(i18n.global.locale.value).format(value);
+    await expect(within(canvasElement).getByText(text(t('inventory.truncated', { shown: number(1000), total: number(1234) }))))
+      .toBeVisible();
   },
 };
 
@@ -197,6 +203,8 @@ export const NoMatch: Story = {
     await userEvent.click(canvas.getByRole('button', { name: t('inventory.clear') }));
     await expect(args['onUpdate:query']).toHaveBeenLastCalledWith(DEFAULT_INVENTORY_QUERY);
     await expect(search(canvasElement)).toHaveValue('');
+    // Clear goes away: the focus goes to the search, not nowhere (review).
+    await waitFor(() => expect(search(canvasElement)).toHaveFocus());
   },
 };
 
@@ -241,6 +249,8 @@ export const Viewer: Story = {
     await expect(canvas.queryByRole('button', { name: t('inventory.new', { type: TYPE() }) })).toBeNull();
     await expect(canvas.queryByRole('button', { name: t('inventory.edit', { name: 'nas' }) })).toBeNull();
     await expect(canvas.queryByRole('button', { name: t('inventory.delete', { name: 'nas' }) })).toBeNull();
+    // Named with what it does, not the entity alone (review).
+    await expect(t('inventory.view', { name: 'nas' })).not.toBe('nas');
     await userEvent.click(canvas.getByRole('button', { name: t('inventory.view', { name: 'nas' }) }));
     await expect(args.onOpen).toHaveBeenCalledWith(HOSTS[0]);
   },
@@ -259,6 +269,41 @@ export const Notice: Story = {
   args: { notice: 'inventory.saved' },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('status')).toHaveTextContent(text(t('inventory.saved', { name: 'nas' })));
+    // Said once: a search afterwards announces its results, not the outcome again (review).
+    await userEvent.type(search(canvasElement), 'nas');
+    await waitFor(() => expect(within(canvasElement).getByRole('status'))
+      .not.toHaveTextContent(text(t('inventory.saved', { name: 'nas' }))));
+  },
+};
+
+/** A long value wraps, whole: no ellipsis with the rest in a title, which keyboards and touch cannot reach (review). */
+export const LongValue: Story = {
+  args: { entities: [{ ...HOSTS[0], name: 'a-very-long-host-name-that-goes-on-and-on-past-any-column-width.homelab.example' } as EntityRow] },
+  play: async ({ canvasElement }) => {
+    const cell = within(bodyRows(canvasElement)[0] ?? canvasElement).getAllByRole('cell')[0] ?? canvasElement;
+    await expect(cell).toHaveTextContent('a-very-long-host-name-that-goes-on-and-on-past-any-column-width.homelab.example');
+    await expect(cell).not.toHaveAttribute('title');
+    await expect(getComputedStyle(cell).textOverflow).not.toBe('ellipsis');
+  },
+};
+
+/** The saved row is not shown (another page, filtered out): the focus goes to New, not nowhere (review). */
+export const FocusMissingRow: Story = {
+  render: (args) => ({
+    components: { EntityTable },
+    setup: () => {
+      const table = ref<{ focusRow: (id: string) => void } | null>(null);
+      return {
+        args: { ...args, typeLabel: t(args.typeLabel as string), pluralLabel: t(args.pluralLabel as string) },
+        table,
+        focusMissing: () => table.value?.focusRow('0199d6a0-0000-7000-8000-999999999999'),
+      };
+    },
+    template: '<div><EntityTable ref="table" v-bind="args" /><button type="button" @click="focusMissing">Focus</button></div>',
+  }),
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Focus' }));
+    await expect(within(canvasElement).getByRole('button', { name: t('inventory.new', { type: TYPE() }) })).toHaveFocus();
   },
 };
 

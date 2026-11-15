@@ -62,7 +62,9 @@ export const ReadOnly: Story = {
   args: { entity: SERVICES[0], readonly: true },
   play: async ({ canvasElement }) => {
     await expect(fieldOf(canvasElement, 'textbox', 'service', 'name')).toHaveAttribute('readonly');
-    await expect(fieldOf(canvasElement, 'combobox', 'service', 'hostId')).toBeDisabled();
+    await expect(fieldOf(canvasElement, 'textbox', 'service', 'hostId')).toHaveValue('nas');
+    // Values as read-only text, reachable and at full contrast: no disabled controls (review).
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
     await expect(within(canvasElement).queryByRole('button', { name: t('inventory.save') })).toBeNull();
   },
 };

@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { ref } from 'vue';
 
 import CommonFields from './CommonFields.vue';
@@ -70,13 +70,13 @@ export const Links: Story = {
   args: { modelValue: { ...EMPTY, links: [{ label: 'Admin page', url: 'https://nas.homelab.example' }] } },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('textbox', { name: new RegExp(`^${t('inventory.common.label')} 1`) })).toHaveValue('Admin page');
+    await expect(canvas.getByRole('textbox', { name: new RegExp(`^${t('inventory.common.labelNumbered', { number: 1 })}`) })).toHaveValue('Admin page');
 
     await userEvent.click(canvas.getByRole('button', { name: t('inventory.common.addLink') }));
-    const label = canvas.getByRole('textbox', { name: new RegExp(`^${t('inventory.common.label')} 2`) });
+    const label = canvas.getByRole('textbox', { name: new RegExp(`^${t('inventory.common.labelNumbered', { number: 2 })}`) });
     await expect(label).toHaveFocus();
     await userEvent.type(label, 'Docs');
-    await userEvent.type(canvas.getByRole('textbox', { name: new RegExp(`^${t('inventory.common.url')} 2`) }), 'https://docs.homelab.example');
+    await userEvent.type(canvas.getByRole('textbox', { name: new RegExp(`^${t('inventory.common.urlNumbered', { number: 2 })}`) }), 'https://docs.homelab.example');
     await expect(args['onUpdate:modelValue']).toHaveBeenLastCalledWith(expect.objectContaining({
       links: [{ label: 'Admin page', url: 'https://nas.homelab.example' }, { label: 'Docs', url: 'https://docs.homelab.example' }],
     }));
@@ -85,6 +85,11 @@ export const Links: Story = {
     await expect(args['onUpdate:modelValue']).toHaveBeenLastCalledWith(expect.objectContaining({
       links: [{ label: 'Docs', url: 'https://docs.homelab.example' }],
     }));
+    // The removed row's button had the focus: it goes to the row now in its place, not nowhere (review).
+    await waitFor(() => expect(canvas.getByRole('button', { name: t('inventory.common.removeLink', { number: 1 }) })).toHaveFocus());
+    // The last row removed: to Add a link.
+    await userEvent.click(canvas.getByRole('button', { name: t('inventory.common.removeLink', { number: 1 }) }));
+    await waitFor(() => expect(canvas.getByRole('button', { name: t('inventory.common.addLink') })).toHaveFocus());
   },
 };
 
@@ -107,10 +112,20 @@ export const WithIssues: Story = {
     issues: { 'links.0.url': ['Must be an http or https URL'] },
   },
   play: async ({ canvasElement }) => {
-    const url = within(canvasElement).getByRole('textbox', { name: new RegExp(`^${t('inventory.common.url')} 1`) });
+    const url = within(canvasElement).getByRole('textbox', { name: new RegExp(`^${t('inventory.common.urlNumbered', { number: 1 })}`) });
     await expect(url).toHaveAttribute('aria-invalid', 'true');
     await expect(url).toHaveAccessibleDescription(expect.stringContaining('Must be an http or https URL') as string);
     await expect(url).toHaveAttribute('id', 'host-form-links-0-url');
+  },
+};
+
+/** An issue on the links as a whole: said, and tied to their group, which the summary can link to (review). */
+export const GroupIssue: Story = {
+  args: { issues: { links: ['At most 20 links'] } },
+  play: async ({ canvasElement }) => {
+    const group = within(canvasElement).getByRole('group', { name: t('inventory.common.links') });
+    await expect(group).toHaveAccessibleDescription(expect.stringContaining('At most 20 links') as string);
+    await expect(group).toHaveAttribute('id', 'host-form-links');
   },
 };
 
@@ -122,5 +137,11 @@ export const ReadOnly: Story = {
     await expect(field(canvasElement, 'textbox', 'notes')).toHaveAttribute('readonly');
     await expect(canvas.queryByRole('button', { name: t('inventory.common.addLink') })).toBeNull();
     await expect(canvas.queryByRole('button', { name: t('inventory.common.removeLink', { number: 1 }) })).toBeNull();
+    // Values as text and links as links, reachable and at full contrast: no disabled controls (review).
+    await expect(canvas.queryAllByRole('combobox')).toEqual([]);
+    await expect(field(canvasElement, 'textbox', 'status')).toHaveValue(t('inventory.status.active'));
+    await expect(field(canvasElement, 'textbox', 'status')).toHaveAttribute('readonly');
+    await expect(canvas.getByRole('link', { name: 'Admin page' })).toHaveAttribute('href', 'https://nas.homelab.example');
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
   },
 };

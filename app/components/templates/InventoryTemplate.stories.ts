@@ -52,6 +52,12 @@ export const Default: Story = {
     await expect(nav.getByRole('link', { name: plural('core', 'site') })).not.toHaveAttribute('aria-current');
     await expect(canvas.getByRole('heading', { level: 1, name: plural('core', 'host') })).toBeVisible();
     await expect(canvas.getByText('Table')).toBeVisible();
+    // The heading first, then the navigation, whose groups are headings too: on a narrow screen, after a type change,
+    // the reader reaches the table's heading without going through every link (review).
+    const heading = canvas.getByRole('heading', { level: 1 });
+    await expect(heading.compareDocumentPosition(canvas.getByRole('navigation', { name: t('inventory.types') })))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    await expect(nav.getByRole('heading', { level: 2, name: t('extensions.core.name') })).toBeVisible();
   },
 };
 

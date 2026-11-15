@@ -59,5 +59,7 @@ export const ReadOnly: Story = {
   args: { entity: SITES[0], readonly: true },
   play: async ({ canvasElement }) => {
     await expect(name(canvasElement)).toHaveAttribute('readonly');
+    // Values as read-only text, reachable and at full contrast: no disabled controls (review).
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
   },
 };

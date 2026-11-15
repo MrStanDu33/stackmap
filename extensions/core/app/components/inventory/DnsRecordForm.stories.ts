@@ -69,7 +69,10 @@ export const ReadOnly: Story = {
   args: { entity: DNS_RECORDS[0], readonly: true },
   play: async ({ canvasElement }) => {
     await expect(value(canvasElement)).toHaveAttribute('readonly');
-    await expect(fieldOf(canvasElement, 'checkbox', 'dns-record', 'proxied')).toBeDisabled();
+    await expect(fieldOf(canvasElement, 'textbox', 'dns-record', 'proxied')).toHaveValue(t('inventory.no'));
+    await expect(fieldOf(canvasElement, 'textbox', 'dns-record', 'view')).toHaveValue(t('extensions.core.dnsViews.public'));
+    // Values as read-only text, reachable and at full contrast: no disabled controls (review).
+    await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
     await expect(within(canvasElement).queryByRole('button', { name: t('inventory.save') })).toBeNull();
   },
 };

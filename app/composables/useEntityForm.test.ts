@@ -105,7 +105,8 @@ describe('useEntityForm', () => {
 
     const issues = problemIssues(problem, options);
     expect(issues.fields).toEqual({});
-    expect(issues.summary.map(({ path }) => path)).toEqual([null, 'colour']);
+    // Without a field to go to, the summary shows them as text, not as links to nothing (review).
+    expect(issues.summary.map(({ path }) => path)).toEqual([null, null]);
   });
 
   it('given entity_conflict, marks each named field as taken', () => {
