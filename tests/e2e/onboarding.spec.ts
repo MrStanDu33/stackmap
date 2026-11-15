@@ -113,9 +113,30 @@ test.describe('onboarding', () => {
     await viewer.goto(`/w/${slug}/onboarding`);
     await hydrated(viewer);
 
-    await expect(viewer.getByText('Only admins and owners can set up this workspace.')).toBeVisible();
+    await expect(viewer.getByText('Only administrators and owners can set up this workspace.')).toBeVisible();
     await expect(viewer.getByRole('link', { name: 'Go to the graph' })).toHaveAttribute('href', `/w/${slug}/graph`);
     await expect(viewer.getByRole('checkbox')).toHaveCount(0);
     await context.close();
+  });
+
+  test('when the extensions cannot be loaded, the page says so, and Try again recovers with the focus on the heading (review)', async ({ page }) => {
+    const { slug } = await createWorkspace(page);
+    await page.route('**/api/workspaces/*/extensions', (route) => route.abort());
+    await page.goto(`/w/${slug}/onboarding`);
+    await hydrated(page);
+    await expect(page.getByRole('alert')).toContainText('This page could not be loaded.');
+
+    await page.unroute('**/api/workspaces/*/extensions');
+    await page.getByRole('button', { name: 'Try again' }).click();
+
+    await expect(page.getByRole('checkbox', { name: NAT })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'What\'s in your stack?' })).toBeFocused();
+  });
+
+  test('given a slug that is unknown, the page says Workspace not found and moves the focus there (review)', async ({ page }) => {
+    await page.goto('/w/no-such-workspace/onboarding');
+    await hydrated(page);
+
+    await expect(page.getByRole('heading', { name: 'Workspace not found' })).toBeFocused();
   });
 });

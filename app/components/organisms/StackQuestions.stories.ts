@@ -128,12 +128,19 @@ export const Failed: Story = {
   },
 };
 
-/** While the choice is saved, Continue says so and a second press sends nothing; Skip stays usable (25). */
+/**
+ * While the choice is saved, Continue says so and a second press sends nothing; it keeps the focus, so that an error
+ * is read from there (review: a disabled button would drop it). Skip stays usable (25).
+ */
 export const Busy: Story = {
   args: { busy: true },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: t('onboarding.continue') }));
+    const proceed = canvas.getByRole('button', { name: t('onboarding.continue') });
+    await expect(proceed).toHaveAttribute('aria-busy', 'true');
+    await expect(proceed).toBeEnabled();
+    await userEvent.click(proceed);
+    await expect(proceed).toHaveFocus();
     await expect(args.onSubmit).not.toHaveBeenCalled();
     await expect(canvas.getByRole('button', { name: t('onboarding.skip') })).toBeEnabled();
   },
