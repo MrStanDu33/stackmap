@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BUILTIN_INVENTORIES, findInventoryType, inventoryTypes } from './inventory';
 import core from '../../extensions/core/manifest';
+import natInventory from '../../extensions/nat/app/inventory';
 import { createTestI18n } from '../../tests/support/i18n';
 
 import type { InstalledExtension } from './inventory';
@@ -36,6 +37,32 @@ describe('built-in inventory registrations', () => {
     const coreTypes = BUILTIN_INVENTORIES.find(({ extension }) => extension === 'core')?.types ?? [];
 
     expect(coreTypes.map(({ entity }) => entity)).toEqual((core.contributes.entities ?? []).map(({ id }) => id));
+  });
+
+  it('registers NAT\'s port forwards after the core\'s types (1)', () => {
+    expect(BUILTIN_INVENTORIES.map(({ extension }) => extension)).toEqual(['core', 'nat']);
+    expect(BUILTIN_INVENTORIES[1]?.types.map(({ entity }) => entity)).toEqual(['port-forward']);
+  });
+
+  it('shows a port forward\'s host, endpoints, transport and description, sorted by host (3)', () => {
+    const [type] = natInventory.types;
+
+    expect(type?.columns.map(({ field, format, reference, port }) => ({ field, format, reference, port }))).toEqual([
+      { field: 'hostId', format: 'reference', reference: 'core/host', port: undefined },
+      { field: 'externalAddress', format: 'endpoint', reference: undefined, port: 'externalPort' },
+      { field: 'transport', format: 'enum', reference: undefined, port: undefined },
+      { field: 'internalAddress', format: 'endpoint', reference: undefined, port: 'internalPort' },
+      { field: 'description', format: undefined, reference: undefined, port: undefined },
+    ]);
+  });
+
+  it('names a port forward "<host> <external>/<transport>" (8)', () => {
+    const [type] = natInventory.types;
+    const name = (reference: string, id: unknown) => (reference === 'core/host' && id === 'h1' ? 'Edge router' : '');
+    const forward = { hostId: 'h1', externalAddress: '203.0.113.10', externalPort: 443, transport: 'tcp' };
+
+    expect(type?.title?.(forward, name)).toBe('Edge router 203.0.113.10:443/tcp');
+    expect(type?.title?.({ ...forward, externalAddress: '2001:db8::1' }, name)).toBe('Edge router [2001:db8::1]:443/tcp');
   });
 
   it('translates every column label and every type\'s plural name in English and French', () => {

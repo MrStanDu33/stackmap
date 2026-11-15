@@ -36,11 +36,16 @@ export const formRender = (form: Component) => <Args>(args: Args) => ({
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** A field's accessible name: its translated label, then "required" when it is (exact: "Port" is not "Port publié"). */
-export const fieldName = (entity: string, field: string) => new RegExp(
-  `^${escape(t(`extensions.core.fields.${entity}.${field}`))}(?: ${escape(t('inventory.required'))})?$`,
+export const fieldName = (entity: string, field: string, extension = 'core') => new RegExp(
+  `^${escape(t(`extensions.${extension}.fields.${entity}.${field}`))}(?: ${escape(t('inventory.required'))})?$`,
 );
 
-export const fieldOf = (canvasElement: HTMLElement, role: 'textbox' | 'combobox' | 'spinbutton' | 'checkbox', entity: string, field: string) =>
-  within(canvasElement).getByRole(role, { name: fieldName(entity, field) });
+export const fieldOf = (
+  canvasElement: HTMLElement,
+  role: 'textbox' | 'combobox' | 'spinbutton' | 'checkbox',
+  entity: string,
+  field: string,
+  extension = 'core',
+) => within(canvasElement).getByRole(role, { name: fieldName(entity, field, extension) });
 
 export const save = (canvasElement: HTMLElement) => userEvent.click(within(canvasElement).getByRole('button', { name: t('inventory.save') }));

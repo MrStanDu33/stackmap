@@ -84,4 +84,12 @@ describe('defineInventory', () => {
   it('refuses a type without columns', () => {
     expect(() => defineInventory(manifest, [route({ columns: [] })])).toThrow(/route/);
   });
+
+  it('refuses an endpoint column without the field holding its port', () => {
+    const label = 'extensions.reverse-proxy.fields.route.upstream';
+    expect(() => defineInventory(manifest, [route({ columns: [{ field: 'upstream', label, format: 'endpoint' }] })])).toThrow(/upstream/);
+    expect(defineInventory(manifest, [route({
+      columns: [{ field: 'upstream', label, format: 'endpoint', port: 'upstreamPort' }],
+    })]).types[0]?.columns[0]?.port).toBe('upstreamPort');
+  });
 });
