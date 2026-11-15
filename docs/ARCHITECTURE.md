@@ -421,20 +421,22 @@ healthcheck calls it. The database error goes to the logs, never to the response
 - The Traffic view's panel links to traces: a flow's exact names, and the names of the flows reaching a port or
   service, each traced from its flow's client (from the Internet for a flow between services). Wildcards are not
   linked, since the trace route refuses them.
-- The inventory (`/w/<slug>/inventory/<extension>/<entity>`, `/w/<slug>/inventory` opening the first type) lists
-  each entity type an active extension declares and registers. An extension registers its types with
-  `defineInventory` (`extensions/<id>/app/inventory.ts`, listed in `app/extensions/inventory.ts`): each type's
-  hand-written form, a component of the extension's Nuxt layer loaded with its type, its table columns (text, number,
-  kind, reference, enum, list, and endpoint: an address and its port field as `203.0.113.10:443`), an optional title
-  (a listener reads "<service> :<port>/<transport>") and the types its form chooses from. Enum labels sit under the
+- The inventory (`/w/<slug>/inventory/<extension>/<entity>`, `/w/<slug>/inventory` opening the first type) lists each
+  entity type an active extension declares and registers. An extension registers its types with `defineInventory`
+  (`extensions/<id>/app/inventory.ts`, listed in `app/extensions/inventory.ts`): each type's hand-written form, a
+  component of the extension's Nuxt layer loaded with its type, its table columns (text, number, kind, reference, enum,
+  list, boolean as Yes/No, and endpoint: an address and its port field as `203.0.113.10:443`), an optional title (a
+  listener reads "<service> :<port>/<transport>") and the types its form chooses from. Enum labels sit under the
   extension's keys or a dependency's (port forwards use the core's transports). Reference options carry the referenced
-  row, so a form can offer its fields: a port forward picks its external address among its host's addresses. `EntityTable` loads up to 1000 entities per type and sorts, searches, filters (status, kind) and
-  pages them in the browser, with the query in the URL; beyond 1000 it says it shows the first ones (server-side
-  search comes with the search index). Editors create, edit and delete in `EntitySlideover` and `DeleteEntityDialog`
-  through the entity API: an edit sends only the changed fields, validation issues are translated from their codes
-  under their fields and in a summary linked to them, and the other refusals (changed, gone, in use, forbidden) are
-  said in place. Outcomes are announced in the table's live region once the slide-over or dialog has closed and focus
-  has moved, since a modal hides the page from assistive technologies; viewers read entities as text and links.
+  row, so a form can offer its fields: a port forward picks its external address among its host's addresses.
+  `EntityTable` loads up to 1000 entities per type and sorts, searches, filters (status, kind) and pages them in the
+  browser, with the query in the URL; beyond 1000 it says it shows the first ones (server-side search comes with the
+  search index). Editors create, edit and delete in `EntitySlideover` and `DeleteEntityDialog` through the entity API:
+  an edit sends only the changed fields, validation issues are translated from their codes under their fields and in a
+  summary linked to them (an issue on a row the form does not show, such as a list edited as text, links to its list),
+  and the other refusals (changed, gone, in use, forbidden) are said in place. Outcomes are announced in the table's
+  live region once the slide-over or dialog has closed and focus has moved, since a modal hides the page from assistive
+  technologies; viewers read entities as text and links.
 - Kinds, entity names and extension names are translated from the installed extensions (`GET /api/extensions`,
   loaded once into shared state by `useExtensions()`, read through `useExtensionLabels()`), falling back to the raw
   id: in the inventory and in the Traffic and Trace views, visible text and accessible names alike.
