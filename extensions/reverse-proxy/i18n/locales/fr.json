@@ -30,15 +30,15 @@
           "hostnameNumbered": "Nom d’hôte {number}",
           "addHostname": "Ajouter un nom d’hôte",
           "removeHostname": "Retirer le nom d’hôte {number}",
-          "hostnamesLimit": "50 noms d’hôte au plus",
-          "editAsText": "Modifier en texte",
+          "hostnamesLimit": "{max} noms d’hôte au plus",
+          "editAsText": "Modifier sous forme de texte",
           "editOneByOne": "Modifier un par un",
           "hostnamesText": "Noms d’hôte, un par ligne",
           "line": "Ligne {number} : {message}",
-          "upstreamListenerId": "Destination",
-          "forceSsl": "Forcer SSL",
+          "upstreamListenerId": "Port d’écoute de destination",
+          "forceSsl": "Forcer le SSL",
           "websockets": "WebSockets",
-          "noProxy": "Indiquez d’abord un service de type Reverse proxy"
+          "noProxy": "Indiquez d’abord un service de type « Proxy inverse »"
         }
       }
     }

@@ -13,6 +13,9 @@ const emit = defineEmits<{ submit: [values: ProxyRouteInput]; dirty: [dirty: boo
 const { t } = useI18n();
 const label = (field: string, params: Record<string, unknown> = {}) => t(`extensions.reverse-proxy.fields.route.${field}`, params);
 const cleaned = (hostnames: readonly string[]) => hostnames.map((name) => name.trim()).filter((name) => name !== '');
+// Text mode edits the same value, one hostname per line; it lasts while the form is open.
+const asText = ref(false);
+const text = ref('');
 const { values, common, id, issue, submit } = useInventoryForm(props, {
   proxyServiceId: null as string | null,
   hostnames: [''] as string[],
@@ -22,7 +25,11 @@ const { values, common, id, issue, submit } = useInventoryForm(props, {
   ...COMMON_EMPTY,
 }, {
   submit: (input) => {
-    emit('submit', { ...input, hostnames: cleaned(input.hostnames) } as ProxyRouteInput);
+    // The form keeps the list it sends, so that the server's hostnames.N issues land on the hostname they are about.
+    const hostnames = cleaned(input.hostnames);
+    values.value.hostnames = hostnames.length > 0 ? hostnames : [''];
+    text.value = hostnames.join('\n');
+    emit('submit', { ...input, hostnames } as ProxyRouteInput);
   },
   dirty: (dirty) => {
     emit('dirty', dirty);
@@ -38,7 +45,8 @@ const proxies = computed(() => {
     : [];
   return [...services.filter((option) => option.entity.kind === 'reverse-proxy'), ...unavailable];
 });
-const proxyHint = computed(() => (proxies.value.length === 0 ? label('noProxy') : undefined));
+// Viewers cannot mark a service as a reverse proxy: the hint is for editors.
+const proxyHint = computed(() => (proxies.value.length === 0 && !props.readonly ? label('noProxy') : undefined));
 
 const root = useTemplateRef<HTMLElement>('root');
 const focus = async (selector: string) => {
@@ -56,10 +64,8 @@ const removeHostname = async (index: number) => {
   await focus(left === 0 ? '[data-add-hostname]' : `[data-remove-hostname="${String(Math.min(index, left - 1))}"]`);
 };
 
-// Text mode edits the same value, one hostname per line; it lasts while the form is open.
-const asText = ref(false);
-const text = ref('');
-const textId = computed(() => id('hostnamesText'));
+// The textarea is the list while it is shown: links to hostnames and hostnames.N lead to it.
+const textId = computed(() => id('hostnames'));
 const setText = (value: string) => {
   text.value = value;
   values.value.hostnames = value.split('\n');
@@ -69,8 +75,14 @@ const editAsText = async () => {
   asText.value = true;
   await focus(`#${textId.value}`);
 };
+const tooMany = computed(() => cleaned(text.value.split('\n')).length > MAX_HOSTNAMES);
+const limit = computed(() => label('hostnamesLimit', { max: MAX_HOSTNAMES }));
 const editOneByOne = async () => {
   const rows = cleaned(text.value.split('\n'));
+  // Rows for thousands of pasted lines would freeze the page: the limit is said under the textarea instead.
+  if (rows.length > MAX_HOSTNAMES) {
+    return;
+  }
   values.value.hostnames = rows.length > 0 ? rows : [''];
   asText.value = false;
   await focus(`#${id('hostnames.0')}`);
@@ -100,13 +112,16 @@ const groupError = computed(() => issue('hostnames').join(' '));
       :readonly="readonly"
     />
     <fieldset
-      :id="id('hostnames')"
+      :id="asText && !readonly ? undefined : id('hostnames')"
       tabindex="-1"
       :aria-describedby="groupError ? `${id('hostnames')}-error` : undefined"
       class="flex flex-col gap-3"
     >
       <legend class="text-sm font-medium">
-        {{ label('hostnames') }}<span class="sr-only"> {{ t('inventory.required') }}</span>
+        {{ label('hostnames') }}<span
+          aria-hidden="true"
+          class="ms-0.5 text-error"
+        >*</span><span class="sr-only"> {{ t('inventory.required') }}</span>
       </legend>
       <p
         v-if="groupError"
@@ -118,6 +133,7 @@ const groupError = computed(() => issue('hostnames').join(' '));
       <EntityField
         v-if="asText && !readonly"
         :label="label('hostnamesText')"
+        :hint="tooMany ? limit : undefined"
         :errors="lineIssues"
       >
         <UTextarea
@@ -181,7 +197,7 @@ const groupError = computed(() => issue('hostnames').join(' '));
             v-else
             class="text-sm text-muted"
           >
-            {{ label('hostnamesLimit') }}
+            {{ limit }}
           </p>
         </template>
         <UButton

@@ -90,7 +90,15 @@ const guardSave = (event: Event) => {
   }
 };
 
-const focusField = (path: string) => document.getElementById(fieldId(props.formId, path))?.focus();
+// A row the form does not show (a list edited as text) is reached through its list: hostnames.1, then hostnames.
+const targetId = (path: string): string => {
+  const parts = path.split('.');
+  while (parts.length > 1 && typeof document !== 'undefined' && !document.getElementById(fieldId(props.formId, parts.join('.')))) {
+    parts.pop();
+  }
+  return fieldId(props.formId, parts.join('.'));
+};
+const focusField = (path: string) => document.getElementById(targetId(path))?.focus();
 
 // A new summary takes the focus, so that it is read where the reader is.
 watch(() => props.summary, async (summary) => {
@@ -129,7 +137,7 @@ watch(() => props.summary, async (summary) => {
             >
               <a
                 v-if="issue.path"
-                :href="`#${fieldId(formId, issue.path)}`"
+                :href="`#${targetId(issue.path)}`"
                 class="text-error underline"
                 @click.prevent="focusField(issue.path)"
               >{{ issue.message }}</a>

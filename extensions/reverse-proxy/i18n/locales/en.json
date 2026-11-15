@@ -30,7 +30,7 @@
           "hostnameNumbered": "Hostname {number}",
           "addHostname": "Add a hostname",
           "removeHostname": "Remove hostname {number}",
-          "hostnamesLimit": "50 hostnames at most",
+          "hostnamesLimit": "{max} hostnames at most",
           "editAsText": "Edit as text",
           "editOneByOne": "Edit one by one",
           "hostnamesText": "Hostnames, one per line",
