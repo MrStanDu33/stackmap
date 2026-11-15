@@ -41,7 +41,7 @@ export const Host: Story = {
     const details = panel(canvasElement);
 
     await expect(details.getByRole('heading', { level: 2, name: 'Home server' })).toBeVisible();
-    await expect(details.getByText('physical')).toBeVisible();
+    await expect(details.getByText(t('extensions.core.kinds.host.physical'))).toBeVisible();
     await expect(details.getByRole('heading', { name: t('detail.services') })).toBeVisible();
     await userEvent.click(details.getByRole('button', { name: 'Website database' }));
     await expect(args.onSelect).toHaveBeenCalledWith({ type: 'service', id: services.database });

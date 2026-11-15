@@ -1,4 +1,5 @@
 import type { Traffic, TrafficFlow } from '../../shared/contracts/traffic';
+import type { ExtensionLabels } from '../composables/useExtensions';
 import type { Edge, Node } from '@vue-flow/core';
 import type { ElkNode } from 'elkjs/lib/elk-api';
 
@@ -106,7 +107,9 @@ export function trafficToElk(traffic: Traffic): ElkNode {
 }
 
 /** The laid-out ELK graph as Vue Flow nodes and edges, each with its accessible name. */
-export function elkToVueFlow(traffic: Traffic, laidOut: ElkNode, t: Translate): TrafficLayout {
+export function elkToVueFlow(
+  traffic: Traffic, laidOut: ElkNode, t: Translate, _labels?: ExtensionLabels,
+): TrafficLayout {
   const listenersOf = listenersByService(traffic);
   const hosts = new Map(traffic.hosts.map((host) => [nodeIds.host(host.id), host]));
   const services = new Map(traffic.services.map((service) => [nodeIds.service(service.id), service]));

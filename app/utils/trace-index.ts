@@ -2,6 +2,7 @@ import { portLabel } from './traffic-index';
 
 import type { Translate } from './traffic-graph';
 import type { Trace, TraceNode, TraceStep } from '../../shared/contracts/traces';
+import type { ExtensionLabels } from '../composables/useExtensions';
 
 type Hop = TraceStep['hops'][number];
 type Listener = Extract<TraceNode, { type: 'listener' }>['listener'];
@@ -69,7 +70,9 @@ export function stepName(index: TraceIndex, trace: Trace, step: TraceStep, t: Tr
 }
 
 /** A hop as its extension's translated sentence; a fallback when its label has no translation. */
-export function hopSentence(hop: Hop, t: Translate, exists: (key: string) => boolean): string {
+export function hopSentence(
+  hop: Hop, t: Translate, exists: (key: string) => boolean, _labels?: ExtensionLabels,
+): string {
   if (!exists(hop.label)) {
     return t('trace.hop.missing', { entity: hop.entity });
   }

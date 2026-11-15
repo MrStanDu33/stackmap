@@ -5,6 +5,9 @@ import { elkToVueFlow, trafficToElk } from './traffic-graph';
 import en from '../../i18n/locales/en.json';
 import fr from '../../i18n/locales/fr.json';
 import { DEMO_IDS, DEMO_TRAFFIC } from '../../tests/support/demo-traffic';
+import { INSTALLED_EXTENSIONS } from '../../tests/support/extensions';
+import { createTestI18n } from '../../tests/support/i18n';
+import { extensionLabels } from '../composables/useExtensions';
 
 import type { ElkNode } from 'elkjs/lib/elk-api';
 
@@ -92,6 +95,17 @@ describe('elkToVueFlow', () => {
     expect(edges.find(({ id }) => id === `flow:${flows.database}`)?.ariaLabel)
       .toBe('From Website to Website database, port 5432/tcp');
     expect(edges).toHaveLength(DEMO_TRAFFIC.flows.length);
+  });
+
+  it('names host and service kinds translated in nodes\' accessible names, given the extensions\' labels', () => {
+    const { t: translate } = createTestI18n('en').global;
+    const labels = extensionLabels(INSTALLED_EXTENSIONS, (key, params) => translate(key, params ?? {}));
+
+    const { nodes } = elkToVueFlow(DEMO_TRAFFIC, placed(trafficToElk(DEMO_TRAFFIC)), translate, labels);
+    const node = (id: string) => nodes.find((item) => item.id === id);
+
+    expect(node(`host:${hosts.server}`)?.ariaLabel).toBe('Home server, Physical server, 3 services');
+    expect(node(`service:${services.weatherApi}`)?.ariaLabel).toBe('Weather API, External API, 443/tcp HTTPS, external');
   });
 
   it('makes nodes buttons, with a role description in the current language for nodes and flows', () => {

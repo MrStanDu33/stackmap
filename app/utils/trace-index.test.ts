@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { hopSentence, indexTrace } from './trace-index';
 import { DEMO_TRACE } from '../../tests/support/demo-trace';
 import { DEMO_IDS } from '../../tests/support/demo-traffic';
+import { INSTALLED_EXTENSIONS } from '../../tests/support/extensions';
 import { createTestI18n } from '../../tests/support/i18n';
+import { extensionLabels } from '../composables/useExtensions';
 
 const { global: i18n } = createTestI18n();
 const { t } = i18n;
@@ -44,6 +46,14 @@ describe('indexTrace', () => {
     expect(hopSentence(hop('trace.hop.unknown', { entity: 'firewall-rule', count: '1' }), t, te))
       .toBe('No details available');
     expect(hopSentence(hop('extensions.firewall.trace.rule', {}), t, te)).toBe('firewall-rule: no description');
+  });
+
+  it('names the entity type translated in a missing label\'s fallback, or by its id when no extension declares it', () => {
+    const labels = extensionLabels(INSTALLED_EXTENSIONS, (key, params) => t(key, params ?? {}));
+    const missing = (entity: string, label: string) => ({ entity, id: flows.database, stage: 'network' as const, label, params: {} });
+
+    expect(hopSentence(missing('port-forward', 'extensions.nat.trace.gone'), t, te, labels)).toBe('Port forward: no description');
+    expect(hopSentence(missing('firewall-rule', 'extensions.firewall.trace.rule'), t, te, labels)).toBe('firewall-rule: no description');
   });
 });
 

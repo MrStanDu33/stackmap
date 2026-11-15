@@ -73,6 +73,8 @@ export const Listener: Story = {
 
     await expect(details.getByRole('heading', { level: 2 })).toHaveTextContent('Website 3000/tcp');
     await expect(details.getByText('Home server')).toBeVisible();
+    // The protocol in the current language, from the extension that declares it.
+    await expect(details.getByText(t('extensions.core.kinds.protocol.http'))).toBeVisible();
     await expect(details.getAllByRole('button', { name: /Nginx Proxy Manager/ })).toHaveLength(2);
     await expect(details.getByRole('button', { name: /Website database/ })).toBeVisible();
     await userEvent.click(details.getByRole('button', { name: /Website database/ }));
