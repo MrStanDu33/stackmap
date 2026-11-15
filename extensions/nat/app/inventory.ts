@@ -18,11 +18,11 @@ export default defineInventory<Component>(manifest, [
     columns: [
       field('hostId', { format: 'reference', reference: 'core/host' }),
       field('externalAddress', { format: 'endpoint', port: 'externalPort' }, 'external'),
-      field('transport', { format: 'enum', labels: 'extensions.nat.transports' }),
+      field('transport', { format: 'enum', labels: 'extensions.core.transports' }),
       field('internalAddress', { format: 'endpoint', port: 'internalPort' }, 'internal'),
       field('description'),
     ],
     title: (forward, name) => `${name('core/host', forward.hostId)} ${
-      endpoint(String(forward.externalAddress), Number(forward.externalPort))}/${String(forward.transport)}`,
+      endpoint(String(forward.externalAddress), typeof forward.externalPort === 'number' ? forward.externalPort : null)}/${String(forward.transport)}`,
   },
 ]);

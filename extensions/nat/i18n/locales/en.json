@@ -31,10 +31,6 @@
           "chooseHostFirst": "Choose the host first",
           "hostWithoutAddress": "This host has no address yet: add one to the host first"
         }
-      },
-      "transports": {
-        "tcp": "TCP",
-        "udp": "UDP"
       }
     }
   }

@@ -12,7 +12,7 @@ const emit = defineEmits<{ submit: [values: PortForwardInput]; dirty: [dirty: bo
 
 const { t } = useI18n();
 const label = (field: string) => t(`extensions.nat.fields.port-forward.${field}`);
-const transports = computed(() => TRANSPORTS.map((value) => ({ value: value, label: t(`extensions.nat.transports.${value}`) })));
+const transports = computed(() => TRANSPORTS.map((value) => ({ value: value, label: t(`extensions.core.transports.${value}`) })));
 const { values, common, id, issue, submit } = useInventoryForm(props, {
   hostId: null as string | null,
   externalAddress: '',

@@ -48,6 +48,8 @@ export function defineInventory<Form>(
 ): ExtensionInventory<Form> {
   const declared = new Set((manifest.contributes.entities ?? []).map(({ id }) => id));
   const prefix = `extensions.${manifest.id}.`;
+  // A dependency's strings are always loaded with the extension's: its value labels can be shared (core transports).
+  const labelPrefixes = [manifest.id, ...manifest.dependsOn].map((id) => `extensions.${id}.`);
   const problems = types.flatMap(({ entity, columns }, index) => [
     ...(declared.has(entity) ? [] : [`"${entity}" is not an entity of the manifest`]),
     ...(types.findIndex((other) => other.entity === entity) === index ? [] : [`"${entity}" is listed twice`]),
@@ -57,8 +59,8 @@ export function defineInventory<Form>(
       ...(format === 'reference' && !REFERENCE.test(reference ?? '')
         ? [`"${entity}.${field}": a reference column needs <extension>/<entity>, not ${reference ?? 'nothing'}`]
         : []),
-      ...(format === 'enum' && !labels?.startsWith(prefix)
-        ? [`"${entity}.${field}": an enum column needs labels under ${prefix}, not ${labels ?? 'nothing'}`]
+      ...(format === 'enum' && !labelPrefixes.some((allowed) => labels?.startsWith(allowed))
+        ? [`"${entity}.${field}": an enum column needs labels under ${labelPrefixes.join(' or ')}, not ${labels ?? 'nothing'}`]
         : []),
       ...(format === 'endpoint' && !port ? [`"${entity}.${field}": an endpoint column needs the field holding its port`] : []),
     ]),

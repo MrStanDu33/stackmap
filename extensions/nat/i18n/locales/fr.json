@@ -29,12 +29,8 @@
           "description": "Description",
           "portHint": "De 1 à 65535",
           "chooseHostFirst": "Choisissez d’abord l’hôte",
-          "hostWithoutAddress": "Cet hôte n’a pas encore d’adresse : ajoutez-en une à l’hôte d’abord"
+          "hostWithoutAddress": "Cet hôte n’a pas encore d’adresse : ajoutez-en une à l’hôte d’abord"
         }
-      },
-      "transports": {
-        "tcp": "TCP",
-        "udp": "UDP"
       }
     }
   }
