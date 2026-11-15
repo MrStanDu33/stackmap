@@ -1,5 +1,6 @@
 import coreInventory from '@stackmap/extension-core/inventory';
 import natInventory from '@stackmap/extension-nat/inventory';
+import proxyInventory from '@stackmap/extension-reverse-proxy/inventory';
 
 import type { InstalledExtension } from '../../shared/contracts/extensions';
 import type { ExtensionInventory, InventoryColumn, InventoryType } from '@stackmap/extension-sdk';
@@ -8,7 +9,9 @@ import type { Component } from 'vue';
 export type { InstalledExtension };
 
 /** The inventory registrations of the built-in extensions (`extensions/<id>/inventory.ts`), in registry order. */
-export const BUILTIN_INVENTORIES: readonly ExtensionInventory<Component>[] = [coreInventory, natInventory];
+export const BUILTIN_INVENTORIES: readonly ExtensionInventory<Component>[] = [
+  coreInventory, natInventory, proxyInventory,
+];
 
 /** An entity type the inventory shows: an active extension declares it and registered its form and columns. */
 export interface InventoryEntry {

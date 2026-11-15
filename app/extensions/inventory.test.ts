@@ -41,7 +41,7 @@ describe('built-in inventory registrations', () => {
   });
 
   it('registers NAT\'s port forwards after the core\'s types (1)', () => {
-    expect(BUILTIN_INVENTORIES.map(({ extension }) => extension)).toEqual(['core', 'nat']);
+    expect(BUILTIN_INVENTORIES.map(({ extension }) => extension).slice(0, 2)).toEqual(['core', 'nat']);
     expect(BUILTIN_INVENTORIES[1]?.types.map(({ entity }) => entity)).toEqual(['port-forward']);
   });
 

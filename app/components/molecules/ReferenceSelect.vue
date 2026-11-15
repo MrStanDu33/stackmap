@@ -10,6 +10,8 @@ const props = defineProps<{
   required: boolean;
   errors: string[];
   readonly: boolean;
+  /** Said with the field, such as why it has no choice. */
+  hint?: string;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string | null] }>();
 
@@ -33,6 +35,7 @@ const selected = computed({
     :label="label"
     :required="required"
     :errors="errors"
+    :hint="hint"
   >
     <!-- A button that opens a searchable list: a combobox, as the select fields are (ARIA 1.2 select-only pattern). -->
     <!-- Read-only, the entity's name as read-only text: reachable and at full contrast, unlike a disabled select. -->

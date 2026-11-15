@@ -28,7 +28,8 @@ const createEntity = async (page: Page, workspaceId: string, type: string, data:
 };
 
 /** The live region that announces this text: the page has others, Nuxt's route announcer among them. */
-const announced = (page: Page, text: string) => page.getByRole('status').filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) });
+const announced = (page: Page, text: string) => page.getByRole('status')
+  .filter({ hasText: new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) });
 
 /**
  * Records every announcement made while its live region is hidden from assistive technologies (by a modal's
