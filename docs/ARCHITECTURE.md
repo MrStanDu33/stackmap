@@ -314,8 +314,9 @@ turning one on turns on what it needs, after a confirmation that lists them. Tur
    muted, said hidden, without their hostnames (`hidden` on each flow); a trace keeps its hops' steps, stages and ports
    but says only that they are hidden (`trace.hop.hidden`). Both are decided on the server;
 6. its entities that no stored flow is based on any more are listed on the Extensions page (`…/:id/orphans`, at most 200
-   per type); admins delete each (audit-logged, refused while a flow is based on it) or keep it hidden
-   (`workspace_hidden_entity_kept`, cleared when the extension is turned back on).
+   per type; editors and viewers get their count only, as the entity API hides them); admins delete each
+   (audit-logged; its extension still off and nothing based on it, checked again in the deletion's transaction) or keep
+   it hidden (`workspace_hidden_entity_kept`, cleared when the extension is turned back on).
 
 Removing an extension keeps its data by default (hidden, restored on reinstall); "remove and delete data" shows what
 will be deleted, asks for confirmation, offers an export and is audit-logged. An extension others depend on cannot be
