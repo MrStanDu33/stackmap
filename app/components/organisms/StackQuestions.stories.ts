@@ -108,8 +108,8 @@ export const Failed: Story = {
     setup: () => {
       // As the page does: the save fails.
       const error = ref<'failed' | null>(null);
-      const submit = (ids: string[]) => {
-        (args.onSubmit as (chosen: string[]) => void)(ids);
+      // args.onSubmit hears the submit too, through v-bind.
+      const submit = () => {
         error.value = 'failed';
       };
       return { args, error, submit };
