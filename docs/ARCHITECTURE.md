@@ -425,8 +425,10 @@ healthcheck calls it. The database error goes to the logs, never to the response
   each entity type an active extension declares and registers. An extension registers its types with
   `defineInventory` (`extensions/<id>/app/inventory.ts`, listed in `app/extensions/inventory.ts`): each type's
   hand-written form, a component of the extension's Nuxt layer loaded with its type, its table columns (text, number,
-  kind, reference, enum, list), an optional title (a listener reads "<service> :<port>/<transport>") and the types its
-  form chooses from. `EntityTable` loads up to 1000 entities per type and sorts, searches, filters (status, kind) and
+  kind, reference, enum, list, and endpoint: an address and its port field as `203.0.113.10:443`), an optional title
+  (a listener reads "<service> :<port>/<transport>") and the types its form chooses from. Enum labels sit under the
+  extension's keys or a dependency's (port forwards use the core's transports). Reference options carry the referenced
+  row, so a form can offer its fields: a port forward picks its external address among its host's addresses. `EntityTable` loads up to 1000 entities per type and sorts, searches, filters (status, kind) and
   pages them in the browser, with the query in the URL; beyond 1000 it says it shows the first ones (server-side
   search comes with the search index). Editors create, edit and delete in `EntitySlideover` and `DeleteEntityDialog`
   through the entity API: an edit sends only the changed fields, validation issues are translated from their codes
