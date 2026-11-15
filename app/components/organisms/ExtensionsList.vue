@@ -89,6 +89,11 @@ const { t } = useI18n();
           >
             {{ t('workspaceExtensions.failedHint') }}
           </p>
+          <!-- What the page adds under an extension, such as its hidden entities when it is off. -->
+          <slot
+            name="details"
+            :extension="extension"
+          />
         </div>
         <p
           v-if="extension.alwaysOn"

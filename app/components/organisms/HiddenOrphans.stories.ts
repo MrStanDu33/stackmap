@@ -1,4 +1,5 @@
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { ref } from 'vue';
 
 import HiddenOrphans from './HiddenOrphans.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
@@ -26,6 +27,7 @@ const meta = {
     onDelete: fn(),
     onKeep: fn(),
     onRetry: fn(),
+    onEmpty: fn(),
   },
 } satisfies Meta<typeof HiddenOrphans>;
 
@@ -102,15 +104,24 @@ export const Keep: Story = {
   },
 };
 
-/** When an entity leaves the list, the focus goes to the next row's first action, or to Review when it empties (20). */
+/**
+ * When an entity leaves the list, the focus goes to the next row's first action; when the list empties, nothing is left
+ * to focus here, so the page is told (20, 23).
+ */
 export const FocusAfterAction: Story = {
   render: (args) => ({
     components: { HiddenOrphans },
-    setup: () => ({ args }),
-    data: () => ({ items: ITEMS }),
-    template: '<HiddenOrphans v-bind="args" :items="items" @keep="(item) => { items = items.filter((i) => i.id !== item.id) }" />',
+    setup: () => {
+      // As the page does: a kept entity leaves the list.
+      const items = ref(ITEMS);
+      const keep = (item: { id: string }) => {
+        items.value = items.value.filter(({ id }) => id !== item.id);
+      };
+      return { args, items, keep };
+    },
+    template: '<HiddenOrphans v-bind="args" :items="items" @keep="keep" />',
   }),
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(review(canvasElement));
     await userEvent.click(canvas.getByRole('button', { name: t('workspaceExtensions.keepOrphan', { name: name(0) }) }));
@@ -118,7 +129,7 @@ export const FocusAfterAction: Story = {
     await waitFor(() => expect(canvas.getByRole('button', { name: t('workspaceExtensions.deleteOrphan', { name: name(1) }) })).toHaveFocus());
 
     await userEvent.click(canvas.getByRole('button', { name: t('workspaceExtensions.keepOrphan', { name: name(1) }) }));
-    await waitFor(() => expect(review(canvasElement)).toHaveFocus());
+    await waitFor(() => expect(args.onEmpty).toHaveBeenCalled());
   },
 };
 
