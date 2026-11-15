@@ -49,7 +49,7 @@ export const Empty: Story = {
     await expect(await optionTexts(external)).toEqual(['203.0.113.10', '192.0.2.1']);
     await pick(external, '203.0.113.10');
     await userEvent.type(field(canvasElement, 'spinbutton', 'externalPort'), '443');
-    await expect(field(canvasElement, 'combobox', 'transport')).toHaveTextContent(t('extensions.core.transports.tcp'));
+    await expect(field(canvasElement, 'combobox', 'transport')).toHaveTextContent(t('extensions.nat.transports.tcp'));
     await userEvent.type(field(canvasElement, 'textbox', 'internalAddress'), '192.0.2.10');
     await userEvent.type(field(canvasElement, 'spinbutton', 'internalPort'), '8443');
     // The range is said, since the form does not let the browser check it.
@@ -111,16 +111,16 @@ export const Editing: Story = {
 export const WithIssues: Story = {
   args: {
     issues: {
-      externalAddress: [t('extensions.nat.issues.address-not-on-host')],
-      internalAddress: [t('extensions.nat.issues.ip-version-mismatch')],
+      externalAddress: ['Expected an address of this host'],
+      internalAddress: ['Expected an address of the same IP version as the external one'],
     },
   },
   play: async ({ canvasElement }) => {
     await expect(field(canvasElement, 'combobox', 'externalAddress')).toHaveAttribute('aria-invalid', 'true');
     await expect(field(canvasElement, 'combobox', 'externalAddress'))
-      .toHaveAccessibleDescription(expect.stringContaining(t('extensions.nat.issues.address-not-on-host')) as string);
+      .toHaveAccessibleDescription(expect.stringContaining('Expected an address of this host') as string);
     await expect(field(canvasElement, 'textbox', 'internalAddress'))
-      .toHaveAccessibleDescription(expect.stringContaining(t('extensions.nat.issues.ip-version-mismatch')) as string);
+      .toHaveAccessibleDescription(expect.stringContaining('same IP version') as string);
   },
 };
 
