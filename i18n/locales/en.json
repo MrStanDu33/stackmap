@@ -525,14 +525,15 @@
     "retry": "Try again",
     "confirmOffTitle": "Turn off {name}?",
     "confirmOnTitle": "Turn on {name}?",
-    "hiddenData": "Stays saved but hidden:",
+    "hiddenData": "This data stays saved but hidden:",
     "entityCount": "{type}: {count}",
-    "derivedFlows": "no flows derived from them | {count} flow derived from them | {count} flows derived from them",
-    "alsoOff": "Also turned off, as they need it: {names}",
-    "alsoOn": "Also turned on, as it needs them: {names}",
+    "derivedFlows": "Derived flows: {count} | Derived flow: {count} | Derived flows: {count}",
+    "alsoOff": "These extensions depend on it and will also be turned off: {names}",
+    "alsoOn": "It needs these extensions, which will also be turned on: {names}",
     "nothingDeleted": "Nothing is deleted. Turning it back on brings everything back.",
     "turnOff": "Turn off",
     "turnOn": "Turn on",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "loading": "Loading the extensions…"
   }
 }
