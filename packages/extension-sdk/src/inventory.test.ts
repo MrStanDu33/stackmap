@@ -81,6 +81,16 @@ describe('defineInventory', () => {
     })]).types[0]?.columns[0]?.labels).toBe('extensions.reverse-proxy.ssl');
   });
 
+  it('accepts enum labels under a dependency\'s prefix, not under another extension\'s (review)', () => {
+    const dependent = defineExtension({ ...manifest, dependsOn: ['core'] });
+    const label = 'extensions.reverse-proxy.fields.route.transport';
+    const transport = (labels: string) => route({ columns: [{ field: 'transport', label, format: 'enum', labels }] });
+
+    expect(defineInventory(dependent, [transport('extensions.core.transports')]).types[0]?.columns[0]?.labels)
+      .toBe('extensions.core.transports');
+    expect(() => defineInventory(dependent, [transport('extensions.nat.transports')])).toThrow(/extensions\.nat\.transports/);
+  });
+
   it('refuses a type without columns', () => {
     expect(() => defineInventory(manifest, [route({ columns: [] })])).toThrow(/route/);
   });

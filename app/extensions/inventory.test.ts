@@ -63,6 +63,12 @@ describe('built-in inventory registrations', () => {
 
     expect(type?.title?.(forward, name)).toBe('Edge router 203.0.113.10:443/tcp');
     expect(type?.title?.({ ...forward, externalAddress: '2001:db8::1' }, name)).toBe('Edge router [2001:db8::1]:443/tcp');
+    // A row without its port, which the server never sends: the address alone, not "NaN" (review).
+    expect(type?.title?.({ ...forward, externalPort: null }, name)).toBe('Edge router 203.0.113.10/tcp');
+  });
+
+  it('labels the transports with the core\'s labels, as the listener does (review)', () => {
+    expect(natInventory.types[0]?.columns.find(({ field }) => field === 'transport')?.labels).toBe('extensions.core.transports');
   });
 
   it('translates every column label and every type\'s plural name in English and French', () => {

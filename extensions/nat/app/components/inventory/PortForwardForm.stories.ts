@@ -1,4 +1,4 @@
-import { expect, userEvent, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 
 import PortForwardForm from './PortForwardForm.vue';
 import { COMMON_DEFAULTS, fieldOf, formArgs, formRender, save } from '../../../../../.storybook/entity-form';
@@ -45,11 +45,16 @@ export const Empty: Story = {
     const external = field(canvasElement, 'combobox', 'externalAddress');
 
     await expect(external).toHaveAccessibleDescription(label('chooseHostFirst'));
+    // Opened before a host is chosen: nothing to pick, and Escape gives the focus back (review).
+    await userEvent.click(external);
+    await expect(document.querySelectorAll('[role="option"]')).toHaveLength(0);
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(external).toHaveFocus());
     await pick(field(canvasElement, 'combobox', 'hostId'), 'Edge router');
     await expect(await optionTexts(external)).toEqual(['203.0.113.10', '192.0.2.1']);
     await pick(external, '203.0.113.10');
     await userEvent.type(field(canvasElement, 'spinbutton', 'externalPort'), '443');
-    await expect(field(canvasElement, 'combobox', 'transport')).toHaveTextContent(t('extensions.nat.transports.tcp'));
+    await expect(field(canvasElement, 'combobox', 'transport')).toHaveTextContent(t('extensions.core.transports.tcp'));
     await userEvent.type(field(canvasElement, 'textbox', 'internalAddress'), '192.0.2.10');
     await userEvent.type(field(canvasElement, 'spinbutton', 'internalPort'), '8443');
     // The range is said, since the form does not let the browser check it.
@@ -133,5 +138,14 @@ export const ReadOnly: Story = {
     await expect(field(canvasElement, 'spinbutton', 'internalPort')).toHaveAttribute('readonly');
     await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
     await expect(within(canvasElement).queryByRole('button', { name: t('inventory.save') })).toBeNull();
+  },
+};
+
+/** Read-only, an address no longer on the host is said unavailable to viewers too, in words (review). */
+export const ReadOnlyUnavailable: Story = {
+  args: { entity: { ...PORT_FORWARDS[0], externalAddress: '198.51.100.7' }, readonly: true },
+  play: async ({ canvasElement }) => {
+    await expect(field(canvasElement, 'textbox', 'externalAddress'))
+      .toHaveValue(t('inventory.unavailable', { id: '198.51.100.7' }));
   },
 };
