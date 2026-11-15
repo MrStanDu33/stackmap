@@ -8,6 +8,13 @@
       },
       "trace": {
         "forward": "{router} forwards {external} to {internal}"
+      },
+      "entitiesPlural": {
+        "port-forward": "Port forwards"
+      },
+      "issues": {
+        "address-not-on-host": "Expected an address of this host",
+        "ip-version-mismatch": "Expected an address of the same IP version as the external one"
       }
     }
   }

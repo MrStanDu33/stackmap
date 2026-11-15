@@ -52,6 +52,105 @@
           "public": "{name} est un alias de {target} dans le DNS public",
           "internal": "{name} est un alias de {target} dans le DNS interne"
         }
+      },
+      "entitiesPlural": {
+        "site": "Sites",
+        "network": "Réseaux",
+        "host": "Hôtes",
+        "service": "Services",
+        "listener": "Ports d’écoute",
+        "domain": "Domaines",
+        "dns-record": "Enregistrements DNS",
+        "flow": "Flux"
+      },
+      "fields": {
+        "site": {
+          "name": "Nom"
+        },
+        "network": {
+          "name": "Nom",
+          "kind": "Type",
+          "cidr": "Plage d’adresses (CIDR)",
+          "vlan": "VLAN",
+          "siteId": "Site"
+        },
+        "host": {
+          "name": "Nom",
+          "kind": "Type",
+          "os": "Système d’exploitation",
+          "siteId": "Site",
+          "addresses": "Adresses",
+          "address": "Adresse",
+          "networkId": "Réseau",
+          "addAddress": "Ajouter une adresse",
+          "removeAddress": "Retirer l’adresse {number}"
+        },
+        "service": {
+          "name": "Nom",
+          "kind": "Type",
+          "hostId": "Hôte",
+          "image": "Image de conteneur",
+          "containerName": "Nom du conteneur"
+        },
+        "listener": {
+          "serviceId": "Service",
+          "port": "Port",
+          "transport": "Transport",
+          "protocol": "Protocole",
+          "bindAddress": "Adresse d’écoute",
+          "bindAddressHint": "0.0.0.0 ou :: pour toutes les adresses",
+          "publishedPort": "Port publié"
+        },
+        "domain": {
+          "name": "Nom"
+        },
+        "dns-record": {
+          "domainId": "Domaine",
+          "name": "Nom",
+          "nameHint": "{'@'} pour le domaine lui-même, ou un nom relatif, comme www",
+          "type": "Type",
+          "value": "Valeur",
+          "view": "Vue",
+          "proxied": "Via le proxy",
+          "valueHint": {
+            "A": "Une adresse IPv4",
+            "AAAA": "Une adresse IPv6",
+            "CNAME": "Un nom DNS",
+            "NS": "Un nom DNS",
+            "MX": "Une ligne de texte",
+            "TXT": "Une ligne de texte",
+            "SRV": "Une ligne de texte",
+            "CAA": "Une ligne de texte"
+          }
+        },
+        "flow": {
+          "sourceServiceId": "Service source",
+          "targetListenerId": "Port d’écoute cible",
+          "protocol": "Protocole",
+          "purpose": "Rôle",
+          "encrypted": "Chiffré",
+          "encryptedValues": {
+            "unknown": "Inconnu",
+            "yes": "Oui",
+            "no": "Non"
+          }
+        }
+      },
+      "transports": {
+        "tcp": "TCP",
+        "udp": "UDP"
+      },
+      "dnsViews": {
+        "public": "Public",
+        "internal": "Interne"
+      },
+      "issues": {
+        "address-outside-network": "{address} n’est pas dans {network} ({cidr})",
+        "address-outside-cidr": "{address} ({host}) n’est pas dans {cidr}",
+        "duplicate-address": "{address} figure deux fois",
+        "invalid-record-name": "{'@'} ou un nom relatif au domaine attendu, comme www ou *.dev",
+        "invalid-record-value": "Cette valeur ne convient pas à un enregistrement {type}",
+        "published-port-bound": "Un port publié est lié à une adresse"
       }
     }
   }
