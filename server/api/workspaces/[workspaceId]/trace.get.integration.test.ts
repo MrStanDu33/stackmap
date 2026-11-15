@@ -6,6 +6,7 @@ import { DIALECTS } from '../../../../tests/support/databases';
 import { useMemberOf } from '../../../../tests/support/sessions';
 import { BUILTIN_REGISTRY, useTestWorkspaces } from '../../../../tests/support/workspaces';
 import { seedDemoStack } from '../../../demo/demo-stack';
+import { setExtensionsEnabled } from '../../../repositories/workspace-extensions';
 import { setDatabase } from '../../../utils/database';
 import { setExtensionRegistry } from '../../../utils/extensions';
 
@@ -127,5 +128,35 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/trace as a member of o
     expect(await get(workspaces.b.workspace.id, 'hostname=app.homelab.example'))
       .toMatchObject({ status: 404, json: { code: 'workspace_not_found' } });
     expect((await get(workspaces.a.workspace.id, 'hostname=app.homelab.example')).status).toBe(200);
+  });
+});
+
+describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/trace with an extension turned off on %s', (dialect: Dialect) => {
+  const workspaces = useTestWorkspaces(dialect);
+  useMemberOf(workspaces);
+  const db = () => workspaces.db as unknown as Kysely<Database>;
+
+  it('given NAT off, traces the same steps with the port forward\'s hop hidden and the DNS hops unchanged (6, 7)', async () => {
+    setDatabase(Promise.resolve(db()));
+    setExtensionRegistry(BUILTIN_REGISTRY);
+    await seedDemoStack(workspaces.a.repos);
+    const shown = (await get(workspaces.a.workspace.id, 'hostname=app.homelab.example')).json as Trace;
+    await setExtensionsEnabled(db(), workspaces.a.workspace.id, ['nat'], false, null);
+
+    const hidden = (await get(workspaces.a.workspace.id, 'hostname=app.homelab.example')).json as Trace;
+
+    const ends = (trace: Trace) => trace.steps.map(({ source, target }) => [source, target]);
+    expect(ends(hidden)).toEqual(ends(shown));
+    const hops = hidden.steps.flatMap((step) => step.hops);
+    const shownHops = shown.steps.flatMap((step) => step.hops);
+    expect(hops.filter(({ entity }) => entity === 'port-forward').length).toBeGreaterThan(0);
+    for (const hop of hops.filter(({ entity }) => entity === 'port-forward')) {
+      const before = shownHops.find(({ id }) => id === hop.id);
+      expect(hop).toEqual({
+        entity: 'port-forward', id: hop.id, stage: before?.stage, label: 'trace.hop.hidden', params: { extension: 'nat' },
+        ...(before?.port === undefined ? {} : { port: before.port }),
+      });
+    }
+    expect(hops.filter(({ entity }) => entity === 'dns-record')).toEqual(shownHops.filter(({ entity }) => entity === 'dns-record'));
   });
 });

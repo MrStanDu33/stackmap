@@ -59,6 +59,8 @@ export interface TraceOptions {
   /** The logger of a resolver's extension, for its failures. */
   logger: (extension: string) => ExtensionLogger;
   timeoutMs?: number;
+  /** Extensions turned off in the workspace: their resolvers' hops are hidden. */
+  disabled?: ReadonlySet<string>;
 }
 
 export const RESOLVER_TIMEOUT_MS = 5000;

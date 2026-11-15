@@ -5,7 +5,7 @@ import { extensionLabels } from './extension-labels';
 import { elkToVueFlow, trafficToElk } from './traffic-graph';
 import en from '../../i18n/locales/en.json';
 import fr from '../../i18n/locales/fr.json';
-import { DEMO_IDS, DEMO_TRAFFIC } from '../../tests/support/demo-traffic';
+import { DEMO_IDS, DEMO_TRAFFIC, DEMO_TRAFFIC_NAT_OFF } from '../../tests/support/demo-traffic';
 import { INSTALLED_EXTENSIONS } from '../../tests/support/extensions';
 import { createTestI18n } from '../../tests/support/i18n';
 
@@ -118,5 +118,25 @@ describe('elkToVueFlow', () => {
     expect(node('client:public')?.domAttributes).toEqual({ role: 'button', 'aria-roledescription': 'client' });
     expect(edges.find(({ id }) => id === `flow:${flows.database}`)?.domAttributes)
       .toEqual({ 'aria-roledescription': 'flow' });
+  });
+});
+
+describe('elkToVueFlow: hidden flows', () => {
+  it('draws a hidden flow dashed and muted, and says it is hidden in its accessible name (4)', () => {
+    const { t: translate } = createTestI18n('en').global;
+    const labels = extensionLabels(INSTALLED_EXTENSIONS, (key, params) => translate(key, params ?? {}));
+
+    const { edges } = elkToVueFlow(DEMO_TRAFFIC_NAT_OFF, placed(trafficToElk(DEMO_TRAFFIC_NAT_OFF)), t, labels);
+
+    const hidden = edges.filter(({ data }) => (data as { flow: { hidden: boolean } }).flow.hidden);
+    expect(hidden.length).toBeGreaterThan(0);
+    for (const edge of hidden) {
+      expect(edge.style).toMatchObject({ strokeDasharray: expect.any(String) as unknown });
+      expect(edge.class).toContain('hidden-flow');
+      expect(edge.ariaLabel).toContain('Hidden: Router and NAT is turned off');
+    }
+    const shown = edges.find(({ data }) => !(data as { flow: { hidden: boolean } }).flow.hidden);
+    expect(shown?.style).toBeUndefined();
+    expect(shown?.ariaLabel).not.toContain('Hidden');
   });
 });

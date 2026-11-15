@@ -49,7 +49,7 @@ describe('indexTrace', () => {
   });
 
   it('names the entity type translated in a missing label\'s fallback, or by its id when no extension declares it', () => {
-    const labels = extensionLabels(INSTALLED_EXTENSIONS, (key, params) => t(key, params ?? {}));
+    const labels = extensionLabels(INSTALLED_EXTENSIONS, t);
     const missing = (entity: string, label: string) => ({ entity, id: flows.database, stage: 'network' as const, label, params: {} });
 
     expect(hopSentence(missing('port-forward', 'extensions.nat.trace.gone'), t, te, labels)).toBe('Port forward: no description');
@@ -79,5 +79,21 @@ describe('walk', () => {
     expect(index.position(first ?? '')).toEqual({ position: 1, total: 6, next: second });
     expect(index.position(last)).toMatchObject({ position: 6, total: 6, next: undefined });
     expect(index.position('gone')).toBeUndefined();
+  });
+});
+
+describe('hopSentence: hidden hops', () => {
+  it('says a hidden hop with its extension\'s translated name (8)', () => {
+    const { global } = createTestI18n('en');
+    const t = (key: string, params?: Record<string, unknown>) => global.t(key, params ?? {});
+    const te = (key: string) => global.te(key);
+    const labels = extensionLabels(INSTALLED_EXTENSIONS, (key, params) => t(key, params ?? {}));
+    const hidden = {
+      entity: 'port-forward', id: '0199d6a0-0000-7000-8000-000000000030', stage: 'network' as const,
+      label: 'trace.hop.hidden', params: { extension: 'nat' },
+    };
+
+    expect(hopSentence(hidden, t, te, labels))
+      .toBe('Hidden: Router and NAT is turned off');
   });
 });

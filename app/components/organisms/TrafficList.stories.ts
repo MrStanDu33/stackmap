@@ -2,7 +2,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 
 import TrafficList from './TrafficList.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
-import { DEMO_IDS, DEMO_TRAFFIC } from '../../../tests/support/demo-traffic';
+import { DEMO_IDS, DEMO_TRAFFIC, DEMO_TRAFFIC_NAT_OFF } from '../../../tests/support/demo-traffic';
 
 import type { Traffic } from '../../../shared/contracts/traffic';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
@@ -56,6 +56,20 @@ export const Demo: Story = {
     within(server).getByRole('button', { name: 'Home server' }).focus();
     await userEvent.keyboard('{Enter}');
     await expect(args.onSelect).toHaveBeenCalledWith({ type: 'host', id: hosts.server });
+  },
+};
+
+/** The flows of a turned-off extension stay listed, said hidden in words, without their names (4). */
+export const HiddenFlows: Story = {
+  args: { traffic: DEMO_TRAFFIC_NAT_OFF },
+  play: async ({ canvasElement }) => {
+    const server = within(tableOf(canvasElement, 'Home server'));
+    const hidden = t('traffic.hidden', { extension: t('extensions.nat.name') });
+
+    // NPM's ports 80 and 443 from the Internet, through the port forwards.
+    await expect(server.getAllByText(hidden)).toHaveLength(2);
+    const http = server.getAllByRole('row').filter((row) => row.textContent.includes('80/tcp'));
+    await expect(http).toHaveLength(2);
   },
 };
 

@@ -15,6 +15,7 @@ export interface Database {
   rateLimit: RateLimitTable;
   audit_event: AuditEventTable;
   workspace_extension_disabled: WorkspaceExtensionDisabledTable;
+  workspace_hidden_entity_kept: WorkspaceHiddenEntityKeptTable;
 }
 
 /**
@@ -134,4 +135,15 @@ export interface WorkspaceExtensionDisabledTable {
   disabledAt: string;
   /** Null once the account is deleted, or without an actor. */
   disabledBy: string | null;
+}
+
+/** A hidden entity of a turned-off extension an admin chose to keep: it leaves the orphans list, and stays hidden. */
+export interface WorkspaceHiddenEntityKeptTable {
+  workspaceId: string;
+  extension: string;
+  entity: string;
+  /** No foreign key: the entity's table depends on its type. A mark for an entity that is gone is ignored. */
+  entityId: string;
+  keptAt: string;
+  keptBy: string | null;
 }

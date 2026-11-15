@@ -21,7 +21,7 @@ const derived = (extension: string, deriver: string) =>
   ({ origin: 'derived' as const, extension, deriver, protocol: null, encrypted: null, purpose: null });
 const fromClient = (client: 'public' | 'internal') => ({ type: 'client' as const, client });
 const fromService = (serviceId: string) => ({ type: 'service' as const, serviceId });
-const names = (hostnames: string[]) => ({ hostnames, hostnameCount: hostnames.length });
+const names = (hostnames: string[]) => ({ hostnames, hostnameCount: hostnames.length, hidden: false });
 
 /**
  * What `GET /api/workspaces/:workspaceId/traffic` returns for the demo stack, with fixed ids. A test checks it against
@@ -64,4 +64,12 @@ export const DEMO_TRAFFIC: Traffic = {
     },
   ],
   truncated: false,
+};
+
+/** The demo traffic with NAT turned off: its port forwards' flows hidden, as the route sends them. */
+export const DEMO_TRAFFIC_NAT_OFF: Traffic = {
+  ...DEMO_TRAFFIC,
+  flows: DEMO_TRAFFIC.flows.map((flow) => (flow.extension === 'nat'
+    ? { ...flow, hidden: true, hostnames: [], hostnameCount: 0 }
+    : flow)),
 };
