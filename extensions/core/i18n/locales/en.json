@@ -83,7 +83,9 @@
           "address": "Address",
           "networkId": "Network",
           "addAddress": "Add an address",
-          "removeAddress": "Remove address {number}"
+          "removeAddress": "Remove address {number}",
+          "addressNumbered": "Address {number}",
+          "networkNumbered": "Network {number}"
         },
         "service": {
           "name": "Name",
@@ -99,7 +101,8 @@
           "protocol": "Protocol",
           "bindAddress": "Bind address",
           "bindAddressHint": "0.0.0.0 or :: for every address",
-          "publishedPort": "Published port"
+          "publishedPort": "Published port",
+          "portHint": "From 1 to 65535"
         },
         "domain": {
           "name": "Name"

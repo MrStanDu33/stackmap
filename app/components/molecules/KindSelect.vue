@@ -41,12 +41,20 @@ const selected = computed({
     :required="required"
     :errors="errors"
   >
+    <!-- Read-only, the kind's name as read-only text: reachable and at full contrast, unlike a disabled select. -->
+    <UInput
+      v-if="readonly"
+      :id="id"
+      :model-value="options.find(({ value }) => value === selected)?.label ?? ''"
+      readonly
+      class="w-full"
+    />
     <USelect
+      v-else
       :id="id"
       v-model="selected"
       :items="options"
       value-key="value"
-      :disabled="readonly"
       class="w-full"
     />
   </EntityField>

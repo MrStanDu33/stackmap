@@ -10,14 +10,18 @@ export type { ExtensionLabels, KindOption } from '../utils/extension-labels';
  * The installed extensions, fetched once on the client and shared under the `extensions` state, which components
  * read through `useExtensionLabels`.
  */
-export function useExtensions(): void {
+export function useExtensions() {
   const installed = useState<InstalledExtension[]>('extensions', () => []);
-  const { data } = useFetch<{ extensions: InstalledExtension[] }>('/api/extensions', { key: 'extensions', server: false });
+  const { data, error, refresh } = useFetch<{ extensions: InstalledExtension[] }>('/api/extensions', {
+    key: 'extensions', server: false,
+  });
   watch(data, (value) => {
     if (value) {
       installed.value = value.extensions;
     }
   }, { immediate: true });
+  /** Whether they could not be loaded, and a way to try again. */
+  return { error, retry: () => refresh() };
 }
 
 /** The labels of the installed extensions in the current language; raw ids until the extensions are loaded. */

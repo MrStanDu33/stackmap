@@ -42,25 +42,33 @@ const addLink = async () => {
   await nextTick();
   document.getElementById(id(`links.${String(props.modelValue.links.length - 1)}.label`))?.focus();
 };
-const removeLink = (index: number) => {
+const root = useTemplateRef<HTMLElement>('root');
+// The removed row's button had the focus: the row now in its place, else the one before, else Add a link.
+const removeLink = async (index: number) => {
+  const left = props.modelValue.links.length - 1;
   update({ links: props.modelValue.links.filter((_, at) => at !== index) });
+  await nextTick();
+  const next = left === 0 ? '[data-add-link]' : `[data-remove-link="${String(Math.min(index, left - 1))}"]`;
+  root.value?.querySelector<HTMLElement>(next)?.focus();
 };
+const groupErrorId = computed(() => `${id('links')}-error`);
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div
+    ref="root"
+    class="flex flex-col gap-4"
+  >
     <EntityField
       :label="t('inventory.common.status')"
       :errors="issues.status"
     >
-      <USelect
+      <ChoiceSelect
         :id="id('status')"
         :model-value="modelValue.status"
         :items="statusItems"
-        value-key="value"
-        :disabled="readonly"
-        class="w-full"
-        @update:model-value="update({ status: $event as string })"
+        :readonly="readonly"
+        @update:model-value="update({ status: $event })"
       />
     </EntityField>
     <EntityField
@@ -68,10 +76,18 @@ const removeLink = (index: number) => {
       :hint="readonly ? undefined : t('inventory.common.tagsHint')"
       :errors="issues.tags"
     >
+      <!-- Read-only, the tags as read-only text: reachable and at full contrast, unlike a disabled input. -->
+      <UInput
+        v-if="readonly"
+        :id="id('tags')"
+        :model-value="modelValue.tags.join(', ')"
+        readonly
+        class="w-full"
+      />
       <UInputTags
+        v-else
         :id="id('tags')"
         :model-value="modelValue.tags"
-        :disabled="readonly"
         :add-on-blur="true"
         class="w-full"
         @update:model-value="update({ tags: [...new Set($event as string[])] })"
@@ -92,30 +108,73 @@ const removeLink = (index: number) => {
         @update:model-value="update({ notes: String($event) })"
       />
     </EntityField>
-    <fieldset class="flex flex-col gap-3">
+    <!-- Read-only, the links as links. -->
+    <div
+      v-if="readonly"
+      class="flex flex-col gap-1"
+    >
+      <p class="text-sm font-medium">
+        {{ t('inventory.common.links') }}
+      </p>
+      <ul
+        v-if="modelValue.links.length > 0"
+        class="list-disc ps-5"
+      >
+        <li
+          v-for="(link, index) in modelValue.links"
+          :key="index"
+        >
+          <a
+            :href="link.url"
+            class="text-primary underline"
+            rel="noopener noreferrer"
+            target="_blank"
+          >{{ link.label }}</a>
+        </li>
+      </ul>
+      <p
+        v-else
+        class="text-sm text-muted"
+      >
+        {{ t('inventory.none') }}
+      </p>
+    </div>
+    <fieldset
+      v-else
+      :id="id('links')"
+      tabindex="-1"
+      :aria-describedby="issues.links?.length ? groupErrorId : undefined"
+      class="flex flex-col gap-3"
+    >
       <legend class="text-sm font-medium">
         {{ t('inventory.common.links') }}
       </legend>
+      <p
+        v-if="issues.links?.length"
+        :id="groupErrorId"
+        class="text-sm text-error"
+      >
+        {{ issues.links.join(' ') }}
+      </p>
       <div
         v-for="(link, index) in modelValue.links"
         :key="index"
         class="flex flex-wrap items-start gap-2"
       >
         <EntityField
-          :label="`${t('inventory.common.label')} ${index + 1}`"
+          :label="t('inventory.common.labelNumbered', { number: index + 1 })"
           :errors="issues[`links.${index}.label`]"
           class="min-w-32 flex-1"
         >
           <UInput
             :id="id(`links.${index}.label`)"
             :model-value="link.label"
-            :readonly="readonly"
             class="w-full"
             @update:model-value="updateLink(index, { label: String($event) })"
           />
         </EntityField>
         <EntityField
-          :label="`${t('inventory.common.url')} ${index + 1}`"
+          :label="t('inventory.common.urlNumbered', { number: index + 1 })"
           :errors="issues[`links.${index}.url`]"
           class="min-w-48 flex-2"
         >
@@ -123,13 +182,12 @@ const removeLink = (index: number) => {
             :id="id(`links.${index}.url`)"
             :model-value="link.url"
             type="url"
-            :readonly="readonly"
             class="w-full"
             @update:model-value="updateLink(index, { url: String($event) })"
           />
         </EntityField>
         <UButton
-          v-if="!readonly"
+          :data-remove-link="index"
           icon="i-lucide-x"
           color="neutral"
           variant="ghost"
@@ -139,7 +197,7 @@ const removeLink = (index: number) => {
         />
       </div>
       <UButton
-        v-if="!readonly"
+        data-add-link
         icon="i-lucide-plus"
         color="neutral"
         variant="outline"

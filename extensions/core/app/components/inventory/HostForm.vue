@@ -31,14 +31,21 @@ const addAddress = async () => {
   await nextTick();
   document.getElementById(id(`addresses.${String(values.value.addresses.length - 1)}.address`))?.focus();
 };
-const removeAddress = (index: number) => {
+const root = useTemplateRef<HTMLElement>('root');
+// The removed row's button had the focus: the row now in its place, else the one before, else Add an address.
+const removeAddress = async (index: number) => {
+  const left = values.value.addresses.length - 1;
   values.value.addresses = values.value.addresses.filter((_, at) => at !== index);
+  await nextTick();
+  const next = left === 0 ? '[data-add-address]' : `[data-remove-address="${String(Math.min(index, left - 1))}"]`;
+  root.value?.querySelector<HTMLElement>(next)?.focus();
 };
 </script>
 
 <template>
   <form
     :id="formId"
+    ref="root"
     novalidate
     class="flex flex-col gap-4"
     @submit.prevent="submit"
@@ -88,12 +95,18 @@ const removeAddress = (index: number) => {
       :errors="issue('siteId')"
       :readonly="readonly"
     />
-    <fieldset class="flex flex-col gap-3">
+    <fieldset
+      :id="id('addresses')"
+      tabindex="-1"
+      :aria-describedby="issue('addresses').length > 0 ? `${id('addresses')}-error` : undefined"
+      class="flex flex-col gap-3"
+    >
       <legend class="text-sm font-medium">
         {{ label('addresses') }}
       </legend>
       <p
         v-if="issue('addresses').length > 0"
+        :id="`${id('addresses')}-error`"
         class="text-sm text-error"
       >
         {{ issue('addresses').join(' ') }}
@@ -104,7 +117,7 @@ const removeAddress = (index: number) => {
         class="flex flex-wrap items-start gap-2"
       >
         <EntityField
-          :label="`${label('address')} ${index + 1}`"
+          :label="t('extensions.core.fields.host.addressNumbered', { number: index + 1 })"
           required
           :errors="issue(`addresses.${index}.address`)"
           class="min-w-40 flex-1"
@@ -121,7 +134,7 @@ const removeAddress = (index: number) => {
         <ReferenceSelect
           :id="id(`addresses.${index}.networkId`)"
           v-model="item.networkId"
-          :label="`${label('networkId')} ${index + 1}`"
+          :label="t('extensions.core.fields.host.networkNumbered', { number: index + 1 })"
           :items="references['core/network'] ?? []"
           nullable
           :required="false"
@@ -131,6 +144,7 @@ const removeAddress = (index: number) => {
         />
         <UButton
           v-if="!readonly"
+          :data-remove-address="index"
           icon="i-lucide-x"
           color="neutral"
           variant="ghost"
@@ -141,6 +155,7 @@ const removeAddress = (index: number) => {
       </div>
       <UButton
         v-if="!readonly && values.addresses.length < MAX_ADDRESSES"
+        data-add-address
         icon="i-lucide-plus"
         color="neutral"
         variant="outline"

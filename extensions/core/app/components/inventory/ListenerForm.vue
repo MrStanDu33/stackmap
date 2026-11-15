@@ -55,6 +55,7 @@ const { values, common, id, issue, submit } = useInventoryForm(props, {
     />
     <EntityField
       :label="label('port')"
+      :hint="label('portHint')"
       required
       :errors="issue('port')"
     >
@@ -74,13 +75,11 @@ const { values, common, id, issue, submit } = useInventoryForm(props, {
       required
       :errors="issue('transport')"
     >
-      <USelect
+      <ChoiceSelect
         :id="id('transport')"
         v-model="values.transport"
         :items="transports"
-        value-key="value"
-        :disabled="readonly"
-        class="w-full"
+        :readonly="readonly"
       />
     </EntityField>
     <KindSelect
@@ -110,6 +109,7 @@ const { values, common, id, issue, submit } = useInventoryForm(props, {
     </EntityField>
     <EntityField
       :label="label('publishedPort')"
+      :hint="label('portHint')"
       :errors="issue('publishedPort')"
     >
       <UInput

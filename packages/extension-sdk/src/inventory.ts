@@ -50,10 +50,13 @@ export function defineInventory<Form>(
     ...(declared.has(entity) ? [] : [`"${entity}" is not an entity of the manifest`]),
     ...(types.findIndex((other) => other.entity === entity) === index ? [] : [`"${entity}" is listed twice`]),
     ...(columns.length === 0 ? [`"${entity}" has no column`] : []),
-    ...columns.flatMap(({ field, label, format, reference }) => [
+    ...columns.flatMap(({ field, label, format, reference, labels }) => [
       ...(label.startsWith(prefix) ? [] : [`"${entity}.${field}": its label ${label} is not under ${prefix}`]),
       ...(format === 'reference' && !REFERENCE.test(reference ?? '')
         ? [`"${entity}.${field}": a reference column needs <extension>/<entity>, not ${reference ?? 'nothing'}`]
+        : []),
+      ...(format === 'enum' && !labels?.startsWith(prefix)
+        ? [`"${entity}.${field}": an enum column needs labels under ${prefix}, not ${labels ?? 'nothing'}`]
         : []),
     ]),
   ]);

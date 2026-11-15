@@ -66,7 +66,8 @@ export function problemIssues(problem: Problem, { fields, t, te }: IssueOptions)
     if (path !== null && fields.includes(path.split('.')[0] ?? '')) {
       (result.fields[path] ??= []).push(message);
     } else {
-      result.summary.push({ path, message });
+      // No field to go to: the summary says it as text, not as a link to nothing.
+      result.summary.push({ path: null, message });
     }
   };
   if (problem.code === 'entity_conflict') {

@@ -77,6 +77,19 @@ const onOpenAutoFocus = (event: Event) => {
   }
 };
 
+// The least destructive answer takes the focus when the question opens.
+const keepEditing = useTemplateRef<{ $el: HTMLElement }>('keepEditing');
+const onQuestionOpen = (event: Event) => {
+  event.preventDefault();
+  keepEditing.value?.$el.focus();
+};
+// Saving: Save stays focusable, said unavailable, and submits nothing more.
+const guardSave = (event: Event) => {
+  if (props.saving) {
+    event.preventDefault();
+  }
+};
+
 const focusField = (path: string) => document.getElementById(fieldId(props.formId, path))?.focus();
 
 // A new summary takes the focus, so that it is read where the reader is.
@@ -140,6 +153,12 @@ watch(() => props.summary, async (summary) => {
             {{ t('inventory.reload') }}
           </UButton>
         </div>
+        <p
+          v-if="!readonly"
+          class="text-sm text-muted"
+        >
+          {{ t('inventory.requiredHint') }}
+        </p>
         <slot />
       </div>
     </template>
@@ -156,10 +175,11 @@ watch(() => props.summary, async (summary) => {
           v-if="!readonly"
           type="submit"
           :form="formId"
-          :disabled="saving"
+          :aria-disabled="saving ? 'true' : undefined"
           :aria-busy="saving ? 'true' : undefined"
           :icon="saving ? 'i-lucide-loader-circle' : undefined"
           :ui="{ leadingIcon: saving ? 'motion-safe:animate-spin' : '' }"
+          @click="guardSave"
         >
           {{ t('inventory.save') }}
         </UButton>
@@ -169,11 +189,12 @@ watch(() => props.summary, async (summary) => {
   <UModal
     v-model:open="asking"
     :title="t('inventory.discard')"
-    :content="ALERT_DIALOG"
+    :content="{ ...ALERT_DIALOG, onOpenAutoFocus: onQuestionOpen }"
   >
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton
+          ref="keepEditing"
           color="neutral"
           variant="outline"
           @click="asking = false"

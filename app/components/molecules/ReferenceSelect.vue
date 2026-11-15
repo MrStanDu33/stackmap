@@ -35,13 +35,21 @@ const selected = computed({
     :errors="errors"
   >
     <!-- A button that opens a searchable list: a combobox, as the select fields are (ARIA 1.2 select-only pattern). -->
+    <!-- Read-only, the entity's name as read-only text: reachable and at full contrast, unlike a disabled select. -->
+    <UInput
+      v-if="readonly"
+      :id="id"
+      :model-value="options.find(({ value }) => value === selected)?.label ?? ''"
+      readonly
+      class="w-full"
+    />
     <USelectMenu
+      v-else
       :id="id"
       v-model="selected"
       role="combobox"
       :items="options"
       value-key="value"
-      :disabled="readonly"
       :search-input="searchInput"
       class="w-full"
     />

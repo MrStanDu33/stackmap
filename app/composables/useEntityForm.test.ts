@@ -84,7 +84,8 @@ describe('useEntityForm', () => {
       issues: [{ path: 'body.name', code: 'too_small', params: { minimum: 1, origin: 'string' }, message: 'Too small' }],
     });
 
-    expect(problemIssues(problem, options).fields).toEqual({ name: [t('issues.too_small', { minimum: 1, origin: 'string' })] });
+    // A name too short reads as a count of characters (review).
+    expect(problemIssues(problem, options).fields).toEqual({ name: [t('issues.too_small_string', { minimum: 1, origin: 'string' })] });
   });
 
   it('maps an array item\'s issue (body.addresses.1.address) to that item\'s field', () => {

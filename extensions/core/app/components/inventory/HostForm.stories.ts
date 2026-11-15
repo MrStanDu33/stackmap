@@ -63,13 +63,13 @@ export const Addresses: Story = {
     await userEvent.type(address(canvasElement, 2), '192.0.2.20');
     await pick(network(canvasElement, 2), 'LAN');
     await userEvent.click(canvas.getByRole('button', { name: t('extensions.core.fields.host.removeAddress', { number: 1 }) }));
+    // The removed row's button had the focus: it goes to the row now in its place (review).
+    await waitFor(() => expect(canvas.getByRole('button', { name: t('extensions.core.fields.host.removeAddress', { number: 1 }) }))
+      .toHaveFocus());
     await save(canvasElement);
     await expect(args.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       addresses: [{ address: '192.0.2.20', networkId: IDS.lan }],
     }));
-    // The removed row's button had the focus: it goes to the row now in its place (review).
-    await waitFor(() => expect(canvas.getByRole('button', { name: t('extensions.core.fields.host.removeAddress', { number: 1 }) }))
-      .toHaveFocus());
     // The last row removed: to Add an address.
     await userEvent.click(canvas.getByRole('button', { name: t('extensions.core.fields.host.removeAddress', { number: 1 }) }));
     await waitFor(() => expect(canvas.getByRole('button', { name: t('extensions.core.fields.host.addAddress') })).toHaveFocus());

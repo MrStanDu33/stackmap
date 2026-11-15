@@ -65,13 +65,11 @@ const { values, common, id, issue, submit } = useInventoryForm(props, {
       required
       :errors="issue('type')"
     >
-      <USelect
+      <ChoiceSelect
         :id="id('type')"
         v-model="values.type"
         :items="types"
-        value-key="value"
-        :disabled="readonly"
-        class="w-full"
+        :readonly="readonly"
       />
     </EntityField>
     <EntityField
@@ -94,23 +92,29 @@ const { values, common, id, issue, submit } = useInventoryForm(props, {
       required
       :errors="issue('view')"
     >
-      <USelect
+      <ChoiceSelect
         :id="id('view')"
         v-model="values.view"
         :items="views"
-        value-key="value"
-        :disabled="readonly"
-        class="w-full"
+        :readonly="readonly"
       />
     </EntityField>
     <EntityField
       :label="label('proxied')"
       :errors="issue('proxied')"
     >
+      <!-- Read-only, yes or no as read-only text: reachable and at full contrast, unlike a disabled checkbox. -->
+      <UInput
+        v-if="readonly"
+        :id="id('proxied')"
+        :model-value="t(values.proxied ? 'inventory.yes' : 'inventory.no')"
+        readonly
+        class="w-full"
+      />
       <UCheckbox
+        v-else
         :id="id('proxied')"
         v-model="values.proxied"
-        :disabled="readonly"
       />
     </EntityField>
     <CommonFields

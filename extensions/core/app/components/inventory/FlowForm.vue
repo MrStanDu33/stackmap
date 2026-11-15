@@ -33,8 +33,8 @@ const { values, common, id, issue, submit } = useInventoryForm(props, {
 // Yes, no or unknown: a select of three, since a checkbox cannot say unknown.
 const encrypted = computed({
   get: (): Encrypted => (values.value.encrypted === null ? 'unknown' : (values.value.encrypted ? 'yes' : 'no')),
-  set: (value: Encrypted) => {
-    values.value.encrypted = ENCRYPTED[value];
+  set: (value: string) => {
+    values.value.encrypted = ENCRYPTED[value as Encrypted];
   },
 });
 </script>
@@ -92,13 +92,11 @@ const encrypted = computed({
       :label="label('encrypted')"
       :errors="issue('encrypted')"
     >
-      <USelect
+      <ChoiceSelect
         :id="id('encrypted')"
         v-model="encrypted"
         :items="encryptedItems"
-        value-key="value"
-        :disabled="readonly"
-        class="w-full"
+        :readonly="readonly"
       />
     </EntityField>
     <CommonFields

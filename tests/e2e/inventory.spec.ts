@@ -242,7 +242,8 @@ test.describe('inventory', () => {
     await page.getByRole('searchbox', { name: 'Search' }).fill('storage');
     await expect(page).toHaveURL(/[?&]q=storage/);
     await expect(announced(page, '1 result')).toBeAttached();
-    await page.getByRole('button', { name: 'Sort by Kind' }).click();
+    // Named by its column: the header's aria-sort says the order (review).
+    await page.getByRole('table', { name: /Hosts/ }).getByRole('button', { name: 'Kind', exact: true }).click();
     await expect(page).toHaveURL(/[?&]sort=kind/);
 
     await page.reload();
@@ -250,6 +251,17 @@ test.describe('inventory', () => {
     await expect(page.getByRole('searchbox', { name: 'Search' })).toHaveValue('storage');
     await expect(page.getByRole('columnheader', { name: /Kind/ })).toHaveAttribute('aria-sort', 'ascending');
     await expect(page.getByRole('table', { name: /Hosts/ }).getByRole('row')).toHaveCount(2);
+  });
+
+  test('a DNS record\'s view shows translated in the table, not its raw value (review)', async ({ page }) => {
+    const workspace = await createWorkspace(page);
+    const domainId = await createEntity(page, workspace.id, 'core/domain', { name: 'homelab.example' });
+    await createEntity(page, workspace.id, 'core/dns-record', { domainId, name: 'nas', type: 'A', value: '192.0.2.10', view: 'internal' });
+    await page.goto(`/w/${workspace.slug}/inventory/core/dns-record`);
+    await hydrated(page);
+
+    const row = page.getByRole('table', { name: /DNS records/ }).getByRole('row', { name: /nas/ });
+    await expect(row.getByRole('cell', { name: 'Internal', exact: true })).toBeVisible();
   });
 
   test('the Traffic view shows translated kinds (6)', async ({ page }) => {

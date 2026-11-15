@@ -100,15 +100,44 @@ const updated = (entity: EntityRow) => {
     ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(date)
     : '';
 };
-// Emptied while the count is unchanged, so the same count after a new search is announced again.
+const count = (value: number) => new Intl.NumberFormat(locale.value).format(value);
+// An outcome is said once: a search afterwards announces its results, not the outcome again.
+const notice = ref(props.notice);
+watch(() => props.notice, (value) => {
+  notice.value = value;
+});
+watch(() => props.query, () => {
+  notice.value = '';
+}, { deep: true });
 const announcement = computed(() => [
-  props.notice,
-  filtering.value && props.entities ? t('inventory.results', { count: result.value.matching }, result.value.matching) : '',
+  notice.value,
+  filtering.value && props.entities
+    ? t('inventory.results', { count: count(result.value.matching) }, result.value.matching)
+    : '',
 ].filter(Boolean).join(' '));
+
+const focusSearch = () => root.value?.querySelector<HTMLElement>('input[type="search"]')?.focus();
+// Clear goes away with what it cleared: the focus goes to the search.
+const clear = async () => {
+  emit('update:query', { ...DEFAULT_INVENTORY_QUERY });
+  await nextTick();
+  focusSearch();
+};
 
 defineExpose({
   /** The row's Edit button, after its edit was saved. */
-  focusRow: (id: string) => root.value?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(id)}"]`)?.focus(),
+  focusRow: (id: string) => {
+    const row = root.value?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(id)}"]`);
+    // Not shown (another page, filtered out): New, or the search for viewers, rather than nowhere.
+    const fallback = root.value?.querySelector<HTMLElement>('[data-new]');
+    if (row) {
+      row.focus();
+    } else if (fallback) {
+      fallback.focus();
+    } else {
+      focusSearch();
+    }
+  },
   /** The toolbar's New button, after a creation. */
   focusNew: () => root.value?.querySelector<HTMLElement>('[data-new]')?.focus(),
 });
@@ -215,7 +244,7 @@ defineExpose({
       <UButton
         color="neutral"
         variant="outline"
-        @click="emit('update:query', { ...DEFAULT_INVENTORY_QUERY })"
+        @click="clear"
       >
         {{ t('inventory.clear') }}
       </UButton>
@@ -225,7 +254,7 @@ defineExpose({
         v-if="total > entities.length"
         class="text-sm text-muted"
       >
-        {{ t('inventory.truncated', { shown: entities.length, total }) }}
+        {{ t('inventory.truncated', { shown: count(entities.length), total: count(total) }) }}
       </p>
       <!-- Scrolls on its own on narrow screens; focusable and named so that keyboard users can scroll it. -->
       <div
@@ -251,7 +280,6 @@ defineExpose({
                   type="button"
                   class="inline-flex items-center gap-1 rounded-sm hover:text-primary
                     focus-visible:outline-2 focus-visible:outline-primary"
-                  :aria-label="t('inventory.sortBy', { column: t(column.label) })"
                   @click="sortBy(column.field)"
                 >
                   {{ t(column.label) }}
@@ -285,8 +313,7 @@ defineExpose({
               <td
                 v-for="column in columns"
                 :key="column.field"
-                class="max-w-64 truncate px-2 py-2"
-                :title="display(entity, column)"
+                class="max-w-80 px-2 py-2 [overflow-wrap:anywhere]"
               >
                 {{ display(entity, column) }}
               </td>

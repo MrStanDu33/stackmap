@@ -54,7 +54,7 @@ export default defineInventory<Component>(manifest, [
     columns: [
       field('listener', 'serviceId', { format: 'reference', reference: 'core/service' }),
       field('listener', 'port', { format: 'number' }),
-      field('listener', 'transport'),
+      field('listener', 'transport', { format: 'enum', labels: 'extensions.core.transports' }),
       field('listener', 'protocol', { format: 'kind', kind: 'protocol' }),
       field('listener', 'publishedPort', { format: 'number' }),
     ],
@@ -73,7 +73,7 @@ export default defineInventory<Component>(manifest, [
       field('dns-record', 'domainId', { format: 'reference', reference: 'core/domain' }),
       field('dns-record', 'type'),
       field('dns-record', 'value'),
-      field('dns-record', 'view'),
+      field('dns-record', 'view', { format: 'enum', labels: 'extensions.core.dnsViews' }),
     ],
     title: (record, name) => `${String(record.name)} (${name('core/domain', record.domainId)})`,
   },

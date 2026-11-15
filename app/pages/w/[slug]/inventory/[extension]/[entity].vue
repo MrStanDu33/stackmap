@@ -12,6 +12,7 @@ import type { EntityRow } from '~/utils/inventory-rows';
 import { entityPatch, formValues, problemIssues } from '~/composables/useEntityForm';
 import { useExtensionLabels, useExtensions } from '~/composables/useExtensions';
 import { findInventoryType, inventoryTypes } from '~/extensions/inventory';
+import { cellText, valueText } from '~/utils/inventory-cells';
 import { inventoryQueryToUrl, parseInventoryQuery } from '~/utils/inventory-query';
 
 /** The rows a table loads at most: the API's page limit (sorting and search happen in the browser). */
@@ -25,7 +26,7 @@ const route = useRoute();
 const router = useRouter();
 const { session, signOut } = useAccount();
 const { workspaces, refresh: refreshWorkspaces } = useWorkspaces();
-useExtensions();
+const { error: extensionsError, retry: retryExtensions } = useExtensions();
 const installed = useState<InstalledExtension[]>('extensions', () => []);
 const labels = useExtensionLabels();
 
@@ -92,50 +93,21 @@ watch([base, needed], ([url, keys]) => {
 const current = computed(() => (type.value ? lists.value[type.value.key] : undefined));
 const entities = computed(() => (current.value && current.value !== 'error' ? current.value.items : null));
 
-/** A value as text: entity values are JSON. */
-const text = (value: unknown): string => {
-  if (typeof value === 'string') {
-    return value;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  return value === null || value === undefined ? '' : JSON.stringify(value);
-};
-
 /** An entity's name: its type's title, or its first column's value. */
 const nameIn = (key: string, entity: EntityRow): string => {
   const owner = types.value.find((candidate) => candidate.key === key);
   const [first] = owner?.columns ?? [];
 
-  return owner?.title?.(entity, nameOf) ?? (first ? text(entity[first.field]) : entity.id);
+  return owner?.title?.(entity, nameOf) ?? (first ? valueText(entity[first.field]) : entity.id);
 };
 const nameOf = (key: string, id: unknown): string => {
   const list = lists.value[key];
   const found = list && list !== 'error' ? list.items.find((item) => item.id === id) : undefined;
   return found ? nameIn(key, found) : '';
 };
-const display = (entity: EntityRow, column: InventoryColumn): string => {
-  const value = entity[column.field];
-  if (value === null || value === undefined) {
-    return '';
-  }
-  switch (column.format) {
-    case 'reference':
-      return nameOf(column.reference ?? '', value) || t('inventory.unknown');
-    case 'kind':
-      return column.kind ? labels.kindLabel(column.kind, text(value)) : text(value);
-    case 'list':
-      // A host's addresses: each item's first text, its address.
-      return (value as unknown[]).map((item) => (typeof item === 'object' && item
-        ? text(Object.values(item).find((part) => typeof part === 'string'))
-        : text(item))).join(', ');
-    case 'date':
-      return new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }).format(new Date(text(value)));
-    default:
-      return text(value);
-  }
-};
+const display = (entity: EntityRow, column: InventoryColumn): string => cellText(entity, column, {
+  t, locale: locale.value, name: nameOf, kindLabel: (...args) => labels.kindLabel(...args),
+});
 const name = (entity: EntityRow) => (type.value ? nameIn(type.value.key, entity) : entity.id);
 const kindColumn = computed(() => type.value?.columns.find(({ format, field }) => format === 'kind' && field === 'kind'));
 const references = computed(() => Object.fromEntries(Object.entries(lists.value).flatMap(([key, list]) => (list === 'error'
@@ -159,13 +131,17 @@ const form = shallowRef<Component | null>(null);
 watch(type, async (current) => {
   form.value = current ? await current.form() : null;
 }, { immediate: true });
-/** Where focus goes once the slide-over has closed: the saved row, or New after a creation. */
-let focusAfterClose: (() => void) | null = null;
+/**
+ * What happens once the slide-over or the dialog has closed: focus moves (the saved row, New, the heading), then the
+ * outcome is announced. Not before: while they are open, the page is hidden from assistive technologies, which do not
+ * read announcements made there.
+ */
+let afterClose: (() => void) | null = null;
 const onCloseAutoFocus = (event: Event) => {
-  if (focusAfterClose) {
+  if (afterClose) {
     event.preventDefault();
-    focusAfterClose();
-    focusAfterClose = null;
+    afterClose();
+    afterClose = null;
   }
 };
 const panel = reactive({
@@ -216,10 +192,17 @@ const save = async (values: Record<string, unknown>) => {
       ? await $fetch<EntityRow>(`${url}/${editing.id}`, { method: 'PATCH', body })
       : await $fetch<EntityRow>(url, { method: 'POST', body });
     await refresh();
-    announce(t(editing ? 'inventory.saved' : 'inventory.created', { name: name(saved) }));
     await nextTick();
+    const outcome = t(editing ? 'inventory.saved' : 'inventory.created', { name: name(saved) });
     panel.dirty = false;
-    focusAfterClose = editing ? () => table.value?.focusRow(saved.id) : () => table.value?.focusNew();
+    afterClose = () => {
+      if (editing) {
+        table.value?.focusRow(saved.id);
+      } else {
+        table.value?.focusNew();
+      }
+      announce(outcome);
+    };
     panel.open = false;
   } catch (failure) {
     const problem = problemOf(failure);
@@ -261,10 +244,19 @@ const removal = reactive({
   open: false,
   entity: undefined as EntityRow | undefined,
   busy: false,
+  failed: false,
   inUse: null as { label: string; count: number }[] | 'unknown' | null,
 });
 const askRemove = (entity: EntityRow) => {
-  Object.assign(removal, { open: true, entity, busy: false, inUse: null });
+  Object.assign(removal, { open: true, entity, busy: false, failed: false, inUse: null });
+};
+/** Closes the dialog; once closed, the focus goes to the heading (the row is gone) and the outcome is announced. */
+const closeRemoval = (outcome: string) => {
+  afterClose = () => {
+    template.value?.focusHeading();
+    announce(outcome);
+  };
+  removal.open = false;
 };
 const remove = async () => {
   const entity = removal.entity;
@@ -272,14 +264,12 @@ const remove = async () => {
     return;
   }
   removal.busy = true;
+  removal.failed = false;
   try {
     // The type's key holds a slash: typed as any URL, not as the list's route.
     await $fetch<unknown, string>(`${base.value}/${type.value.key}/${entity.id}`, { method: 'DELETE' });
-    removal.open = false;
     await refresh();
-    announce(t('inventory.deleted', { name: name(entity) }));
-    await nextTick();
-    template.value?.focusHeading();
+    closeRemoval(t('inventory.deleted', { name: name(entity) }));
   } catch (failure) {
     const problem = problemOf(failure);
     if (problem?.code === 'entity_in_use') {
@@ -291,12 +281,11 @@ const remove = async () => {
             count,
           }));
     } else if (problem?.code === 'entity_not_found') {
-      removal.open = false;
       await refresh();
-      announce(t('inventory.alreadyDeleted'));
+      closeRemoval(t('inventory.alreadyDeleted'));
     } else {
-      removal.open = false;
-      announce(t('inventory.notSaved'));
+      // Said in the dialog, which stays open to try again.
+      removal.failed = true;
     }
   } finally {
     removal.busy = false;
@@ -320,8 +309,30 @@ const remove = async () => {
       :not-found="notFound"
       :back-to="`/w/${slug}/inventory`"
     >
+      <div
+        v-if="extensionsError && installed.length === 0"
+        role="alert"
+        class="flex flex-wrap items-center gap-3"
+      >
+        <p>{{ t('inventory.extensionsFailed') }}</p>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          @click="retryExtensions"
+        >
+          {{ t('inventory.retry') }}
+        </UButton>
+      </div>
+      <p
+        v-else-if="installed.length === 0"
+        role="status"
+        class="text-muted"
+      >
+        {{ t('inventory.loading') }}
+      </p>
       <EntityTable
-        v-if="type"
+        v-else-if="type"
         ref="table"
         :type-label="typeLabel"
         :plural-label="pluralLabel"
@@ -375,8 +386,10 @@ const remove = async () => {
       v-model:open="removal.open"
       :name="removal.entity ? name(removal.entity) : ''"
       :busy="removal.busy"
+      :failed="removal.failed"
       :in-use="removal.inUse"
       @confirm="remove"
+      @close-auto-focus="onCloseAutoFocus"
     />
   </AppShell>
 </template>

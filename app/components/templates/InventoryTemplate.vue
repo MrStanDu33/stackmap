@@ -29,22 +29,30 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:flex-row">
+  <!-- The heading first: after a type change, the reader reaches it, then the table, without every type link. -->
+  <div class="grid gap-x-6 gap-y-4 md:grid-cols-[14rem_1fr]">
+    <h1
+      ref="heading"
+      tabindex="-1"
+      class="text-xl font-semibold focus-visible:outline-2 focus-visible:outline-primary md:col-start-2 md:row-start-1"
+    >
+      {{ title }}
+    </h1>
     <nav
       :aria-label="t('inventory.types')"
-      class="shrink-0 md:w-56"
+      class="md:col-start-1 md:row-span-2 md:row-start-1"
     >
       <div
         v-for="group in groups"
         :key="group.extension"
         class="mb-4"
       >
-        <p
+        <h2
           :id="`inventory-group-${group.extension}`"
           class="mb-1 text-xs font-semibold uppercase text-muted"
         >
           {{ group.label }}
-        </p>
+        </h2>
         <ul
           :aria-labelledby="`inventory-group-${group.extension}`"
           class="flex flex-wrap gap-1 md:flex-col"
@@ -66,14 +74,7 @@ defineExpose({
         </ul>
       </div>
     </nav>
-    <div class="min-w-0 flex-1">
-      <h1
-        ref="heading"
-        tabindex="-1"
-        class="mb-4 text-xl font-semibold focus-visible:outline-2 focus-visible:outline-primary"
-      >
-        {{ title }}
-      </h1>
+    <div class="min-w-0 md:col-start-2">
       <p v-if="notFound">
         <NuxtLink
           :to="backTo"

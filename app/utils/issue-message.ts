@@ -26,8 +26,16 @@ export function issueMessage(
   { code, params, message }: Issue,
   { t, te }: { t: Translate; te: (key: string) => boolean },
 ): string {
+  const values = params ?? {};
   // An invalid value says what was expected, by its format (an IPv4 address, a CIDR…), when the app knows it.
-  const format = code === 'common.invalid-value' ? `issues.format.${String(params?.format)}` : '';
-  const key = format && te(format) ? format : issueKey(code ?? 'custom');
-  return te(key) ? t(key, params ?? {}) : message;
+  const format = code === 'common.invalid-value' ? `issues.format.${String(values.format)}` : '';
+  // A length, a count or a number: too_small and too_big read by what was checked.
+  const sized = code === 'too_small' || code === 'too_big' ? `issues.${code}_${String(values.origin)}` : '';
+  const key = [format, sized].find((candidate) => candidate && te(candidate)) ?? issueKey(code ?? 'custom');
+  if (!te(key)) {
+    return message;
+  }
+  // The expected type in words, not Zod's id (string, number…).
+  const type = `issues.types.${String(values.expected)}`;
+  return code === 'invalid_type' && te(type) ? t(key, { ...values, expected: t(type) }) : t(key, values);
 }

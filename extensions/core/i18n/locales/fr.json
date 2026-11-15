@@ -83,7 +83,9 @@
           "address": "Adresse",
           "networkId": "Réseau",
           "addAddress": "Ajouter une adresse",
-          "removeAddress": "Retirer l’adresse {number}"
+          "removeAddress": "Retirer l’adresse {number}",
+          "addressNumbered": "Adresse {number}",
+          "networkNumbered": "Réseau {number}"
         },
         "service": {
           "name": "Nom",
@@ -99,7 +101,8 @@
           "protocol": "Protocole",
           "bindAddress": "Adresse d’écoute",
           "bindAddressHint": "0.0.0.0 ou :: pour toutes les adresses",
-          "publishedPort": "Port publié"
+          "publishedPort": "Port publié",
+          "portHint": "De 1 à 65535"
         },
         "domain": {
           "name": "Nom"
@@ -148,7 +151,7 @@
         "address-outside-network": "{address} n’est pas dans {network} ({cidr})",
         "address-outside-cidr": "{address} ({host}) n’est pas dans {cidr}",
         "duplicate-address": "{address} figure deux fois",
-        "invalid-record-name": "{'@'} ou un nom relatif au domaine attendu, comme www ou *.dev",
+        "invalid-record-name": "Saisissez {'@'} ou un nom relatif au domaine, comme www ou *.dev",
         "invalid-record-value": "Cette valeur ne convient pas à un enregistrement {type}",
         "published-port-bound": "Un port publié est lié à une adresse"
       }
