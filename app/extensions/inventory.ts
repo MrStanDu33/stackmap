@@ -2,11 +2,12 @@ import coreInventory from '@stackmap/extension-core/inventory';
 import natInventory from '@stackmap/extension-nat/inventory';
 import proxyInventory from '@stackmap/extension-reverse-proxy/inventory';
 
-import type { InstalledExtension } from '../../shared/contracts/extensions';
+import type { InstalledExtension as Installed } from '../../shared/contracts/extensions';
 import type { ExtensionInventory, InventoryColumn, InventoryType } from '@stackmap/extension-sdk';
 import type { Component } from 'vue';
 
-export type { InstalledExtension };
+/** An installed extension; `enabled` is false when it is turned off in the workspace. */
+export type InstalledExtension = Installed & { enabled?: boolean };
 
 /** The inventory registrations of the built-in extensions (`extensions/<id>/inventory.ts`), in registry order. */
 export const BUILTIN_INVENTORIES: readonly ExtensionInventory<Component>[] = [
@@ -35,7 +36,7 @@ export function inventoryTypes(
   extensions: readonly InstalledExtension[],
   inventories: readonly ExtensionInventory<Component>[] = BUILTIN_INVENTORIES,
 ): InventoryEntry[] {
-  return extensions.filter(({ state }) => state === 'active').flatMap((extension) => {
+  return extensions.filter(({ state, enabled }) => state === 'active' && enabled !== false).flatMap((extension) => {
     const registered = inventories.find((inventory) => inventory.extension === extension.id)?.types ?? [];
     return extension.entities.flatMap(({ id, label }) => {
       const type = registered.find(({ entity }) => entity === id);

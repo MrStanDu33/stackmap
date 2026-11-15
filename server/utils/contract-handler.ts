@@ -264,6 +264,8 @@ async function authorize(
   return { session, workspace: { id: workspaceId, role } as AuthorizedWorkspace };
 }
 
+type Caller = { session: Session | null; workspace: AuthorizedWorkspace | null };
+
 export interface ServeOptions {
   /**
    * Parses the body instead of the contract's schema, which still documents it: the entity API only refuses
@@ -271,6 +273,8 @@ export interface ServeOptions {
    * no body.
    */
   body?: z.ZodType;
+  /** Chooses the body schema once the caller is authorized, as `body` would; wins over it. */
+  bodyFor?: (caller: Caller) => Promise<z.ZodType | undefined>;
 }
 
 /** Answers a request with a contract: the caller checked, the input validated, a declared response out. */
@@ -287,7 +291,10 @@ export async function serveContract<C extends Contract>(
     // Who calls comes first: someone signed out cannot have a body read or an input checked.
     const caller = await authorize(contract, event);
     const input = {
-      ...await parseInput(contract, event, 'body' in options ? options.body : contract.body), ...caller,
+      ...await parseInput(contract, event, options.bodyFor
+        ? await options.bodyFor(caller)
+        : 'body' in options ? options.body : contract.body),
+      ...caller,
     } as ContractInput<C>;
     const result: { status: number; body: unknown } = await handler(input, event);
     const body = responseBody(contract, result);

@@ -681,7 +681,6 @@
                           "alwaysOn": true,
                           "dependsOn": [],
                           "state": "active",
-                          "enabled": true,
                           "kinds": {
                             "host": [],
                             "network": [
@@ -3076,7 +3075,6 @@
                           "alwaysOn": true,
                           "dependsOn": [],
                           "state": "active",
-                          "enabled": true,
                           "kinds": {
                             "host": [],
                             "network": [
@@ -3095,7 +3093,8 @@
                               "label": "extensions.core.entities.host"
                             }
                           ],
-                          "locales": []
+                          "locales": [],
+                          "enabled": true
                         },
                         {
                           "id": "nat",
@@ -3108,7 +3107,6 @@
                             "core"
                           ],
                           "state": "active",
-                          "enabled": false,
                           "kinds": {
                             "host": [],
                             "network": [],
@@ -3121,7 +3119,8 @@
                               "label": "extensions.nat.entities.port-forward"
                             }
                           ],
-                          "locales": []
+                          "locales": [],
+                          "enabled": false
                         }
                       ]
                     }
@@ -20369,13 +20368,6 @@
               "active"
             ]
           },
-          "enabled": {
-            "type": "boolean",
-            "description": "Always true until extensions can be turned off per workspace",
-            "examples": [
-              true
-            ]
-          },
           "kinds": {
             "type": "object",
             "properties": {
@@ -20446,7 +20438,6 @@
           "alwaysOn",
           "dependsOn",
           "state",
-          "enabled",
           "kinds",
           "entities",
           "locales"
@@ -20463,7 +20454,6 @@
             "alwaysOn": true,
             "dependsOn": [],
             "state": "active",
-            "enabled": true,
             "kinds": {
               "host": [],
               "network": [
@@ -22770,13 +22760,6 @@
               "active"
             ]
           },
-          "enabled": {
-            "type": "boolean",
-            "description": "Whether it is on in this workspace; the core always is",
-            "examples": [
-              false
-            ]
-          },
           "kinds": {
             "type": "object",
             "properties": {
@@ -22837,6 +22820,13 @@
               "$ref": "#/components/schemas/ExtensionLocale"
             },
             "description": "Languages it adds; empty when it failed"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether it is on in this workspace; the core always is",
+            "examples": [
+              false
+            ]
           }
         },
         "required": [
@@ -22847,10 +22837,10 @@
           "alwaysOn",
           "dependsOn",
           "state",
-          "enabled",
           "kinds",
           "entities",
-          "locales"
+          "locales",
+          "enabled"
         ],
         "additionalProperties": false,
         "description": "An installed extension, on or off in a workspace",
@@ -22866,7 +22856,6 @@
               "core"
             ],
             "state": "active",
-            "enabled": false,
             "kinds": {
               "host": [],
               "network": [],
@@ -22879,7 +22868,8 @@
                 "label": "extensions.nat.entities.port-forward"
               }
             ],
-            "locales": []
+            "locales": [],
+            "enabled": false
           }
         ]
       },

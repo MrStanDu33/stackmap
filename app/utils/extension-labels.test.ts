@@ -4,9 +4,9 @@ import { extensionLabels } from './extension-labels';
 import { createTestI18n } from '../../tests/support/i18n';
 
 import type { Translate } from './traffic-graph';
-import type { InstalledExtension } from '../../shared/contracts/extensions';
+import type { WorkspaceExtension } from '../../shared/contracts/extensions';
 
-const core: InstalledExtension = {
+const core: WorkspaceExtension = {
   id: 'core',
   version: '1.0.0',
   name: 'extensions.core.name',
@@ -29,7 +29,7 @@ const core: InstalledExtension = {
   locales: [],
 };
 
-const proxy: InstalledExtension = {
+const proxy: WorkspaceExtension = {
   ...core,
   id: 'reverse-proxy',
   name: 'extensions.reverse-proxy.name',

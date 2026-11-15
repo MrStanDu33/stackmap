@@ -3,6 +3,7 @@ import { defineEventHandler, getRequestURL, getRouterParam, setResponseHeader } 
 import { z } from 'zod';
 
 import { serveContract } from './contract-handler';
+import { useDatabase } from './database';
 import { useExtensionRegistry } from './extensions';
 import { workspaceRepositories } from './workspace';
 import { BUILTIN_ENTITY_OPERATIONS } from '../../shared/contracts/entities';
@@ -11,6 +12,7 @@ import {
   EntityChangedError, EntityConflictError, EntityInUseError, EntityValidationError, WorkspaceReferenceError,
 } from '../repositories/errors';
 import { boundIssue } from '../repositories/issues';
+import { disabledExtensions } from '../repositories/workspace-extensions';
 
 import type { AuthorizedWorkspace, ContractInput } from './contract-handler';
 import type { Session } from '../../shared/contracts/auth';
@@ -64,6 +66,10 @@ const problem = (event: H3Event, code: ProblemCode, detail: string, extra: Parti
 
 /** The extension whose table holds a dependent's rows. */
 const extensionOf = (definition: RegisteredRepository, entity: string): string => {
+  const owned = definition.owned?.find((rows) => rows.entity === entity);
+  if (owned) {
+    return owned.extension;
+  }
   const table = definition.dependents?.find((dependent) => dependent.entity === entity)?.table ?? '';
   const extensions = new Set(useExtensionRegistry().repositories().map(({ extension }) => extension));
   return [...extensions].find((extension) => isExtensionTable(extension, table)) ?? definition.extension;
@@ -155,14 +161,22 @@ export function defineEntityHandler(method: EntityMethod): EntityHandler {
     if (!contract) {
       throw new Error('No entity operations.');
     }
+    let disabled = false;
     return serveContract(event, contract, (input) => {
+      if (disabled) {
+        return problem(event, 'extension_disabled', `The ${extension} extension is turned off in this workspace.`, { extension });
+      }
       const definition = operations && definitionOf(event);
       return (definition
         ? run(method, input as unknown as Input, event, definition)
         : problem(event, 'entity_type_not_found', 'No active extension declares this entity type.'));
     }, {
-      // An unknown type reads no body: its fields are unknown too.
-      body: operations ? fieldsOnly(contract.body) : undefined,
+      // An unknown type, or one turned off, reads no body: its fields are unknown or refused anyway.
+      bodyFor: async ({ workspace }) => {
+        disabled = operations !== undefined && workspace !== null
+          && (await disabledExtensions(await useDatabase(), workspace.id)).has(extension);
+        return operations && !disabled ? fieldsOnly(contract.body) : undefined;
+      },
     });
   });
   return Object.assign(handler, { contracts });

@@ -1,5 +1,11 @@
+import { ExtensionAlwaysOnError, ExtensionNotFoundError, toggleChange } from '../domain/extension-toggles';
+import { disabledExtensions } from '../repositories/workspace-extensions';
+
+import type { Database } from '../database/types/schema';
+import type { ExtensionChange } from '../domain/extension-toggles';
 import type { ExtensionRegistry } from '../extensions/registry';
 import type { ExtensionRuntime } from '../extensions/runtime';
+import type { Kysely } from 'kysely';
 
 let registry: ExtensionRegistry | undefined;
 let runtime: Promise<ExtensionRuntime> | undefined;
@@ -44,4 +50,28 @@ export function whenExtensionsStarted(): Promise<void> {
     throw new Error(`The extensions are not ready: the startup plugin (${PLUGIN}) has not run.`);
   }
   return starting.then(() => undefined);
+}
+
+/**
+ * What turning an extension on or off would change in a workspace, or why it cannot: `extension_not_found` for an id
+ * that is not installed, `extension_always_on` for the core.
+ */
+export async function toggleIn(
+  db: Kysely<Database>,
+  workspaceId: string,
+  id: string,
+  enabled: boolean,
+): Promise<{ changes: ExtensionChange[] } | { problem: 'extension_not_found' | 'extension_always_on' }> {
+  const installed = useExtensionRegistry().extensions.map(({ manifest }) => manifest);
+  try {
+    return { changes: toggleChange(installed, await disabledExtensions(db, workspaceId), id, enabled) };
+  } catch (error) {
+    if (error instanceof ExtensionNotFoundError) {
+      return { problem: 'extension_not_found' };
+    }
+    if (error instanceof ExtensionAlwaysOnError) {
+      return { problem: 'extension_always_on' };
+    }
+    throw error;
+  }
 }

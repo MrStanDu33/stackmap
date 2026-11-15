@@ -29,7 +29,7 @@ const kindsOf = (extension: ExtensionManifest, entity: KindEntity) =>
   }));
 
 /** A failed extension is listed with its state, but contributes nothing. */
-const toExtension = ({ manifest, state }: RegisteredExtension) => {
+export const toExtension = ({ manifest, state }: RegisteredExtension) => {
   const contributes = state === 'active';
   const kinds = (entity: KindEntity) => (contributes ? kindsOf(manifest, entity) : []);
   return {
@@ -41,8 +41,6 @@ const toExtension = ({ manifest, state }: RegisteredExtension) => {
     alwaysOn: manifest.alwaysOn,
     dependsOn: [...manifest.dependsOn],
     state,
-    // Per-workspace toggles arrive with phase 5; until then every installed extension is on.
-    enabled: true,
     kinds: { host: kinds('host'), network: kinds('network'), service: kinds('service'), protocol: kinds('protocol') },
     entities: contributes ? (manifest.contributes.entities ?? []).map(({ id, label }) => ({ id, label })) : [],
     locales: contributes ? [...(manifest.contributes.locales ?? [])] : [],

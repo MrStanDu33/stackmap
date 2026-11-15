@@ -52,7 +52,6 @@ const core = {
   alwaysOn: true,
   dependsOn: [],
   state: 'active',
-  enabled: true,
   kinds: { host: [], network: [lan], service: [], protocol: [] },
   entities: [host],
   locales: [],
@@ -67,7 +66,6 @@ export const Extension = z.object({
   alwaysOn: z.boolean().meta({ description: 'Whether it can never be turned off (the core)', examples: [true] }),
   dependsOn: z.array(kebabId()).max(50).meta({ description: 'Ids of the extensions it needs' }),
   state,
-  enabled: z.boolean().meta({ description: 'Always true until extensions can be turned off per workspace', examples: [true] }),
   kinds: z.object({
     host: kindsOf('hosts'),
     network: kindsOf('networks'),

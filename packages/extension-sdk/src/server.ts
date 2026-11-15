@@ -23,6 +23,8 @@ export interface RepositoryScope {
   workspaceId: string;
   actorId: string | null;
   kinds: KindCatalog;
+  /** Extensions turned off in the workspace: rows of theirs that a removal would delete block it instead. */
+  disabledExtensions?: ReadonlySet<string>;
 }
 
 /** A slice of a list: `limit` entities after the first `offset`. */

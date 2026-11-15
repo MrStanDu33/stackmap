@@ -140,6 +140,15 @@ describe('inventoryTypes', () => {
     expect(types.map(({ key }) => key)).toEqual(['core/site', 'core/host']);
   });
 
+  it('leaves out the types of an extension turned off in the workspace (35)', () => {
+    const types = inventoryTypes(
+      [installed('core', ['site', 'host']), { ...installed('nat', ['port-forward']), enabled: false }],
+      inventories,
+    );
+
+    expect(types.map(({ key }) => key)).toEqual(['core/site', 'core/host']);
+  });
+
   it('gives the first type for /inventory to redirect to: core/site', () => {
     expect(inventoryTypes(extensions, inventories)[0]?.key).toBe('core/site');
   });

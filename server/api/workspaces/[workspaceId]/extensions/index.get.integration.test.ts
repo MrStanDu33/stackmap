@@ -5,6 +5,7 @@ import { DIALECTS } from '../../../../../tests/support/databases';
 import { useEntityApi } from '../../../../../tests/support/entity-api';
 import { INSTALLED_EXTENSIONS } from '../../../../../tests/support/extensions';
 import { serveRoute } from '../../../../../tests/support/requests';
+import { BUILTIN_REGISTRY } from '../../../../../tests/support/workspaces';
 import { setExtensionsEnabled } from '../../../../repositories/workspace-extensions';
 
 import type { Dialect } from '../../../../../tests/support/databases';
@@ -22,8 +23,11 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/extensions on %s', (di
     const { status, json } = await get(path());
 
     expect(status).toBe(200);
+    // In registry order, as GET /api/extensions lists them: dependencies first, then by id.
     expect(json).toEqual({
-      extensions: INSTALLED_EXTENSIONS.map((extension) => ({ ...extension, enabled: extension.id !== 'nat' })),
+      extensions: BUILTIN_REGISTRY.extensions.map(({ manifest }) => ({
+        ...INSTALLED_EXTENSIONS.find(({ id }) => id === manifest.id), enabled: manifest.id !== 'nat',
+      })),
     });
   });
 
@@ -35,7 +39,7 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/extensions on %s', (di
 
     expect((json as { extensions: { id: string; enabled: boolean }[] }).extensions
       .map(({ id, enabled }) => ({ id, enabled }))).toEqual([
-      { id: 'core', enabled: true }, { id: 'reverse-proxy', enabled: true }, { id: 'nat', enabled: true },
+      { id: 'core', enabled: true }, { id: 'nat', enabled: true }, { id: 'reverse-proxy', enabled: true },
     ]);
   });
 
