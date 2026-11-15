@@ -122,7 +122,7 @@ describe('elkToVueFlow', () => {
 });
 
 describe('elkToVueFlow: hidden flows', () => {
-  it('draws a hidden flow dashed and muted, and says it is hidden in its accessible name (4)', () => {
+  it('marks a hidden flow\'s edge, and says it is hidden in its accessible name (4)', () => {
     const { t: translate } = createTestI18n('en').global;
     const labels = extensionLabels(INSTALLED_EXTENSIONS, (key, params) => translate(key, params ?? {}));
 
@@ -131,12 +131,12 @@ describe('elkToVueFlow: hidden flows', () => {
     const hidden = edges.filter(({ data }) => (data as { flow: { hidden: boolean } }).flow.hidden);
     expect(hidden.length).toBeGreaterThan(0);
     for (const edge of hidden) {
-      expect(edge.style).toMatchObject({ strokeDasharray: expect.any(String) as unknown });
+      // The graph's edge template draws it; TrafficGraph's HiddenFlow story checks the rendered dash (review).
       expect(edge.class).toContain('hidden-flow');
       expect(edge.ariaLabel).toContain('Hidden: Router and NAT is turned off');
     }
     const shown = edges.find(({ data }) => !(data as { flow: { hidden: boolean } }).flow.hidden);
-    expect(shown?.style).toBeUndefined();
+    expect(shown?.class).toBeUndefined();
     expect(shown?.ariaLabel).not.toContain('Hidden');
   });
 });

@@ -1,21 +1,26 @@
 <script setup lang="ts">
+import { useExtensionLabels } from '../../composables/useExtensions';
+
 import type { OrphanItem } from '../../utils/orphan-item';
 
 /** The hidden entities of a turned-off extension that connect to nothing: a count, and for admins delete or keep. */
 const props = defineProps<{
   extension: string;
-  /** Null while loading. */
+  /** Null while loading; empty for members who get the count only. */
   items: OrphanItem[] | null;
+  /** How many there are, from the server: members below admin get no items. */
+  count: number;
   truncated: boolean;
   failed: boolean;
   canManage: boolean;
-  /** The id of the entity being changed: its actions do nothing until then. */
-  busy: string | null;
+  /** The ids of the entities being changed: their actions do nothing until then. */
+  busy: readonly string[];
 }>();
 // `empty` once the last entity acted on leaves: nothing is left here to take the focus.
 const emit = defineEmits<{ delete: [item: OrphanItem]; keep: [item: OrphanItem]; retry: []; empty: [] }>();
 
 const { t } = useI18n();
+const labels = useExtensionLabels();
 const open = ref(false);
 const listId = useId();
 const descriptionId = useId();
@@ -25,14 +30,17 @@ const confirmOpen = ref(false);
 const list = useTemplateRef<HTMLElement>('list');
 const cancel = useTemplateRef<{ $el: HTMLElement }>('cancel');
 
-const count = computed(() => props.items?.length ?? 0);
+// Busy rows keep their focusable buttons, said unavailable (aria-disabled) with a spinning icon: UButton's `loading`
+// would disable them and drop the focus.
 // The row whose action was last used, so that the focus follows when it leaves the list.
 let acted: number | null = null;
+let lengthWhenActed = 0;
 const act = (item: OrphanItem, index: number, action: 'delete' | 'keep') => {
-  if (props.busy === item.id) {
+  if (props.busy.includes(item.id)) {
     return;
   }
   acted = index;
+  lengthWhenActed = props.items?.length ?? 0;
   if (action === 'delete') {
     confirming.value = item;
     confirmOpen.value = true;
@@ -68,7 +76,18 @@ const content: Record<string, unknown> = {
     event.preventDefault();
     cancel.value?.$el.focus();
   },
+  // The dialog has no trigger to return to: back on the row's Delete, which the watch moves on once the row leaves.
+  onCloseAutoFocus: (event: Event) => {
+    event.preventDefault();
+    list.value?.querySelectorAll<HTMLElement>('li button:first-of-type')[acted ?? 0]?.focus();
+  },
 };
+// An action that ended without the row leaving (a failure) no longer moves the focus later.
+watch(() => props.busy.length, (length, before) => {
+  if (length < before && props.items?.length === lengthWhenActed) {
+    acted = null;
+  }
+});
 </script>
 
 <template>
@@ -105,6 +124,7 @@ const content: Record<string, unknown> = {
         size="sm"
         color="neutral"
         variant="outline"
+        :aria-label="t('workspaceExtensions.reviewOf', { extension: labels.extensionName(extension) })"
         :aria-expanded="open ? 'true' : 'false'"
         :aria-controls="listId"
         :trailing-icon="open ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
@@ -134,7 +154,9 @@ const content: Record<string, unknown> = {
             size="sm"
             color="error"
             variant="outline"
-            :aria-busy="busy === item.id ? 'true' : undefined"
+            :aria-disabled="busy.includes(item.id) ? 'true' : undefined"
+            :leading-icon="busy.includes(item.id) ? 'i-lucide-loader-circle' : undefined"
+            :ui="{ leadingIcon: 'motion-safe:animate-spin' }"
             @click="act(item, index, 'delete')"
           >
             {{ t('workspaceExtensions.deleteOrphan', { name: item.name }) }}
@@ -143,7 +165,9 @@ const content: Record<string, unknown> = {
             size="sm"
             color="neutral"
             variant="outline"
-            :aria-busy="busy === item.id ? 'true' : undefined"
+            :aria-disabled="busy.includes(item.id) ? 'true' : undefined"
+            :leading-icon="busy.includes(item.id) ? 'i-lucide-loader-circle' : undefined"
+            :ui="{ leadingIcon: 'motion-safe:animate-spin' }"
             @click="act(item, index, 'keep')"
           >
             {{ t('workspaceExtensions.keepOrphan', { name: item.name }) }}

@@ -20,10 +20,11 @@ const meta = {
   args: {
     extension: 'nat',
     items: ITEMS,
+    count: ITEMS.length,
     truncated: false,
     failed: false,
     canManage: true,
-    busy: null,
+    busy: [],
     onDelete: fn(),
     onKeep: fn(),
     onRetry: fn(),
@@ -44,7 +45,7 @@ const name = (index: number) => ITEMS[index]?.name ?? '';
 
 /** With no disconnected entity, nothing is shown (23). */
 export const None: Story = {
-  args: { items: [] },
+  args: { items: [], count: 0 },
   play: async ({ canvasElement }) => {
     await expect(canvasElement.textContent.trim()).toBe('');
   },
@@ -52,7 +53,7 @@ export const None: Story = {
 
 /** A member reads the count as text, with nothing to open or act on (22). */
 export const CountOnly: Story = {
-  args: { canManage: false },
+  args: { canManage: false, items: [] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(count(2))).toBeVisible();
@@ -136,7 +137,7 @@ export const FocusAfterAction: Story = {
       };
       return { args, items, keep };
     },
-    template: '<HiddenOrphans v-bind="args" :items="items" @keep="keep" />',
+    template: '<HiddenOrphans v-bind="args" :items="items" :count="items.length" @keep="keep" />',
   }),
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
@@ -152,7 +153,7 @@ export const FocusAfterAction: Story = {
 
 /** The row being changed is busy; its actions do nothing until it is done. */
 export const Busy: Story = {
-  args: { busy: ITEMS[0]?.id ?? null },
+  args: { busy: [ITEMS[0]?.id ?? ''] },
   play: async ({ canvasElement, args }) => {
     await userEvent.click(review(canvasElement));
     const keep = within(canvasElement).getByRole('button', { name: t('workspaceExtensions.keepOrphan', { name: name(0) }) });

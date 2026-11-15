@@ -106,6 +106,8 @@ export const Selected: Story = {
  */
 export const HiddenFlow: Story = {
   args: { traffic: DEMO_TRAFFIC_NAT_OFF, selection: { type: 'service', id: services.database } },
+  // Laid out from the same traffic: its edges carry the hidden flows.
+  loaders: [async ({ globals }) => ({ layout: await layOut(DEMO_TRAFFIC_NAT_OFF, globals.locale) })],
   play: async ({ canvasElement }) => {
     const hidden = () => canvasElement.querySelector<SVGPathElement>(`[data-flow="${flows.publicHttps}"] path`);
     await waitFor(() => expect(hidden()).not.toBeNull());

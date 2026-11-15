@@ -192,8 +192,8 @@ export function elkToVueFlow(
         service: serviceName.get(target?.serviceId ?? ''),
         port: target ? `${String(target.port)}/${target.transport}` : '',
       }), ...(flow.hidden ? [originLabel(flow, t, labels)] : [])].join('. '),
-      // Dashed and muted, and said hidden in words: never by its look alone.
-      ...(flow.hidden ? { class: 'hidden-flow opacity-60', style: { strokeDasharray: '6 4' } } : {}),
+      // Drawn dash-dotted by the graph's edge template, and said hidden in words: never by its look alone.
+      ...(flow.hidden ? { class: 'hidden-flow' } : {}),
       data: { flow },
     };
   });

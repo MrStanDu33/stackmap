@@ -101,9 +101,14 @@ const toggle = async (id: string, enabled: boolean) => {
 };
 
 /** The hidden entities of each turned-off extension that connect to nothing, by extension: null while loading. */
-type Orphans = { items: { entity: string; id: string; fields: Record<string, unknown> }[]; truncated: boolean };
+type Orphans = {
+  items: { entity: string; id: string; fields: Record<string, unknown> }[];
+  count: number;
+  truncated: boolean;
+};
 const orphans = ref<Record<string, Orphans | null | 'error'>>({});
-const orphanBusy = ref<string | null>(null);
+// Every row whose request runs: two can run at once.
+const orphanBusy = ref<string[]>([]);
 // Named as the inventory names them, so their types are read even though they are off; their references are on.
 const types = computed(() => inventoryTypes((extensions.value ?? [])
   .map((extension) => ({ ...extension, enabled: true }))));
@@ -147,12 +152,16 @@ const orphanItems = (id: string): OrphanItem[] | null => {
       }))
     : null;
 };
+const orphanCount = (id: string) => {
+  const list = orphans.value[id];
+  return list && list !== 'error' ? list.count : 0;
+};
 const orphansTruncated = (id: string) => {
   const list = orphans.value[id];
   return Boolean(list && list !== 'error' && list.truncated);
 };
 const actOnOrphan = async (extension: string, item: OrphanItem, action: 'delete' | 'keep') => {
-  orphanBusy.value = item.id;
+  orphanBusy.value = [...orphanBusy.value, item.id];
   notice.value = '';
   failure.value = '';
   try {
@@ -161,12 +170,13 @@ const actOnOrphan = async (extension: string, item: OrphanItem, action: 'delete'
     const list = orphans.value[extension];
     if (list && list !== 'error') {
       list.items = list.items.filter(({ id }) => id !== item.id);
+      list.count -= 1;
     }
     notice.value = t(action === 'delete' ? 'workspaceExtensions.orphanDeleted' : 'workspaceExtensions.orphanKept', { name: item.name });
   } catch {
     failure.value = t('workspaceExtensions.orphanFailed', { name: item.name });
   } finally {
-    orphanBusy.value = null;
+    orphanBusy.value = orphanBusy.value.filter((id) => id !== item.id);
   }
 };
 
@@ -255,6 +265,7 @@ const cancel = async (open: boolean) => {
             v-if="!extension.enabled && extension.state === 'active'"
             :extension="extension.id"
             :items="orphanItems(extension.id)"
+            :count="orphanCount(extension.id)"
             :truncated="orphansTruncated(extension.id)"
             :failed="orphans[extension.id] === 'error'"
             :can-manage="canManage"
