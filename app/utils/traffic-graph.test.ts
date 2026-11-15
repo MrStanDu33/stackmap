@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
+import { extensionLabels } from './extension-labels';
 import { elkToVueFlow, trafficToElk } from './traffic-graph';
 import en from '../../i18n/locales/en.json';
 import fr from '../../i18n/locales/fr.json';
 import { DEMO_IDS, DEMO_TRAFFIC } from '../../tests/support/demo-traffic';
 import { INSTALLED_EXTENSIONS } from '../../tests/support/extensions';
 import { createTestI18n } from '../../tests/support/i18n';
-import { extensionLabels } from '../composables/useExtensions';
 
 import type { ElkNode } from 'elkjs/lib/elk-api';
 

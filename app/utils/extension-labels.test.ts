@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { extensionLabels } from './useExtensions';
+import { extensionLabels } from './extension-labels';
 import { createTestI18n } from '../../tests/support/i18n';
 
-import type { InstalledExtension } from '../extensions/inventory';
-import type { Translate } from '../utils/traffic-graph';
+import type { Translate } from './traffic-graph';
+import type { InstalledExtension } from '../../shared/contracts/extensions';
 
 const core: InstalledExtension = {
   id: 'core',

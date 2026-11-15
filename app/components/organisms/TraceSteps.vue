@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useExtensionLabels } from '../../composables/useExtensions';
 import { hopSentence, indexTrace, listenerName } from '../../utils/trace-index';
 import { portLabel } from '../../utils/traffic-index';
 
@@ -11,6 +12,7 @@ const emit = defineEmits<{ select: [selection: TraceSelection] }>();
 
 const i18n = useI18n();
 const { t } = i18n;
+const labels = useExtensionLabels();
 const index = computed(() => indexTrace(props.trace));
 const exists = (key: string) => i18n.te(key);
 
@@ -106,7 +108,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
               v-for="hop in step.hops"
               :key="`${hop.entity}:${hop.id}`"
             >
-              {{ hopSentence(hop, t, exists) }}
+              {{ hopSentence(hop, t, exists, labels) }}
             </li>
           </ol>
           <p

@@ -75,6 +75,9 @@ export const Extension = z.object({
   locales: z.array(ExtensionLocale).max(50).meta({ description: 'Languages it adds; empty when it failed' }),
 }).meta({ id: 'Extension', description: 'An installed extension', examples: [core] });
 
+/** An installed extension, as `GET /api/extensions` lists it. */
+export type InstalledExtension = z.infer<typeof Extension>;
+
 export const listExtensions = defineContract({
   method: 'get',
   path: '/api/extensions',

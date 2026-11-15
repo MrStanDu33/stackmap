@@ -1,5 +1,5 @@
+import type { ExtensionLabels } from './extension-labels';
 import type { Traffic, TrafficFlow } from '../../shared/contracts/traffic';
-import type { ExtensionLabels } from '../composables/useExtensions';
 import type { Edge, Node } from '@vue-flow/core';
 import type { ElkNode } from 'elkjs/lib/elk-api';
 
@@ -108,8 +108,10 @@ export function trafficToElk(traffic: Traffic): ElkNode {
 
 /** The laid-out ELK graph as Vue Flow nodes and edges, each with its accessible name. */
 export function elkToVueFlow(
-  traffic: Traffic, laidOut: ElkNode, t: Translate, _labels?: ExtensionLabels,
+  traffic: Traffic, laidOut: ElkNode, t: Translate, labels?: ExtensionLabels,
 ): TrafficLayout {
+  // Kinds and protocols translated when the extensions are known, their ids otherwise.
+  const kindOf = (entity: 'host' | 'service' | 'protocol', id: string) => labels?.kindLabel(entity, id) ?? id;
   const listenersOf = listenersByService(traffic);
   const hosts = new Map(traffic.hosts.map((host) => [nodeIds.host(host.id), host]));
   const services = new Map(traffic.services.map((service) => [nodeIds.service(service.id), service]));
@@ -125,7 +127,8 @@ export function elkToVueFlow(
   // The ports as the node shows them, so the name starts with the visible text (WCAG 2.5.3).
   const portsText = (ports: Listener[]) => (ports.length === 0
     ? t('traffic.node.noPort')
-    : ports.map(({ port, transport, protocol }) => [`${String(port)}/${transport}`, protocol].filter(Boolean).join(' '))
+    : ports.map(({ port, transport, protocol }) => [`${String(port)}/${transport}`, protocol && kindOf('protocol', protocol)]
+        .filter(Boolean).join(' '))
         .join(', '));
 
   const toServiceNode = (child: ElkNode, service: Service, parentNode?: string): Node => {
@@ -138,8 +141,8 @@ export function elkToVueFlow(
       ...button('service'),
       parentNode,
       ariaLabel: host === undefined
-        ? t('traffic.node.externalService', { name: service.name, kind: service.kind, ports: portsText(ports) })
-        : t('traffic.node.service', { name: service.name, kind: service.kind, ports: portsText(ports), host }),
+        ? t('traffic.node.externalService', { name: service.name, kind: kindOf('service', service.kind), ports: portsText(ports) })
+        : t('traffic.node.service', { name: service.name, kind: kindOf('service', service.kind), ports: portsText(ports), host }),
       data: { service, listeners: ports },
     };
   };
@@ -154,7 +157,7 @@ export function elkToVueFlow(
           type: 'host',
           ...box(child),
           ...button('host'),
-          ariaLabel: t('traffic.node.host', { name: host.name, kind: host.kind, count }, count),
+          ariaLabel: t('traffic.node.host', { name: host.name, kind: kindOf('host', host.kind), count }, count),
           data: { host },
         },
         ...(child.children ?? []).flatMap((grandchild) => {

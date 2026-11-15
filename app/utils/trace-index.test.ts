@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { extensionLabels } from './extension-labels';
 import { hopSentence, indexTrace } from './trace-index';
 import { DEMO_TRACE } from '../../tests/support/demo-trace';
 import { DEMO_IDS } from '../../tests/support/demo-traffic';
 import { INSTALLED_EXTENSIONS } from '../../tests/support/extensions';
 import { createTestI18n } from '../../tests/support/i18n';
-import { extensionLabels } from '../composables/useExtensions';
 
 const { global: i18n } = createTestI18n();
 const { t } = i18n;

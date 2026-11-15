@@ -1,8 +1,10 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 
 import { i18n } from './nuxt-shims';
+import { extensionLabels } from '../app/utils/extension-labels';
 import { traceElkToVueFlow, traceToElk } from '../app/utils/trace-graph';
 import { elkToVueFlow, trafficToElk } from '../app/utils/traffic-graph';
+import { INSTALLED_EXTENSIONS } from '../tests/support/extensions';
 
 import type { TrafficLayout } from '../app/utils/traffic-graph';
 import type { Trace } from '../shared/contracts/traces';
@@ -17,7 +19,9 @@ export async function layOut(traffic: Traffic, locale?: unknown): Promise<Traffi
     i18n.global.locale.value = locale;
   }
   const laidOut = await new ELK().layout(trafficToElk(traffic));
-  return elkToVueFlow(traffic, laidOut, i18n.global.t);
+  // With the extensions' labels, as the page gives them: kinds and protocols in the language they show in.
+  const labels = extensionLabels(INSTALLED_EXTENSIONS, (key, params) => i18n.global.t(key, params ?? {}));
+  return elkToVueFlow(traffic, laidOut, i18n.global.t, labels);
 }
 
 /** Lays out a trace as the app does, in the story's locale (see layOut). */

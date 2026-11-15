@@ -2,6 +2,7 @@
 import { Handle, Position, useVueFlow, VueFlow, getSmoothStepPath } from '@vue-flow/core';
 import '@vue-flow/core/dist/style.css';
 
+import { useExtensionLabels } from '../../composables/useExtensions';
 import { SIZES } from '../../utils/traffic-graph';
 import { portLabel } from '../../utils/traffic-index';
 import { relatedFlowIds } from '../../utils/traffic-selection';
@@ -21,6 +22,8 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [selection: Selection | null]; retry: [] }>();
 
 const { t } = useI18n();
+// Kinds and protocols in the current language, from the extensions that declare them.
+const labels = useExtensionLabels();
 const flowId = useId();
 const { zoomIn, zoomOut, fitView, viewport, setCenter, findNode } = useVueFlow(flowId);
 
@@ -277,7 +280,7 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
               <!-- Spaces between the parts: the accessible name must contain the text as read (WCAG 2.5.3). -->
               {{ ' ' }}
               <p class="text-xs text-muted">
-                {{ data.host.kind }}
+                {{ labels.kindLabel('host', data.host.kind) }}
               </p>
             </div>
           </template>
@@ -295,7 +298,7 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
                 </p>
                 {{ ' ' }}
                 <p class="truncate text-xs text-muted">
-                  {{ data.service.kind }}
+                  {{ labels.kindLabel('service', data.service.kind) }}
                 </p>
               </div>
               <ul>
@@ -309,7 +312,7 @@ const portTop = (index: number) => `${String(SIZES.service.header + index * SIZE
                   {{ ' ' }}<span
                     v-if="port.protocol"
                     class="text-muted"
-                  >{{ port.protocol }}</span>
+                  >{{ labels.kindLabel('protocol', port.protocol) }}</span>
                 </li>
               </ul>
             </div>

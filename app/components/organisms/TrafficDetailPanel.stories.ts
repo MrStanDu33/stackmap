@@ -75,7 +75,8 @@ export const Port: Story = {
     const details = panel(canvasElement);
 
     await expect(details.getByRole('heading', { level: 2 })).toHaveTextContent('443/tcp');
-    await expect(details.getByText('https')).toBeVisible();
+    // The protocol in the current language, from the extension that declares it.
+    await expect(details.getByText(t('extensions.core.kinds.protocol.https'))).toBeVisible();
     await expect(details.getByText(t('detail.publishedPort'))).toBeVisible();
     await expect(details.getAllByText(t('traffic.client.public')).length).toBeGreaterThan(0);
     await expect(details.getAllByText(t('traffic.client.internal')).length).toBeGreaterThan(0);
