@@ -9,7 +9,8 @@
     "hop": {
       "unknown": "No details available | No details available for {count} entries",
       "more": "{count} more step | {count} more steps",
-      "missing": "{entity}: no description"
+      "missing": "{entity}: no description",
+      "hidden": "Hidden: {extension} is turned off"
     },
     "title": "Trace",
     "form": {
@@ -159,7 +160,8 @@
       "service": "service",
       "flow": "flow"
     },
-    "noWorkspaceMember": "Ask an administrator to invite you to a workspace."
+    "noWorkspaceMember": "Ask an administrator to invite you to a workspace.",
+    "hidden": "Hidden: {extension} is turned off"
   },
   "detail": {
     "close": "Close details",
@@ -534,6 +536,17 @@
     "turnOff": "Turn off",
     "turnOn": "Turn on",
     "cancel": "Cancel",
-    "loading": "Loading the extensions…"
+    "loading": "Loading the extensions…",
+    "orphans": "no hidden entity is disconnected | {count} hidden entity no longer connects to anything | {count} hidden entities no longer connect to anything",
+    "review": "Review",
+    "deleteOrphan": "Delete {name}",
+    "keepOrphan": "Keep {name} hidden",
+    "confirmDeleteOrphan": "Delete {name}? This cannot be undone.",
+    "orphanDeleted": "{name} deleted",
+    "orphanKept": "{name} kept hidden",
+    "orphanFailed": "{name} could not be changed. Try again.",
+    "orphansLoading": "Loading the hidden entities…",
+    "orphansFailed": "The hidden entities could not be loaded.",
+    "truncated": "Showing the first {count}."
   }
 }
