@@ -59,6 +59,9 @@ export const Empty: Story = {
   args: { references: WITH_PROXY },
   play: async ({ canvasElement, args }) => {
     await expect(hostnameRows(canvasElement)).toHaveLength(1);
+    // Required said in words to screen readers, and with the visible * the slide-over's hint explains (review).
+    const legend = within(canvasElement).getByRole('group', { name: new RegExp(`^${label('hostnames')}`) }).querySelector('legend');
+    await expect(legend?.querySelector('[aria-hidden="true"]')).toHaveTextContent('*');
     await expect(toggle(canvasElement, 'forceSsl')).not.toBeChecked();
     await expect(toggle(canvasElement, 'websockets')).not.toBeChecked();
     await expect(await optionTexts(field(canvasElement, 'combobox', 'proxyServiceId'))).toEqual(['NPM']);
@@ -103,7 +106,7 @@ export const HostnameLimit: Story = {
   args: { entity: { ...ROUTE, hostnames: Array.from({ length: 50 }, (_, index) => `app${String(index)}.homelab.example`) } },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).queryByRole('button', { name: label('addHostname') })).toBeNull();
-    await expect(within(canvasElement).getByText(label('hostnamesLimit'))).toBeVisible();
+    await expect(within(canvasElement).getByText(label('hostnamesLimit', { max: 50 }))).toBeVisible();
   },
 };
 
@@ -159,6 +162,8 @@ export const IssuesInTextMode: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.click(button(canvasElement, label('editAsText')));
     await expect(textMode(canvasElement)).toHaveAttribute('aria-invalid', 'true');
+    // The error summary links hostnames.1 to the list when its row is not shown: the textarea is the list (review).
+    await expect(textMode(canvasElement)).toHaveAttribute('id', 'route-form-hostnames');
     await expect(textMode(canvasElement)).toHaveAccessibleDescription(expect.stringContaining(
       label('line', { number: 2, message: 'www.blog.homelab.example is already served' }),
     ) as string);
@@ -190,5 +195,54 @@ export const ReadOnly: Story = {
       await expect(canvas.queryByRole('button', { name })).toBeNull();
     }
     await expect(canvasElement.querySelectorAll('[disabled]')).toHaveLength(0);
+  },
+};
+
+/** Blank rows are dropped on save, so the server's hostnames.N issues land on the hostname they are about (review). */
+export const BlankRows: Story = {
+  args: { references: WITH_PROXY },
+  play: async ({ canvasElement, args }) => {
+    await userEvent.type(hostname(canvasElement, 1), 'a.homelab.example');
+    await userEvent.click(button(canvasElement, label('addHostname')));
+    await userEvent.click(button(canvasElement, label('addHostname')));
+    await userEvent.type(hostname(canvasElement, 3), 'bad host');
+    await save(canvasElement);
+    await expect(args.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ hostnames: ['a.homelab.example', 'bad host'] }));
+    await expect(hostnameRows(canvasElement).map((row) => (row as HTMLInputElement).value)).toEqual(['a.homelab.example', 'bad host']);
+  },
+};
+
+/** Blank lines are dropped on save too, so "Line N" counts the lines the editor sees (review). */
+export const BlankLines: Story = {
+  args: { entity: ROUTE, references: WITH_PROXY },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(button(canvasElement, label('editAsText')));
+    await userEvent.clear(textMode(canvasElement));
+    await userEvent.type(textMode(canvasElement), 'a.homelab.example{enter}{enter}bad host');
+    await save(canvasElement);
+    await expect(textMode(canvasElement)).toHaveValue('a.homelab.example\nbad host');
+  },
+};
+
+/** More than 50 lines: the limit is said under the textarea, and the rows are not drawn (review). */
+export const TextLimit: Story = {
+  args: { entity: ROUTE, references: WITH_PROXY },
+  play: async ({ canvasElement }) => {
+    await userEvent.click(button(canvasElement, label('editAsText')));
+    await userEvent.clear(textMode(canvasElement));
+    await userEvent.click(textMode(canvasElement));
+    await userEvent.paste(Array.from({ length: 51 }, (_, index) => `app${String(index)}.homelab.example`).join('\n'));
+    await expect(textMode(canvasElement)).toHaveAccessibleDescription(expect.stringContaining(label('hostnamesLimit', { max: 50 })) as string);
+    await userEvent.click(button(canvasElement, label('editOneByOne')));
+    await expect(textMode(canvasElement)).toBeVisible();
+    await expect(hostnameRows(canvasElement)).toHaveLength(0);
+  },
+};
+
+/** Viewers are not told to mark a service as a reverse proxy: they cannot (review). */
+export const ReadOnlyWithoutProxy: Story = {
+  args: { entity: ROUTE, readonly: true },
+  play: async ({ canvasElement }) => {
+    await expect(field(canvasElement, 'textbox', 'proxyServiceId')).not.toHaveAccessibleDescription(label('noProxy'));
   },
 };

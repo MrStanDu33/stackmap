@@ -117,6 +117,18 @@ export const Issues: Story = {
   },
 };
 
+/** An issue on a row the form no longer shows (a list edited as text): its link leads to the list itself (review). */
+export const IssueOnMissingRow: Story = {
+  args: { summary: [{ path: 'name.1', message: 'Not a hostname' }] },
+  play: async () => {
+    const dialog = await panel(t('inventory.new', { type: TYPE() }));
+    const link = within(dialog.getByRole('alert')).getByRole('link', { name: /Not a hostname/ });
+    await expect(link).toHaveAttribute('href', '#host-form-name');
+    await userEvent.click(link);
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveFocus();
+  },
+};
+
 /** Changed by someone else: said, with Reload, which asks before discarding the changes (30). */
 export const Changed: Story = {
   args: { title: 'inventory.edit', state: 'changed', dirty: true },
