@@ -12,3 +12,9 @@ describe('reverse proxy manifest', () => {
     ]);
   });
 });
+
+describe('reverse-proxy manifest: onboarding', () => {
+  it('asks its onboarding question under extensions.reverse-proxy.onboarding (3)', () => {
+    expect(reverseProxy.onboarding).toBe('extensions.reverse-proxy.onboarding');
+  });
+});

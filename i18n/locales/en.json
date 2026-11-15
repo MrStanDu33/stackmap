@@ -549,5 +549,22 @@
     "orphansFailed": "The hidden entities could not be loaded.",
     "truncated": "Showing the first {count}.",
     "reviewOf": "Review the hidden entities of {extension}"
+  },
+  "onboarding": {
+    "title": "What's in your stack?",
+    "intro": "Pick what you use. You can change this later on the Extensions page.",
+    "hint": "{name}: {description}",
+    "continue": "Continue",
+    "skip": "Skip for now",
+    "done": "Your stack is set up",
+    "notEmpty": "This workspace already has data: change its extensions on the {link}.",
+    "extensionsPage": "Extensions page",
+    "failed": "Your choices could not be saved. Try again.",
+    "forbidden": "Only administrators and owners can set up this workspace.",
+    "toGraph": "Go to the graph",
+    "loading": "Loading the extensions…",
+    "loadFailed": "This page could not be loaded.",
+    "kindHint": "Kind · {entity}",
+    "alsoChecked": "Also checked for {item}: {names}"
   }
 }

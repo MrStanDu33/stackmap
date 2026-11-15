@@ -62,6 +62,10 @@ export const Extension = z.object({
   version: semver().meta({ description: 'Its semantic version', examples: ['1.4.0'] }),
   name: i18nKey().meta({ description: 'i18n key of its name', examples: [core.name] }),
   description: i18nKey().meta({ description: 'i18n key of what it adds', examples: [core.description] }),
+  onboarding: i18nKey().optional().meta({
+    description: 'i18n key of the plain question onboarding asks to offer it; absent for extensions that ask none',
+    examples: ['extensions.nat.onboarding'],
+  }),
   icon: icon().optional().meta({ description: iconDescription, examples: [core.icon] }),
   alwaysOn: z.boolean().meta({ description: 'Whether it can never be turned off (the core)', examples: [true] }),
   dependsOn: z.array(kebabId()).max(50).meta({ description: 'Ids of the extensions it needs' }),
@@ -324,6 +328,41 @@ export const setExtensionEnabled = defineContract({
     },
     404: notInstalled(natInstance),
     409: alwaysOn(`${extensionsInstance}/core`),
+  },
+});
+
+export const setUpWorkspaceExtensions = defineContract({
+  method: 'put',
+  path: WORKSPACE_EXTENSIONS_PATH,
+  operationId: 'setUpWorkspaceExtensions',
+  summary: 'Choose the extensions of a new workspace',
+  description: 'For workspace admins and owners, while the workspace holds no entity (its onboarding): turns on the '
+    + 'listed extensions and those they need, and turns every other one off. The core is always on. Once the '
+    + 'workspace holds an entity, it answers `409 workspace_not_empty`: extensions are then turned on and off one by '
+    + 'one, with what that hides.',
+  tags: ['Extensions'],
+  requiredRole: 'admin',
+  params: workspaceParams,
+  body: z.strictObject({
+    enabled: z.array(kebabId()).max(100).meta({ description: 'The extensions to have on', examples: [['nat']] }),
+  }).meta({ description: 'The extensions chosen', examples: [{ enabled: ['nat'] }] }),
+  responses: {
+    200: {
+      description: 'The installed extensions, on or off in the workspace, as `listWorkspaceExtensions` gives them',
+      schema: z.object({
+        extensions: z.array(WorkspaceExtension).max(100).meta({ description: 'Dependencies first, then by id' }),
+      }),
+      examples: {
+        natOnly: { summary: 'Only NAT chosen', value: { extensions: [{ ...core, enabled: true }, { ...nat, enabled: true }] } },
+      },
+    },
+    404: notInstalled(extensionsInstance),
+    409: problem(
+      'The workspace already holds entities',
+      'workspace_not_empty',
+      'The workspace already holds entities: turn its extensions on or off one by one.',
+      extensionsInstance,
+    ),
   },
 });
 

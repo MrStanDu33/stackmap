@@ -549,5 +549,22 @@
     "orphansFailed": "Les entités masquées n’ont pas pu être chargées.",
     "truncated": "Seules les {count} premières sont affichées.",
     "reviewOf": "Examiner les entités masquées de l’extension « {extension} »"
+  },
+  "onboarding": {
+    "title": "Que contient votre infrastructure ?",
+    "intro": "Cochez ce que vous utilisez. Vous pourrez modifier ce choix plus tard sur la page Extensions.",
+    "hint": "{name} : {description}",
+    "continue": "Continuer",
+    "skip": "Passer pour l’instant",
+    "done": "Votre infrastructure est configurée",
+    "notEmpty": "Cet espace de travail contient déjà des données : modifiez ses extensions sur la {link}.",
+    "extensionsPage": "page Extensions",
+    "failed": "Vos choix n’ont pas pu être enregistrés. Réessayez.",
+    "forbidden": "Seuls les administrateurs et les propriétaires peuvent configurer cet espace de travail.",
+    "toGraph": "Aller au graphe",
+    "loading": "Chargement des extensions…",
+    "loadFailed": "Cette page n’a pas pu être chargée.",
+    "kindHint": "Type · {entity}",
+    "alsoChecked": "Également coché pour {item} : {names}"
   }
 }

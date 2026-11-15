@@ -37,6 +37,7 @@ export const toExtension = ({ manifest, state }: RegisteredExtension) => {
     version: manifest.version,
     name: manifest.name,
     description: manifest.description,
+    ...(manifest.onboarding === undefined ? {} : { onboarding: manifest.onboarding }),
     ...knownIcon(manifest.icon, `"${manifest.id}"`),
     alwaysOn: manifest.alwaysOn,
     dependsOn: [...manifest.dependsOn],

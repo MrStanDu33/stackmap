@@ -5,17 +5,20 @@ import { useDatabase } from '../../../../utils/database';
 import { useExtensionRegistry } from '../../../../utils/extensions';
 import { toExtension } from '../../../extensions.get';
 
-export default defineContractHandler(listWorkspaceExtensions, async ({ workspace }) => {
+import type { Database } from '../../../../database/types/schema';
+import type { Kysely } from 'kysely';
+
+/** The installed extensions, each on or off in the workspace: shared with the onboarding route. */
+export async function listedExtensions(db: Kysely<Database>, workspaceId: string) {
   const { extensions } = useExtensionRegistry();
-  const ids = extensions.map(({ manifest }) => manifest.id);
-  const states = await extensionStates(await useDatabase(), workspace.id, ids);
-  return {
-    status: 200,
-    body: {
-      extensions: extensions.map((extension) => ({
-        ...toExtension(extension),
-        enabled: extension.manifest.alwaysOn || (states.get(extension.manifest.id) ?? true),
-      })),
-    },
-  };
-});
+  const states = await extensionStates(db, workspaceId, extensions.map(({ manifest }) => manifest.id));
+  return extensions.map((extension) => ({
+    ...toExtension(extension),
+    enabled: extension.manifest.alwaysOn || (states.get(extension.manifest.id) ?? true),
+  }));
+}
+
+export default defineContractHandler(listWorkspaceExtensions, async ({ workspace }) => ({
+  status: 200,
+  body: { extensions: await listedExtensions(await useDatabase(), workspace.id) },
+}));

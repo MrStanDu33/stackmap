@@ -12,3 +12,9 @@ describe('core extension', () => {
     expect(ids('protocol')).toEqual(['tcp', 'udp', 'http', 'https', 'ssh', 'ftp', 'sftp']);
   });
 });
+
+describe('core manifest: onboarding', () => {
+  it('has no onboarding question: it is always on (3)', () => {
+    expect(core.onboarding).toBeUndefined();
+  });
+});

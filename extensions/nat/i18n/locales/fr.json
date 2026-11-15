@@ -3,6 +3,7 @@
     "nat": {
       "name": "Routeur et NAT",
       "description": "Documentez les ports que vos routeurs redirigent et vers où.",
+      "onboarding": "Un routeur redirige-t-il des ports depuis Internet vers vos machines ?",
       "entities": {
         "port-forward": "Redirection de port"
       },

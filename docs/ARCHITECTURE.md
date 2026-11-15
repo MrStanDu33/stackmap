@@ -233,8 +233,9 @@ admin approves it again _(install flows: phase 5; community extensions: after v1
 - **SDK** (`packages/extension-sdk`, `@stackmap/extension-sdk`): `defineExtension()` validates a manifest when it is
   defined: a kebab-case id (not `app`, `route`, `locale` or `extension`, which the app's hooks use), a semver version,
   the extension `apiVersion` it targets, its name and description as i18n keys under `extensions.<id>.`, an optional
-  icon (a Lucide name, or an image in its own `public/extensions/<id>/`; never a remote URL), `alwaysOn`, `dependsOn`,
-  `enhances` (optional dependencies), `code` (`server`, `client`), and what it contributes: kinds, entities, hooks,
+  `onboarding` question (an i18n key there too: what onboarding asks to offer it), an optional icon (a Lucide name, or
+  an image in its own `public/extensions/<id>/`; never a remote URL), `alwaysOn`, `dependsOn`, `enhances` (optional
+  dependencies), `code` (`server`, `client`), and what it contributes: kinds, entities, hooks,
   locales. `checkExtension()` (`@stackmap/extension-sdk/testing`) checks what a manifest refers to: its keys in
   English and French, placeholders matching English, its namespace, existing icons. Other entry points:
   `/formats` (the bounded string formats the API contracts use too), `/entities` (common entity fields,
@@ -317,6 +318,14 @@ turning one on turns on what it needs, after a confirmation that lists them. Tur
    per type; editors and viewers get their count only, as the entity API hides them); admins delete each
    (audit-logged; its extension still off and nothing based on it, checked again in the deletion's transaction) or keep
    it hidden (`workspace_hidden_entity_kept`, cleared when the extension is turned back on).
+
+A new workspace starts with onboarding: creating one opens `/w/<slug>/onboarding`, "What's in your stack?", one
+group per optional extension, named by its question (its manifest's `onboarding`, else its name), with a checkbox per
+entity type and kind it adds, all unchecked. Checking an item also checks the items of the extensions it needs (free to
+uncheck). Continuing turns on every extension with an item checked and what they need, and every other one off, in one
+request (`PUT …/extensions`); skipping keeps them all on. The items only help choose: they are not stored. The server
+accepts it only while the workspace holds no entity of any extension (`409 workspace_not_empty`), so the demo
+workspace and workspaces in use change one extension at a time, as above.
 
 Removing an extension keeps its data by default (hidden, restored on reinstall); "remove and delete data" shows what
 will be deleted, asks for confirmation, offers an export and is audit-logged. An extension others depend on cannot be

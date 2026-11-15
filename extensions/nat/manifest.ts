@@ -7,6 +7,7 @@ export default defineExtension({
   apiVersion: 1,
   name: 'extensions.nat.name',
   description: 'extensions.nat.description',
+  onboarding: 'extensions.nat.onboarding',
   icon: 'i-lucide-arrow-right-left',
   alwaysOn: false,
   dependsOn: ['core'],

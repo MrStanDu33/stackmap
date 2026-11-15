@@ -21,7 +21,8 @@ const create = async (input: { name: string; slug: string }) => {
     await refreshNuxtData('workspaces');
     // A toast outlives this page: a status region here would go before it is read.
     toast.add({ title: t('workspace.new.created', { name: created.name }), color: 'success', icon: 'i-lucide-check' });
-    await navigateTo(`/w/${created.slug}/graph`);
+    // "What's in your stack?" comes first: it can be skipped.
+    await navigateTo(`/w/${created.slug}/onboarding`);
   } catch (failure) {
     await nextTick();
     error.value = (failure as { statusCode?: number }).statusCode === 409 ? 'taken' : 'network';

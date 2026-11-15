@@ -3143,6 +3143,239 @@
             "$ref": "#/components/responses/InternalError"
           }
         }
+      },
+      "put": {
+        "operationId": "setUpWorkspaceExtensions",
+        "summary": "Choose the extensions of a new workspace",
+        "description": "For workspace admins and owners, while the workspace holds no entity (its onboarding): turns on the listed extensions and those they need, and turns every other one off. The core is always on. Once the workspace holds an entity, it answers `409 workspace_not_empty`: extensions are then turned on and off one by one, with what that hides.\n\nRequires the admin role.",
+        "tags": [
+          "Extensions"
+        ],
+        "x-required-role": "admin",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace's id",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace's id",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          }
+        ],
+        "requestBody": {
+          "description": "The extensions chosen",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 40,
+                      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                    },
+                    "description": "The extensions to have on",
+                    "examples": [
+                      [
+                        "nat"
+                      ]
+                    ]
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "additionalProperties": false,
+                "description": "The extensions chosen",
+                "examples": [
+                  {
+                    "enabled": [
+                      "nat"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The installed extensions, on or off in the workspace, as `listWorkspaceExtensions` gives them",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "extensions": {
+                      "maxItems": 100,
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/WorkspaceExtension"
+                      },
+                      "description": "Dependencies first, then by id"
+                    }
+                  },
+                  "required": [
+                    "extensions"
+                  ],
+                  "additionalProperties": false
+                },
+                "examples": {
+                  "natOnly": {
+                    "summary": "Only NAT chosen",
+                    "value": {
+                      "extensions": [
+                        {
+                          "id": "core",
+                          "version": "1.4.0",
+                          "name": "extensions.core.name",
+                          "description": "extensions.core.description",
+                          "icon": "i-lucide-layers",
+                          "alwaysOn": true,
+                          "dependsOn": [],
+                          "state": "active",
+                          "kinds": {
+                            "host": [],
+                            "network": [
+                              {
+                                "id": "lan",
+                                "label": "extensions.core.kinds.network.lan",
+                                "icon": "i-lucide-network"
+                              }
+                            ],
+                            "service": [],
+                            "protocol": []
+                          },
+                          "entities": [
+                            {
+                              "id": "host",
+                              "label": "extensions.core.entities.host"
+                            }
+                          ],
+                          "locales": [],
+                          "enabled": true
+                        },
+                        {
+                          "id": "nat",
+                          "version": "1.0.0",
+                          "name": "extensions.nat.name",
+                          "description": "extensions.nat.description",
+                          "icon": "i-lucide-arrow-right-left",
+                          "alwaysOn": false,
+                          "dependsOn": [
+                            "core"
+                          ],
+                          "state": "active",
+                          "kinds": {
+                            "host": [],
+                            "network": [],
+                            "service": [],
+                            "protocol": []
+                          },
+                          "entities": [
+                            {
+                              "id": "port-forward",
+                              "label": "extensions.nat.entities.port-forward"
+                            }
+                          ],
+                          "locales": [],
+                          "enabled": true
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "No installed extension has this id, or a workspace the caller cannot open",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "extension_not_found": {
+                    "summary": "No such extension",
+                    "value": {
+                      "type": "urn:stackmap:problem:extension_not_found",
+                      "title": "No such extension",
+                      "status": 404,
+                      "detail": "No installed extension has this id.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions",
+                      "code": "extension_not_found"
+                    }
+                  },
+                  "workspace_not_found": {
+                    "summary": "No such workspace",
+                    "value": {
+                      "type": "urn:stackmap:problem:workspace_not_found",
+                      "title": "The workspace does not exist",
+                      "status": 404,
+                      "detail": "No workspace with this id that you can open.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions",
+                      "code": "workspace_not_found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The workspace already holds entities",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "workspace_not_empty": {
+                    "summary": "The workspace already holds entities",
+                    "value": {
+                      "type": "urn:stackmap:problem:workspace_not_empty",
+                      "title": "The workspace is not empty",
+                      "status": 409,
+                      "detail": "The workspace already holds entities: turn its extensions on or off one by one.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions",
+                      "code": "workspace_not_empty"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "$ref": "#/components/responses/PayloadTooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/UnsupportedMediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
       }
     },
     "/api/workspaces/{workspaceId}/extensions/{extensionId}/impact": {
@@ -18075,6 +18308,7 @@
               "extension_not_found",
               "extension_enabled",
               "hidden_entity_connected",
+              "workspace_not_empty",
               "extension_always_on",
               "entity_not_found",
               "entity_invalid",
@@ -18085,7 +18319,7 @@
               "internal_error",
               "invalid_response"
             ],
-            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `user_not_found` (404): No account has this id.\n- `email_taken` (409): An account already uses this email.\n- `last_admin` (409): The change would leave the instance without an administrator.\n- `cannot_demote_self` (409): Another administrator has to change this account's role.\n- `cannot_reset_self` (409): Another administrator has to give this account a temporary password.\n- `wrong_password` (400): Changing the password needs the current one.\n- `password_change_required` (403): The account has a temporary password: change it before anything else.\n- `cannot_remove_self` (409): Another administrator has to remove this account.\n- `entity_type_not_found` (404): No active extension declares this extension and entity id with a repository.\n- `extension_disabled` (409): The extension of this entity type is turned off in this workspace; `extension` names it.\n- `extension_not_found` (404): No installed extension has this id.\n- `extension_enabled` (409): The extension is on in this workspace: it hides nothing.\n- `hidden_entity_connected` (409): A flow of the workspace is based on the entity: it is not hidden on its own.\n- `extension_always_on` (409): This extension cannot be turned off.\n- `entity_not_found` (404): The workspace has no entity of this type with this id.\n- `entity_invalid` (422): The entity breaks one of its rules, or names a kind no active extension provides; `issues` says which.\n- `reference_invalid` (422): A field refers to an entity that is not in the workspace; `field` names it when known.\n- `entity_conflict` (409): Another entity of the workspace has the same unique values; `fields` names them.\n- `entity_in_use` (409): Other entities refer to it; `dependents` says which and how many.\n- `entity_changed` (409): Another write changed the entity while this one was checked: reload it and try again.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
+            "description": "The kind of problem, stable and machine-readable so the interface can translate it:\n\n- `validation_failed` (400): A path parameter, query parameter or body is invalid or missing; `issues` says which.\n- `payload_too_large` (413): The body is over 1 MiB.\n- `unsupported_media_type` (415): The body is not `application/json`.\n- `unauthenticated` (401): The operation needs a session, and the request has none, or an expired or invalid one.\n- `forbidden` (403): The session's role is below the one the operation requires.\n- `invalid_origin` (403): A request that changes something was sent by a page of another origin than `BETTER_AUTH_URL`.\n- `invalid_credentials` (401): No account has this email and password; which one is wrong is not said.\n- `already_set_up` (409): An account exists: the first administrator can only be created once.\n- `setup_closed` (403): The setup window, counted from the server start, has passed; restarting Stackmap opens it again.\n- `too_many_requests` (429): Too many attempts from this address; `Retry-After` says how many seconds to wait.\n- `workspace_not_found` (404): No workspace has this id, or the caller is not one of its members.\n- `workspace_slug_taken` (409): Another workspace already uses this slug.\n- `invitation_not_found` (404): No invitation has this link or id: it may have expired, been used or been revoked.\n- `invitation_email_mismatch` (403): The invitation is for another email than the signed-in account's.\n- `already_member` (409): The person with this email is already a member of the workspace.\n- `member_not_found` (404): This user is not a member of the workspace.\n- `last_owner` (409): The change would leave a workspace without an owner.\n- `user_not_found` (404): No account has this id.\n- `email_taken` (409): An account already uses this email.\n- `last_admin` (409): The change would leave the instance without an administrator.\n- `cannot_demote_self` (409): Another administrator has to change this account's role.\n- `cannot_reset_self` (409): Another administrator has to give this account a temporary password.\n- `wrong_password` (400): Changing the password needs the current one.\n- `password_change_required` (403): The account has a temporary password: change it before anything else.\n- `cannot_remove_self` (409): Another administrator has to remove this account.\n- `entity_type_not_found` (404): No active extension declares this extension and entity id with a repository.\n- `extension_disabled` (409): The extension of this entity type is turned off in this workspace; `extension` names it.\n- `extension_not_found` (404): No installed extension has this id.\n- `extension_enabled` (409): The extension is on in this workspace: it hides nothing.\n- `hidden_entity_connected` (409): A flow of the workspace is based on the entity: it is not hidden on its own.\n- `workspace_not_empty` (409): The workspace already holds entities: its extensions are turned on or off one by one.\n- `extension_always_on` (409): This extension cannot be turned off.\n- `entity_not_found` (404): The workspace has no entity of this type with this id.\n- `entity_invalid` (422): The entity breaks one of its rules, or names a kind no active extension provides; `issues` says which.\n- `reference_invalid` (422): A field refers to an entity that is not in the workspace; `field` names it when known.\n- `entity_conflict` (409): Another entity of the workspace has the same unique values; `fields` names them.\n- `entity_in_use` (409): Other entities refer to it; `dependents` says which and how many.\n- `entity_changed` (409): Another write changed the entity while this one was checked: reload it and try again.\n- `internal_error` (500): An unexpected error; the server logs have the details.\n- `invalid_response` (500): Outside production only: the server answered something its contract does not declare.",
             "examples": [
               "validation_failed"
             ]
@@ -20954,6 +21188,15 @@
               "extensions.core.description"
             ]
           },
+          "onboarding": {
+            "description": "i18n key of the plain question onboarding asks to offer it; absent for extensions that ask none",
+            "examples": [
+              "extensions.nat.onboarding"
+            ],
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$"
+          },
           "icon": {
             "description": "A Lucide icon name (`i-lucide-…`) or the path of an image the extension ships; absent when there is none or the app cannot show it (the interface then shows a generic icon)",
             "examples": [
@@ -23355,6 +23598,15 @@
             "examples": [
               "extensions.core.description"
             ]
+          },
+          "onboarding": {
+            "description": "i18n key of the plain question onboarding asks to offer it; absent for extensions that ask none",
+            "examples": [
+              "extensions.nat.onboarding"
+            ],
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[A-Za-z][\\w-]*(?:\\.[\\w-]+)*$"
           },
           "icon": {
             "description": "A Lucide icon name (`i-lucide-…`) or the path of an image the extension ships; absent when there is none or the app cannot show it (the interface then shows a generic icon)",

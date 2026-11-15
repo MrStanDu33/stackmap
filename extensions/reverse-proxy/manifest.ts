@@ -7,6 +7,7 @@ export default defineExtension({
   apiVersion: 1,
   name: 'extensions.reverse-proxy.name',
   description: 'extensions.reverse-proxy.description',
+  onboarding: 'extensions.reverse-proxy.onboarding',
   icon: 'i-lucide-split',
   alwaysOn: false,
   dependsOn: ['core'],

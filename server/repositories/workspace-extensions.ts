@@ -1,3 +1,4 @@
+import { inTransaction } from './entity-repository';
 import { toTimestamp } from '../database/serialize';
 
 import type { Database } from '../database/types/schema';
@@ -31,7 +32,8 @@ export async function setExtensionsEnabled(
   if (ids.length === 0) {
     return;
   }
-  await db.transaction().execute(async (trx) => {
+  // Within the caller's transaction when given one.
+  await inTransaction(db, async (trx) => {
     if (enabled) {
       await trx.deleteFrom('workspace_extension_disabled')
         .where('workspaceId', '=', workspaceId).where('extension', 'in', ids).execute();

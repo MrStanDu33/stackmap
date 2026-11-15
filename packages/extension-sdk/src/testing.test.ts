@@ -160,3 +160,12 @@ describe('checkExtension: entities', () => {
       .toEqual(['extensions.vpn.entities.peer is missing in fr']);
   });
 });
+
+describe('checkExtension: onboarding question', () => {
+  it('given an onboarding key missing from a locale, reports the key and the locale, like name and description (1)', () => {
+    expect(checkExtension({ ...vpn, onboarding: 'extensions.vpn.onboarding' }, files())).toEqual([
+      'extensions.vpn.onboarding is missing in en',
+      'extensions.vpn.onboarding is missing in fr',
+    ]);
+  });
+});
