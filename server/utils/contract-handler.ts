@@ -139,7 +139,7 @@ async function readJsonBody(event: H3Event): Promise<unknown> {
 async function parseInput<C extends Contract>(
   contract: C,
   event: H3Event,
-  body: z.ZodType | undefined = contract.body,
+  body: z.ZodType | undefined,
 ): Promise<ContractInput<C>> {
   const sources = {
     params: [contract.params, () => getRouterParams(event, { decode: true })],
