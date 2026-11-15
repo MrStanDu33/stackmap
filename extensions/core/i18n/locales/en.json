@@ -52,6 +52,108 @@
           "public": "{name} is an alias of {target} in public DNS",
           "internal": "{name} is an alias of {target} in internal DNS"
         }
+      },
+      "entitiesPlural": {
+        "site": "Sites",
+        "network": "Networks",
+        "host": "Hosts",
+        "service": "Services",
+        "listener": "Listeners",
+        "domain": "Domains",
+        "dns-record": "DNS records",
+        "flow": "Flows"
+      },
+      "fields": {
+        "site": {
+          "name": "Name"
+        },
+        "network": {
+          "name": "Name",
+          "kind": "Kind",
+          "cidr": "Address range (CIDR)",
+          "vlan": "VLAN",
+          "siteId": "Site"
+        },
+        "host": {
+          "name": "Name",
+          "kind": "Kind",
+          "os": "Operating system",
+          "siteId": "Site",
+          "addresses": "Addresses",
+          "address": "Address",
+          "networkId": "Network",
+          "addAddress": "Add an address",
+          "removeAddress": "Remove address {number}",
+          "addressNumbered": "Address {number}",
+          "networkNumbered": "Network {number}"
+        },
+        "service": {
+          "name": "Name",
+          "kind": "Kind",
+          "hostId": "Host",
+          "image": "Container image",
+          "containerName": "Container name"
+        },
+        "listener": {
+          "serviceId": "Service",
+          "port": "Port",
+          "transport": "Transport",
+          "protocol": "Protocol",
+          "bindAddress": "Bind address",
+          "bindAddressHint": "0.0.0.0 or :: for every address",
+          "publishedPort": "Published port",
+          "portHint": "From 1 to 65535"
+        },
+        "domain": {
+          "name": "Name"
+        },
+        "dns-record": {
+          "domainId": "Domain",
+          "name": "Name",
+          "nameHint": "{'@'} for the domain itself, or a name relative to it, such as www",
+          "type": "Type",
+          "value": "Value",
+          "view": "View",
+          "proxied": "Proxied",
+          "valueHint": {
+            "A": "An IPv4 address",
+            "AAAA": "An IPv6 address",
+            "CNAME": "A DNS name",
+            "NS": "A DNS name",
+            "MX": "One line of text",
+            "TXT": "One line of text",
+            "SRV": "One line of text",
+            "CAA": "One line of text"
+          }
+        },
+        "flow": {
+          "sourceServiceId": "Source service",
+          "targetListenerId": "Target listener",
+          "protocol": "Protocol",
+          "purpose": "Purpose",
+          "encrypted": "Encrypted",
+          "encryptedValues": {
+            "unknown": "Unknown",
+            "yes": "Yes",
+            "no": "No"
+          }
+        }
+      },
+      "transports": {
+        "tcp": "TCP",
+        "udp": "UDP"
+      },
+      "dnsViews": {
+        "public": "Public",
+        "internal": "Internal"
+      },
+      "issues": {
+        "address-outside-network": "{address} is not in {network} ({cidr})",
+        "address-outside-cidr": "{address} ({host}) is not in {cidr}",
+        "duplicate-address": "{address} is listed twice",
+        "invalid-record-name": "Expected {'@'} or a name relative to the domain, such as www or *.dev",
+        "invalid-record-value": "This value does not fit a {type} record",
+        "published-port-bound": "A published port is bound to an address"
       }
     }
   }

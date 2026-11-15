@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useExtensionLabels } from '../../composables/useExtensions';
 import { indexTraffic, originLabel, portLabel, sourceOf } from '../../utils/traffic-index';
 
 import type { Traffic, TrafficFlow } from '#shared/contracts/traffic';
@@ -9,6 +10,8 @@ const props = defineProps<{ traffic: Traffic; selection?: Selection | null }>();
 const emit = defineEmits<{ select: [selection: Selection] }>();
 
 const { t } = useI18n();
+// Kinds and protocols in the current language, from the extensions that declare them.
+const labels = useExtensionLabels();
 const index = computed(() => indexTraffic(props.traffic));
 const MAX_NAMES = 10;
 
@@ -82,7 +85,9 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
             {{ group.caption }}
           </button>
           <template v-if="group.host">
-            {{ ' ' }}<span class="ms-2 text-sm font-normal text-muted">{{ group.host.kind }}</span>
+            {{ ' ' }}<span class="ms-2 text-sm font-normal text-muted">{{
+              labels.kindLabel('host', group.host.kind)
+            }}</span>
           </template>
           <template v-else>
             {{ group.caption }}
@@ -145,7 +150,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
               >
                 {{ service.name }}
               </button>
-              <span class="ms-2 font-normal text-muted">{{ service.kind }}</span>
+              <span class="ms-2 font-normal text-muted">{{ labels.kindLabel('service', service.kind) }}</span>
             </th>
           </tr>
           <template
@@ -178,7 +183,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
                 <span
                   v-if="port.protocol && row === 0"
                   class="ms-1 text-muted"
-                >{{ port.protocol }}</span>
+                >{{ labels.kindLabel('protocol', port.protocol) }}</span>
               </th>
               <td
                 v-if="flow === null"

@@ -16,7 +16,12 @@ const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.u
 const shims = path('./nuxt-shims.ts');
 
 const config: StorybookConfig = {
-  stories: ['./foundations/*.@(mdx|stories.ts)', '../app/components/**/*.@(mdx|stories.ts)'],
+  stories: [
+    './foundations/*.@(mdx|stories.ts)',
+    '../app/components/**/*.@(mdx|stories.ts)',
+    // The built-in extensions' components (their Nuxt layers), such as their inventory forms.
+    '../extensions/*/app/components/**/*.stories.ts',
+  ],
   // Files the stories load, such as an extension's image icon.
   staticDirs: ['./public'],
   addons: [

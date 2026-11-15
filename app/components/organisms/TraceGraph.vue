@@ -2,6 +2,7 @@
 import { Handle, Position, useVueFlow, VueFlow, getSmoothStepPath } from '@vue-flow/core';
 import '@vue-flow/core/dist/style.css';
 
+import { useExtensionLabels } from '../../composables/useExtensions';
 import { listenerPort } from '../../utils/trace-graph';
 
 import type { Trace, TraceStep } from '#shared/contracts/traces';
@@ -19,6 +20,8 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [selection: TraceSelection | null]; retry: [] }>();
 
 const { t } = useI18n();
+// Kinds and protocols in the current language, from the extensions that declare them.
+const labels = useExtensionLabels();
 const flowId = useId();
 const { zoomIn, zoomOut, fitView, viewport, setCenter, findNode, dimensions } = useVueFlow(flowId);
 
@@ -316,7 +319,7 @@ const legendClass = 'absolute start-2 bottom-2 z-10 flex flex-wrap gap-x-4 gap-y
               <!-- Spaces between the parts: the accessible name must contain the text as read (WCAG 2.5.3). -->
               {{ ' ' }}
               <p class="truncate font-mono text-xs">
-                {{ listenerPort(data.listener) }}
+                {{ listenerPort(data.listener, labels) }}
               </p>
               {{ ' ' }}
               <p class="truncate text-xs text-muted">

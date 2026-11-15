@@ -6,7 +6,8 @@ import { setup } from '@storybook/vue3-vite';
 import { h } from 'vue';
 
 import '../app/assets/css/main.css';
-import { i18n, router } from './nuxt-shims';
+import { i18n, router, useState } from './nuxt-shims';
+import { INSTALLED_EXTENSIONS } from '../tests/support/extensions';
 
 import type { Locale } from './nuxt-shims';
 import type { Decorator, Preview } from '@storybook/vue3-vite';
@@ -35,6 +36,8 @@ const withAppGlobals: Decorator = (story, context) => {
     html.removeAttribute('data-contrast');
   }
   i18n.global.locale.value = (context.globals.locale ?? 'en') as Locale;
+  // What useExtensions() loads in the app: kinds and entity names are translated from it.
+  useState('extensions').value = INSTALLED_EXTENSIONS;
 
   return () => h(UApp, null, { default: () => h(story()) });
 };

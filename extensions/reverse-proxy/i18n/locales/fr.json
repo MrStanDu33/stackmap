@@ -13,6 +13,15 @@
       },
       "trace": {
         "route": "{proxy} achemine {hostname}"
+      },
+      "entitiesPlural": {
+        "route": "Routes de proxy"
+      },
+      "issues": {
+        "not-a-proxy": "{proxy} n’est pas un proxy inverse",
+        "hostname-taken": "{hostname} est déjà servi par ce proxy, dans la route {route}",
+        "invalid-hostname": "Nom d’hôte attendu, comme app.homelab.example ou *.homelab.example",
+        "duplicate-hostname": "{hostname} figure deux fois"
       }
     }
   }

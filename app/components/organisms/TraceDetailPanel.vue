@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useExtensionLabels } from '../../composables/useExtensions';
 import { hopSentence, indexTrace, listenerName } from '../../utils/trace-index';
 import { originLabel, portLabel } from '../../utils/traffic-index';
 
@@ -11,6 +12,8 @@ const emit = defineEmits<{ select: [selection: TraceSelection]; close: [] }>();
 
 const i18n = useI18n();
 const { t } = i18n;
+// Kinds and protocols in the current language, from the extensions that declare them.
+const labels = useExtensionLabels();
 const exists = (key: string) => i18n.te(key);
 const index = computed(() => indexTrace(props.trace));
 
@@ -195,7 +198,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
         <dt class="text-muted">
           {{ t('detail.protocol') }}
         </dt>
-        <dd>{{ step.flow.protocol ?? t('detail.unknown') }}</dd>
+        <dd>{{ step.flow.protocol ? labels.kindLabel('protocol', step.flow.protocol) : t('detail.unknown') }}</dd>
         <dt class="text-muted">
           {{ t('detail.encrypted') }}
         </dt>
@@ -233,7 +236,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
               <span class="font-medium">{{ t(`trace.stage.${hop.stage}`) }}</span>
             </template>
             <template #sentence>
-              <span>{{ hopSentence(hop, t, exists) }}</span>
+              <span>{{ hopSentence(hop, t, exists, labels) }}</span>
             </template>
           </i18n-t>
         </ol>
@@ -258,7 +261,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
         <dt class="text-muted">
           {{ t('detail.protocol') }}
         </dt>
-        <dd>{{ listener.protocol ?? t('detail.unknown') }}</dd>
+        <dd>{{ listener.protocol ? labels.kindLabel('protocol', listener.protocol) : t('detail.unknown') }}</dd>
         <dt class="text-muted">
           {{ t('detail.publishedPort') }}
         </dt>

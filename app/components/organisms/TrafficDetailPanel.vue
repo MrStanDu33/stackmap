@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useExtensionLabels } from '../../composables/useExtensions';
 import { indexTraffic, originLabel, portLabel, selectionName, sourceOf, targetName, traceLinks } from '../../utils/traffic-index';
 
 import type { Traffic } from '#shared/contracts/traffic';
@@ -14,6 +15,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ select: [selection: Selection]; close: [] }>();
 
 const { t } = useI18n();
+// Kinds and protocols in the current language, from the extensions that declare them.
+const labels = useExtensionLabels();
 const index = computed(() => indexTraffic(props.traffic));
 
 const host = computed(() => (props.selection.type === 'host' ? index.value.host(props.selection.id) : undefined));
@@ -100,7 +103,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
       <dt class="text-muted">
         {{ t('detail.kind') }}
       </dt>
-      <dd>{{ host.kind }}</dd>
+      <dd>{{ labels.kindLabel('host', host.kind) }}</dd>
     </dl>
     <section v-if="host">
       <h3 class="font-medium">
@@ -133,7 +136,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
         <dt class="text-muted">
           {{ t('detail.kind') }}
         </dt>
-        <dd>{{ service.kind }}</dd>
+        <dd>{{ labels.kindLabel('service', service.kind) }}</dd>
         <dt class="text-muted">
           {{ t('detail.host') }}
         </dt>
@@ -169,7 +172,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
               <span
                 v-if="item.protocol"
                 class="ms-1 text-muted"
-              >{{ item.protocol }}</span>
+              >{{ labels.kindLabel('protocol', item.protocol) }}</span>
             </button>
           </li>
         </ul>
@@ -195,7 +198,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
       <dt class="text-muted">
         {{ t('detail.protocol') }}
       </dt>
-      <dd>{{ port.protocol ?? t('detail.unknown') }}</dd>
+      <dd>{{ port.protocol ? labels.kindLabel('protocol', port.protocol) : t('detail.unknown') }}</dd>
       <dt class="text-muted">
         {{ t('detail.publishedPort') }}
       </dt>
@@ -348,7 +351,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
       <dt class="text-muted">
         {{ t('detail.protocol') }}
       </dt>
-      <dd>{{ flow.protocol ?? t('detail.unknown') }}</dd>
+      <dd>{{ flow.protocol ? labels.kindLabel('protocol', flow.protocol) : t('detail.unknown') }}</dd>
       <dt class="text-muted">
         {{ t('detail.encrypted') }}
       </dt>

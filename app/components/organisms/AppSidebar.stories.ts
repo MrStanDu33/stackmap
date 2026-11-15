@@ -115,6 +115,8 @@ export const WithWorkspaces: Story = {
     await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('href', '/w/demo/graph');
     await expect(within(navigation).getByRole('link', { name: t('traffic.title') })).toHaveAttribute('aria-current', 'page');
     await expect(within(navigation).getByRole('link', { name: t('trace.title') })).toHaveAttribute('href', '/w/demo/trace');
+    // Every member reaches the inventory (1).
+    await expect(within(navigation).getByRole('link', { name: t('inventory.title') })).toHaveAttribute('href', '/w/demo/inventory');
     await expect(within(navigation).getByRole('link', { name: t('members.title') })).toHaveAttribute('href', '/w/demo/members');
     // The instance administrator (who can create workspaces) also gets Users (21).
     await expect(within(navigation).getByRole('link', { name: t('users.title') })).toHaveAttribute('href', '/admin/users');

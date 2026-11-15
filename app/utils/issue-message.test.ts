@@ -1,0 +1,80 @@
+import { describe, expect, it } from 'vitest';
+
+import { issueKey, issueMessage } from './issue-message';
+import { createTestI18n } from '../../tests/support/i18n';
+
+import type { Issue } from './issue-message';
+
+const i18nFor = (locale: 'en' | 'fr') => {
+  const { global: i18n } = createTestI18n(locale);
+  return {
+    t: (key: string, params?: Record<string, unknown>) => i18n.t(key, params ?? {}),
+    te: (key: string) => i18n.te(key),
+  };
+};
+
+const issue = (code: string, params: Issue['params'] = {}, message = 'English fallback'): Issue => ({
+  path: 'body.name', code, params, message,
+});
+
+describe('issueMessage', () => {
+  it('translates a Zod code from issues.<code> with its params', () => {
+    // A code whose message reads the same whatever was checked: too_small and too_big depend on it (below).
+    const notMultiple = issue('not_multiple_of', { divisor: 5 });
+
+    expect(issueKey('too_small')).toBe('issues.too_small');
+    expect(issueMessage(notMultiple, i18nFor('en'))).toBe(i18nFor('en').t('issues.not_multiple_of', { divisor: 5 }));
+    expect(issueMessage(notMultiple, i18nFor('en'))).toContain('5');
+    expect(issueMessage(notMultiple, i18nFor('fr'))).not.toBe(issueMessage(notMultiple, i18nFor('en')));
+  });
+
+  it('says what too_small and too_big count by what was checked: characters, items or the number itself', () => {
+    const en = i18nFor('en');
+
+    expect(issueMessage(issue('too_big', { maximum: 80, origin: 'string' }), en)).toBe(en.t('issues.too_big_string', { maximum: 80 }));
+    expect(issueMessage(issue('too_big', { maximum: 32, origin: 'array' }), en)).toBe(en.t('issues.too_big_array', { maximum: 32 }));
+    expect(issueMessage(issue('too_small', { minimum: 1, origin: 'number' }), en)).toBe(en.t('issues.too_small_number', { minimum: 1 }));
+    expect(en.t('issues.too_big_string', { maximum: 80 })).not.toBe(en.t('issues.too_big_array', { maximum: 80 }));
+    // Without an origin it knows, the generic message.
+    expect(issueMessage(issue('too_big', { maximum: 3, origin: 'date' }), en)).toBe(en.t('issues.too_big', { maximum: 3 }));
+  });
+
+  it('names the expected type of invalid_type in words, and lists no raw values for invalid_value and unrecognized_keys', () => {
+    const fr = i18nFor('fr');
+
+    expect(issueMessage(issue('invalid_type', { expected: 'number' }), fr)).toBe(fr.t('issues.invalid_type', { expected: fr.t('issues.types.number') }));
+    expect(issueMessage(issue('invalid_type', { expected: 'number' }), fr)).not.toContain('number');
+    expect(issueMessage(issue('invalid_value', { values: 'planned, active, deprecated' }), fr)).not.toContain('planned');
+    expect(issueMessage(issue('unrecognized_keys', { keys: 'colour' }), fr)).toBe(fr.t('issues.unrecognized_keys'));
+  });
+
+  it('translates an extension code <id>.<rule> from extensions.<id>.issues.<rule> with its params', () => {
+    const duplicate = issue('core.duplicate-address', { address: '192.0.2.10' });
+
+    expect(issueKey('core.duplicate-address')).toBe('extensions.core.issues.duplicate-address');
+    expect(issueMessage(duplicate, i18nFor('en'))).toContain('192.0.2.10');
+    expect(issueMessage(duplicate, i18nFor('en'))).not.toBe('English fallback');
+  });
+
+  it('translates an SDK common code from issues.common.<rule>', () => {
+    expect(issueKey('common.too-many-custom-fields')).toBe('issues.common.too-many-custom-fields');
+    expect(issueMessage(issue('common.too-many-custom-fields', { maximum: 50 }), i18nFor('en'))).toContain('50');
+  });
+
+  it('says which value an invalid-value issue expected, by its format, in the current language', () => {
+    const invalid = (format: string) => issue('common.invalid-value', { format });
+
+    expect(issueMessage(invalid('ipv4'), i18nFor('en'))).toBe(i18nFor('en').t('issues.format.ipv4'));
+    expect(issueMessage(invalid('ipv4'), i18nFor('fr'))).toBe(i18nFor('fr').t('issues.format.ipv4'));
+    expect(issueMessage(invalid('unheard-of'), i18nFor('en'))).toBe(i18nFor('en').t('issues.common.invalid-value'));
+  });
+
+  it('falls back to the issue\'s English message when the code has no translation', () => {
+    expect(issueMessage(issue('core.not-a-rule'), i18nFor('fr'))).toBe('English fallback');
+    expect(issueMessage(issue('vpn.peer-unknown'), i18nFor('en'))).toBe('English fallback');
+  });
+
+  it('falls back to the English message for a code without a dot that is not a known Zod code', () => {
+    expect(issueMessage(issue('something_new'), i18nFor('en'))).toBe('English fallback');
+  });
+});

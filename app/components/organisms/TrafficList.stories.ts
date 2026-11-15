@@ -31,7 +31,12 @@ export const Demo: Story = {
     const server = tableOf(canvasElement, 'Home server');
 
     await expect(canvas.getAllByRole('table').map((table) => table.querySelector('caption')?.textContent.trim()))
-      .toEqual(['Edge router router', 'Home server physical', t('traffic.external')]);
+      // Kinds in the current language, from the extensions that declare them.
+      .toEqual([
+        `Edge router ${t('extensions.core.kinds.host.router')}`,
+        `Home server ${t('extensions.core.kinds.host.physical')}`,
+        t('traffic.external'),
+      ]);
     await expect(within(server).getAllByRole('columnheader').map(({ textContent }) => textContent.trim()))
       .toEqual([t('traffic.table.port'), t('traffic.table.from'), t('traffic.table.names'), t('traffic.table.how')]);
     await expect(within(tableOf(canvasElement, 'Edge router')).getByText(t('traffic.table.noService'))).toBeVisible();

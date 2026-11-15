@@ -1,5 +1,6 @@
 import { portLabel } from './traffic-index';
 
+import type { ExtensionLabels } from './extension-labels';
 import type { Translate } from './traffic-graph';
 import type { Trace, TraceNode, TraceStep } from '../../shared/contracts/traces';
 
@@ -69,9 +70,14 @@ export function stepName(index: TraceIndex, trace: Trace, step: TraceStep, t: Tr
 }
 
 /** A hop as its extension's translated sentence; a fallback when its label has no translation. */
-export function hopSentence(hop: Hop, t: Translate, exists: (key: string) => boolean): string {
+export function hopSentence(
+  hop: Hop, t: Translate, exists: (key: string) => boolean, labels?: ExtensionLabels,
+): string {
   if (!exists(hop.label)) {
-    return t('trace.hop.missing', { entity: hop.entity });
+    // The hop's extension is its label's namespace: `extensions.<id>.…`.
+    const extension = /^extensions\.([^.]+)\./.exec(hop.label)?.[1];
+    const entity = extension && labels ? labels.entityLabel(extension, hop.entity) : hop.entity;
+    return t('trace.hop.missing', { entity });
   }
   // The core's generic hops count entries: their count picks the plural form.
   const count = Number(hop.params.count);

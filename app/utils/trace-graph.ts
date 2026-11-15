@@ -2,6 +2,7 @@ import { indexTrace, stepName } from './trace-index';
 import { SIZES } from './traffic-graph';
 import { portLabel } from './traffic-index';
 
+import type { ExtensionLabels } from './extension-labels';
 import type { TrafficLayout, Translate } from './traffic-graph';
 import type { Trace, TraceNode } from '../../shared/contracts/traces';
 import type { Edge, Node } from '@vue-flow/core';
@@ -20,7 +21,9 @@ const listenerWidth = ({ serviceName }: Listener) => Math.min(
 );
 
 /** `443/tcp https`, as the node shows it. */
-export const listenerPort = (listener: Listener) => [portLabel(listener), listener.protocol].filter(Boolean).join(' ');
+export const listenerPort = (listener: Listener, labels?: ExtensionLabels) =>
+  [portLabel(listener), listener.protocol && (labels?.kindLabel('protocol', listener.protocol) ?? listener.protocol)]
+    .filter(Boolean).join(' ');
 
 /** The trace as an ELK graph: the client and each listener as nodes, each step as an edge. */
 export function traceToElk(trace: Trace): ElkNode {
