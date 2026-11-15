@@ -52,6 +52,7 @@ export function checkExtension(
   const ownKeys = new Set([
     manifest.name,
     manifest.description,
+    ...(manifest.onboarding === undefined ? [] : [manifest.onboarding]),
     ...kindsOf(manifest).map(({ label }) => label),
     ...(manifest.contributes.entities ?? []).map(({ label }) => label),
     ...[...locales]

@@ -3,6 +3,7 @@
     "reverse-proxy": {
       "name": "Reverse proxy",
       "description": "Document which hostnames your proxies serve and where they forward them.",
+      "onboarding": "Do you serve sites through a reverse proxy, such as Nginx Proxy Manager, Traefik or Caddy?",
       "entities": {
         "route": "Proxy route"
       },

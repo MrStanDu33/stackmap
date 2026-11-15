@@ -5,6 +5,8 @@
   `fr.json`. `/new-extension` scaffolds it.
 - The manifest is `defineExtension({...})` from `@stackmap/extension-sdk`: it fails at load time when invalid. Every
   string is an i18n key under `extensions.<id>.`, defined in both locale files.
+- Onboarding: an optional extension asks a plain question in `onboarding` ("Does a router forward ports from the
+  internet to your machines?"), shown when a workspace is created; without one, onboarding offers it by its name.
 - Icons: a Lucide name (`i-lucide-…`), or an image in `public/extensions/<id>/` referenced as `/extensions/<id>/…`.
   Never a remote URL. Screens show `ExtensionIcon`, which falls back to a generic icon.
 - Keep to your namespace: locale keys under `extensions.<id>.` and public files under `public/extensions/<id>/`, so

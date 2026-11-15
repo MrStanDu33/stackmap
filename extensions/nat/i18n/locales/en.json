@@ -3,6 +3,7 @@
     "nat": {
       "name": "Router and NAT",
       "description": "Document which ports your routers forward and where they send them.",
+      "onboarding": "Does a router forward ports from the internet to your machines?",
       "entities": {
         "port-forward": "Port forward"
       },

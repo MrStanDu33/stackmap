@@ -147,6 +147,7 @@ const manifestSchema = z.strictObject({
   apiVersion: z.number().int().positive(),
   name: z.string(),
   description: z.string(),
+  onboarding: z.string().optional(),
   icon: z.string().optional(),
   alwaysOn: z.boolean().default(false),
   dependsOn: z.array(kebabCase).default([]),
@@ -182,6 +183,9 @@ const manifestSchema = z.strictObject({
 
   checkKey(manifest.name, ['name']);
   checkKey(manifest.description, ['description']);
+  if (manifest.onboarding !== undefined) {
+    checkKey(manifest.onboarding, ['onboarding']);
+  }
   checkIcon(manifest.icon, ['icon']);
   for (const entity of KIND_ENTITIES) {
     const seen = new Set<string>();
