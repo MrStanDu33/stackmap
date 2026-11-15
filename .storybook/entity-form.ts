@@ -35,8 +35,10 @@ export const formRender = (form: Component) => <Args>(args: Args) => ({
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** A field's accessible name starts with its translated label (then "required", when it is). */
-export const fieldName = (entity: string, field: string) => new RegExp(`^${escape(t(`extensions.core.fields.${entity}.${field}`))}`);
+/** A field's accessible name: its translated label, then "required" when it is (exact: "Port" is not "Port publié"). */
+export const fieldName = (entity: string, field: string) => new RegExp(
+  `^${escape(t(`extensions.core.fields.${entity}.${field}`))}(?: ${escape(t('inventory.required'))})?$`,
+);
 
 export const fieldOf = (canvasElement: HTMLElement, role: 'textbox' | 'combobox' | 'spinbutton' | 'checkbox', entity: string, field: string) =>
   within(canvasElement).getByRole(role, { name: fieldName(entity, field) });

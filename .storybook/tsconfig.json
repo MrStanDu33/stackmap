@@ -12,6 +12,7 @@
     "../extensions/*/app/**/*.ts",
     "../extensions/*/app/**/*.vue",
     "../app/vue-shim.d.ts",
+    "../.nuxt/nuxt.d.ts",
     "../.nuxt/types/nitro-imports.d.ts"
   ]
 }
