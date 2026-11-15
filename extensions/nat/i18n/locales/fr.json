@@ -15,6 +15,26 @@
       "issues": {
         "address-not-on-host": "Une adresse de cet hôte est attendue",
         "ip-version-mismatch": "Une adresse de la même version IP que l’adresse externe est attendue"
+      },
+      "fields": {
+        "port-forward": {
+          "hostId": "Hôte",
+          "external": "Externe",
+          "externalAddress": "Adresse externe",
+          "externalPort": "Port externe",
+          "transport": "Transport",
+          "internal": "Interne",
+          "internalAddress": "Adresse interne",
+          "internalPort": "Port interne",
+          "description": "Description",
+          "portHint": "De 1 à 65535",
+          "chooseHostFirst": "Choisissez d’abord l’hôte",
+          "hostWithoutAddress": "Cet hôte n’a pas encore d’adresse : ajoutez-en une à l’hôte d’abord"
+        }
+      },
+      "transports": {
+        "tcp": "TCP",
+        "udp": "UDP"
       }
     }
   }
