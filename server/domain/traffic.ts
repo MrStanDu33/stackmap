@@ -31,7 +31,7 @@ const byName = (a: { name: string; id: string }, b: { name: string; id: string }
 const byPort = (a: { port: number; id: string }, b: { port: number; id: string }) =>
   a.port - b.port || a.id.localeCompare(b.id);
 
-const toFlow = (flow: TraceFlow, source: TrafficFlow['source']): TrafficFlow => ({
+const toFlow = (flow: TraceFlow, source: TrafficFlow['source'], hidden: boolean): TrafficFlow => ({
   id: flow.id,
   origin: flow.origin,
   extension: flow.extension,
@@ -41,15 +41,16 @@ const toFlow = (flow: TraceFlow, source: TrafficFlow['source']): TrafficFlow => 
   protocol: flow.protocol,
   encrypted: flow.encrypted,
   purpose: flow.purpose,
-  hostnames: flow.hostnames.toSorted().slice(0, MAX_TRAFFIC_FLOW_HOSTNAMES),
-  hostnameCount: flow.hostnames.length,
-  hidden: false,
+  // A hidden flow shows that a path exists, not what it is made of.
+  hostnames: hidden ? [] : flow.hostnames.toSorted().slice(0, MAX_TRAFFIC_FLOW_HOSTNAMES),
+  hostnameCount: hidden ? 0 : flow.hostnames.length,
+  hidden,
 });
 
 /** The traffic graph: sorted, capped, and with every reference resolving to an item it keeps. */
 export function buildTraffic(
   { hosts, services, listeners, flows }: TrafficEntities,
-  _options: TrafficOptions = {},
+  { disabled = new Set<string>() }: TrafficOptions = {},
 ): Traffic {
   let truncated = false;
   const cap = <T>(items: T[], max: number) => {

@@ -59,12 +59,14 @@ export const Demo: Story = {
   },
 };
 
+// getByText normalizes the page's whitespace, French non-breaking spaces included, not the expected text.
+const flat = (value: string) => value.replace(/\s+/g, ' ');
 /** The flows of a turned-off extension stay listed, said hidden in words, without their names (4). */
 export const HiddenFlows: Story = {
   args: { traffic: DEMO_TRAFFIC_NAT_OFF },
   play: async ({ canvasElement }) => {
     const server = within(tableOf(canvasElement, 'Home server'));
-    const hidden = t('traffic.hidden', { extension: t('extensions.nat.name') });
+    const hidden = flat(t('traffic.hidden', { extension: t('extensions.nat.name') }));
 
     // NPM's ports 80 and 443 from the Internet, through the port forwards.
     await expect(server.getAllByText(hidden)).toHaveLength(2);

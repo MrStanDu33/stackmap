@@ -113,7 +113,10 @@ function capped(hops: TraceHop[]): TraceHop[] {
  * no resolver knows, or whose resolver fails, gets a generic hop: the trace never breaks on an extension, and a
  * resolver that failed once is not called again for the trace.
  */
-function hopResolver(hostname: string, { resolvers, reader, logger, timeoutMs = RESOLVER_TIMEOUT_MS }: TraceOptions) {
+function hopResolver(
+  hostname: string,
+  { resolvers, reader, logger, timeoutMs = RESOLVER_TIMEOUT_MS, disabled = new Set<string>() }: TraceOptions,
+) {
   const byEntity = new Map(resolvers.map((registered) => [registered.resolver.entity, registered]));
   const failed = new Set<string>();
   const call = async (registered: RegisteredTraceHopResolver, basis: FlowBasis[]): Promise<TraceHop[] | undefined> => {
@@ -139,7 +142,13 @@ function hopResolver(hostname: string, { resolvers, reader, logger, timeoutMs = 
       if (hops.length < result.data.length) {
         log.warn(`${owner} returned hops for entities it was not given; they are left out`);
       }
-      return hops;
+      // A turned-off extension's hop keeps its place and port, so the path reads the same, but none of its details.
+      return disabled.has(registered.extension)
+        ? hops.map(({ entity: hidden, id, stage, port }) => ({
+            entity: hidden, id, stage, label: 'trace.hop.hidden', params: { extension: registered.extension },
+            ...(port === undefined ? {} : { port }),
+          }))
+        : hops;
     } catch (error) {
       end(error instanceof ResolverTimeoutError ? 'timed out' : 'failed');
       log.error(`${owner} failed: ${error instanceof Error ? error.message : String(error)}`, error);

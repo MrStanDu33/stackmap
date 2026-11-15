@@ -225,7 +225,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
                     :aria-current="current('flow', flow.id)"
                     @click="select('flow', flow.id)"
                   >
-                    {{ originLabel(flow, t) }}
+                    {{ originLabel(flow, t, labels) }}
                   </button>
                   <p
                     v-if="flow.purpose"

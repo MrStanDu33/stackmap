@@ -73,6 +73,11 @@ export function stepName(index: TraceIndex, trace: Trace, step: TraceStep, t: Tr
 export function hopSentence(
   hop: Hop, t: Translate, exists: (key: string) => boolean, labels?: ExtensionLabels,
 ): string {
+  // A turned-off extension's hop: the app says it is hidden, in the extension's name.
+  if (hop.label === 'trace.hop.hidden') {
+    const extension = hop.params.extension ?? '';
+    return t(hop.label, { extension: labels?.extensionName(extension) ?? extension });
+  }
   if (!exists(hop.label)) {
     // The hop's extension is its label's namespace: `extensions.<id>.…`.
     const extension = /^extensions\.([^.]+)\./.exec(hop.label)?.[1];

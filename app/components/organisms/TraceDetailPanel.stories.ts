@@ -103,6 +103,8 @@ export const GenericHop: Story = {
   },
 };
 
+// getByText normalizes the page's whitespace, French non-breaking spaces included, not the expected text.
+const flat = (value: string) => value.replace(/\s+/g, ' ');
 /** A hop of a turned-off extension says it is hidden, under its stage (8). */
 export const HiddenHop: Story = {
   args: {
@@ -120,7 +122,7 @@ export const HiddenHop: Story = {
   },
   play: async ({ canvasElement }) => {
     const hops = within(panel(canvasElement).getByRole('list', { name: t('trace.hops') }));
-    await expect(hops.getByText(t('trace.hop.hidden', { extension: t('extensions.nat.name') }))).toBeVisible();
+    await expect(hops.getByText(flat(t('trace.hop.hidden', { extension: t('extensions.nat.name') })))).toBeVisible();
     await expect(hops.getByText(t('trace.stage.network'))).toBeVisible();
   },
 };

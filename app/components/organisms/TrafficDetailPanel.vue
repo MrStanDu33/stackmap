@@ -347,7 +347,7 @@ const link = 'rounded-sm text-start underline-offset-2 hover:underline focus-vis
       <dt class="text-muted">
         {{ t('detail.origin') }}
       </dt>
-      <dd>{{ originLabel(flow, t) }}</dd>
+      <dd>{{ originLabel(flow, t, labels) }}</dd>
       <dt class="text-muted">
         {{ t('detail.protocol') }}
       </dt>
