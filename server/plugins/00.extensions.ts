@@ -4,10 +4,13 @@ import { BUILTIN_EXTENSION_SERVERS, BUILTIN_EXTENSIONS } from '../extensions/bui
 import { migrateExtensions } from '../extensions/migrations';
 import { createExtensionRegistry } from '../extensions/registry';
 import { startExtensions } from '../extensions/runtime';
+import { refreshSearchIndex } from '../repositories/search-index';
 import { useDatabase } from '../utils/database';
 import { setExtensionRegistry, setExtensionRuntime } from '../utils/extensions';
+import { workspaceRepositories } from '../utils/workspace';
 
 import type { ExtensionRegistry } from '../extensions/registry';
+import type { AuthorizedWorkspace } from '../utils/contract-handler';
 
 const exitWith = (error: unknown) => {
   console.error(`[extensions] ${error instanceof Error ? error.message : String(error)}`);
@@ -40,7 +43,8 @@ export default defineNitroPlugin((nitroApp) => {
   // extensions' setup, not for their app:ready handlers.
   const ready = Promise.resolve().then(async () => {
     // Their tables first, in registry order, then their setup: setup and requests can rely on the tables.
-    await migrateExtensions(await useDatabase(), registry, {
+    const db = await useDatabase();
+    await migrateExtensions(db, registry, {
       info: (message) => {
         console.info(message);
       },
@@ -48,7 +52,14 @@ export default defineNitroPlugin((nitroApp) => {
         console.error(message);
       },
     });
-    return startExtensions(registry);
+    const runtime = await startExtensions(registry);
+    // Before the first request: search finds what was stored before the search fields last changed. No caller here:
+    // the startup reads every workspace, so the authorized-workspace brand is set by hand.
+    const reposOf = (id: string) => workspaceRepositories({ id, role: 'owner' } as AuthorizedWorkspace);
+    if (await refreshSearchIndex(db, registry.repositories(), reposOf)) {
+      console.info('[search] rebuilt the search index');
+    }
+    return runtime;
   });
   ready
     .then((runtime) => runtime.callHook('app:ready', { version }))

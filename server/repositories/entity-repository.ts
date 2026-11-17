@@ -11,6 +11,7 @@ import {
   WorkspaceReferenceError,
 } from './errors';
 import { toIssues } from './issues';
+import { indexEntity, unindexEntity } from './search-index';
 import { isForeignKeyViolation, isUniqueViolation } from '../database/errors';
 import { newId } from '../database/ids';
 import { fromBoolean, fromJson, fromTimestamp, toBoolean, toJson, toTimestamp } from '../database/serialize';
@@ -220,6 +221,10 @@ export function createEntityRepository<Fields, Input, DB>(
       }
       await audit(trx, action, id, [...changed]);
       const [saved] = await find(trx, { id });
+      // In the same transaction: the index never sees a write that did not commit.
+      if (saved) {
+        await indexEntity(trx, scope.workspaceId, definition, saved);
+      }
       return saved;
     };
 
@@ -361,6 +366,7 @@ export function createEntityRepository<Fields, Input, DB>(
             throw error;
           }
           await audit(trx, 'delete', id, []);
+          await unindexEntity(trx, scope.workspaceId, definition, id);
           return true;
         });
       }),
