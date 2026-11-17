@@ -25,7 +25,7 @@ test.describe('command palette', () => {
     await page.keyboard.press(SHORTCUT);
 
     const dialog = page.getByRole('dialog', { name: 'Search' });
-    await expect(dialog.getByRole('combobox')).toBeFocused();
+    await expect(dialog.getByRole('combobox', { name: 'Search' })).toBeFocused();
     await expectNoAxeViolation(page);
 
     await page.keyboard.press('Escape');
@@ -39,6 +39,6 @@ test.describe('command palette', () => {
 
     await page.getByRole('button', { name: `Search, ${LABEL}` }).click();
 
-    await expect(page.getByRole('dialog', { name: 'Search' }).getByRole('combobox')).toBeFocused();
+    await expect(page.getByRole('dialog', { name: 'Search' }).getByRole('combobox', { name: 'Search' })).toBeFocused();
   });
 });

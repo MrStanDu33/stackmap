@@ -36,7 +36,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const dialog = () => within(document.body).getByRole('dialog', { name: t('palette.title') });
-const field = () => within(dialog()).getByRole('combobox');
+const field = () => within(dialog()).getByRole('combobox', { name: t('palette.title') });
 
 /** Open, it is a dialog named Search with the focus in its search field (1). */
 export const Open: Story = {
@@ -64,7 +64,7 @@ export const Escape: Story = {
   },
 };
 
-/** The results are a listbox whose options say their group; arrows move, Enter chooses (2). */
+/** The results are a listbox whose options say their group; the first is active, arrows move, Enter chooses (2). */
 export const Keyboard: Story = {
   play: async ({ args }) => {
     await waitFor(() => expect(field()).toHaveFocus());
@@ -72,7 +72,8 @@ export const Keyboard: Story = {
     await expect(options).toHaveLength(3);
     await expect(options[2]).toHaveAccessibleName(t('palette.option', { label: 'Sign out', group: 'Actions' }));
 
-    await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+    // From the first result: Enter right after typing chooses the best match.
+    await userEvent.keyboard('{ArrowDown}{Enter}');
 
     await expect(args.onSelect).toHaveBeenCalledWith(GROUPS[0]?.items[1], GROUPS[0]);
   },
@@ -107,7 +108,9 @@ export const NothingMatches: Story = {
     await waitFor(() => expect(field()).toHaveFocus());
     await userEvent.type(field(), 'zzz');
 
-    await waitFor(() => expect(within(dialog()).getByText(t('palette.empty', { q: 'zzz' }))).toBeVisible());
+    // Matched raw: getByText turns the French no-break spaces into plain ones.
+    await waitFor(() => expect(within(dialog()).getByText((_, element) => element?.textContent.trim() === t('palette.empty', { q: 'zzz' })))
+      .toBeVisible());
     await expect(within(dialog()).getByRole('status')).toHaveTextContent(t('palette.results', { count: 0 }, 0));
   },
 };
