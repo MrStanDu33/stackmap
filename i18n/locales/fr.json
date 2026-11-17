@@ -566,5 +566,15 @@
     "loadFailed": "Cette page n’a pas pu être chargée.",
     "kindHint": "Type · {entity}",
     "alsoChecked": "Également coché pour {item} : {names}"
+  },
+  "palette": {
+    "title": "Recherche",
+    "placeholder": "Rechercher des pages, des entités et des actions…",
+    "buttonLabel": "Rechercher",
+    "inGroup": ", {group}",
+    "results": "Aucun résultat | 1 résultat | {count} résultats",
+    "empty": "Rien ne correspond à « {q} ».",
+    "searching": "Recherche en cours…",
+    "resultsLabel": "Résultats"
   }
 }

@@ -566,5 +566,15 @@
     "loadFailed": "This page could not be loaded.",
     "kindHint": "Kind · {entity}",
     "alsoChecked": "Also checked for {item}: {names}"
+  },
+  "palette": {
+    "title": "Search",
+    "placeholder": "Search pages, entities and actions…",
+    "buttonLabel": "Search",
+    "inGroup": ", {group}",
+    "results": "No results | 1 result | {count} results",
+    "empty": "Nothing matches “{q}”.",
+    "searching": "Searching…",
+    "resultsLabel": "Results"
   }
 }
