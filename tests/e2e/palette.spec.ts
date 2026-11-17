@@ -33,12 +33,16 @@ test.describe('command palette', () => {
     await expect(traffic).toBeFocused();
   });
 
-  test('given the sidebar, its Search button says the shortcut and opens the palette (1)', async ({ page }) => {
+  test('given the sidebar, its Search button opens the palette, and closing it gives the focus back to the button, even after a click (1, review)', async ({ page }) => {
     await page.goto('/settings');
     await hydrated(page);
+    const search = page.getByRole('button', { name: 'Search', exact: true });
+    await expect(search).toContainText(LABEL);
 
-    await page.getByRole('button', { name: `Search, ${LABEL}` }).click();
-
+    await search.click();
     await expect(page.getByRole('dialog', { name: 'Search' }).getByRole('combobox', { name: 'Search' })).toBeFocused();
+    await page.keyboard.press('Escape');
+
+    await expect(search).toBeFocused();
   });
 });

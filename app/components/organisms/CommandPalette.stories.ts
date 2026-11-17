@@ -1,4 +1,4 @@
-import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import { expect, fireEvent, fn, userEvent, waitFor, within } from 'storybook/test';
 import { ref } from 'vue';
 
 import CommandPalette from './CommandPalette.vue';
@@ -37,12 +37,32 @@ type Story = StoryObj<typeof meta>;
 
 const dialog = () => within(document.body).getByRole('dialog', { name: t('palette.title') });
 const field = () => within(dialog()).getByRole('combobox', { name: t('palette.title') });
+const list = () => within(dialog()).getByRole('listbox', { name: t('palette.resultsLabel') });
+const strict = () => document.documentElement.getAttribute('data-contrast') === 'strict';
+/** Whether an element shows an outline or a ring, beyond its background color. */
+const outlined = (element: Element) => {
+  const style = getComputedStyle(element);
+  return (style.outlineStyle !== 'none' && style.outlineWidth !== '0px') || style.boxShadow !== 'none';
+};
 
-/** Open, it is a dialog named Search with the focus in its search field (1). */
+/**
+ * Open, it is a dialog named Search with the focus in its search field, which shows it has the focus; nothing is said
+ * until something is typed (1, review).
+ */
 export const Open: Story = {
   play: async () => {
     await waitFor(() => expect(field()).toHaveFocus());
     await expect(field()).toHaveAttribute('placeholder', t('palette.placeholder'));
+    await expect(outlined(field())).toBe(true);
+    await expect(within(dialog()).getByRole('status')).toHaveTextContent('');
+  },
+};
+
+/** Tab never reaches a control nobody can see: the dialog has no hidden close button (review). */
+export const NoHiddenControl: Story = {
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await expect(within(dialog()).queryAllByRole('button')).toEqual([]);
   },
 };
 
@@ -64,13 +84,24 @@ export const Escape: Story = {
   },
 };
 
-/** The results are a listbox whose options say their group; the first is active, arrows move, Enter chooses (2). */
+/**
+ * The results are a listbox named Results whose options say their group; the first is active, shown by more than a
+ * color, arrows move it (wrapping around), Enter chooses (2, review).
+ */
 export const Keyboard: Story = {
   play: async ({ args }) => {
     await waitFor(() => expect(field()).toHaveFocus());
-    const options = within(dialog()).getAllByRole('option');
+    const options = within(list()).getAllByRole('option');
     await expect(options).toHaveLength(3);
     await expect(options[2]).toHaveAccessibleName(t('palette.option', { label: 'Sign out', group: 'Actions' }));
+    await expect(field()).toHaveAttribute('aria-activedescendant', options[0]?.id);
+    await expect(options[0]).toHaveAttribute('aria-selected', 'true');
+    await expect(outlined(options[0] as Element)).toBe(true);
+    await expect(outlined(options[1] as Element)).toBe(false);
+
+    await userEvent.keyboard('{ArrowUp}');
+    await expect(field()).toHaveAttribute('aria-activedescendant', options[2]?.id);
+    await userEvent.keyboard('{ArrowDown}');
 
     // From the first result: Enter right after typing chooses the best match.
     await userEvent.keyboard('{ArrowDown}{Enter}');
@@ -89,7 +120,7 @@ export const ResultsCount: Story = {
   play: async () => {
     await waitFor(() => expect(field()).toHaveFocus());
     const status = within(dialog()).getByRole('status');
-    await expect(status).toHaveTextContent(t('palette.results', { count: 3 }, 3));
+    await expect(status).toHaveTextContent('');
 
     await userEvent.type(field(), 'trace');
 
@@ -111,14 +142,67 @@ export const NothingMatches: Story = {
     // Matched raw: getByText turns the French no-break spaces into plain ones.
     await waitFor(() => expect(within(dialog()).getByText((_, element) => element?.textContent.trim() === t('palette.empty', { q: 'zzz' })))
       .toBeVisible());
-    await expect(within(dialog()).getByRole('status')).toHaveTextContent(t('palette.results', { count: 0 }, 0));
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent(t('palette.results', { count: 0 }, 0)));
+    // No empty listbox: the field says there is nothing to show (review).
+    await expect(within(dialog()).queryByRole('listbox')).toBeNull();
+    await expect(field()).toHaveAttribute('aria-expanded', 'false');
   },
 };
 
-/** While results are fetched, it says so. */
+/** With no group at all, there is no listbox either (review). */
+export const NoGroups: Story = {
+  args: { groups: [] },
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await expect(within(dialog()).queryByRole('listbox')).toBeNull();
+    await expect(field()).toHaveAttribute('aria-expanded', 'false');
+  },
+};
+
+/** An option's description, such as an entity's type, is read with it (review). */
+export const Described: Story = {
+  args: {
+    groups: [{ id: 'entities', label: 'Entities', items: [{ id: 'router', label: 'Edge router', description: 'Host' }] }],
+  },
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await expect(within(list()).getByRole('option')).toHaveAccessibleDescription('Host');
+  },
+};
+
+/** In strict contrast, options are 44 px targets (review). */
+export const StrictTargets: Story = {
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    if (strict()) {
+      for (const option of within(list()).getAllByRole('option')) {
+        await expect(option.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+      }
+    }
+  },
+};
+
+/** While an input method composes text (Chinese, Japanese…), arrows and Enter are its own (review). */
+export const Composing: Story = {
+  play: async ({ args }) => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    const first = within(list()).getAllByRole('option')[0]?.id;
+
+    await fireEvent.keyDown(field(), { key: 'ArrowDown', isComposing: true });
+    await fireEvent.keyDown(field(), { key: 'Enter', isComposing: true });
+
+    await expect(field()).toHaveAttribute('aria-activedescendant', first);
+    await expect(args.onSelect).not.toHaveBeenCalled();
+  },
+};
+
+/** While results are fetched, it says so, and its icon spins unless motion is reduced (review). */
 export const Loading: Story = {
   args: { loading: true },
   play: async () => {
     await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent(t('palette.searching')));
+    const icon = dialog().querySelector('[data-slot="leadingIcon"]');
+    const reduced = strict() || matchMedia('(prefers-reduced-motion: reduce)').matches;
+    await expect(icon && getComputedStyle(icon).animationName !== 'none').toBe(!reduced);
   },
 };

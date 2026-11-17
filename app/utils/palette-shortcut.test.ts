@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isMac, isPaletteShortcut, paletteShortcutLabel } from './palette-shortcut';
 
 const key = (overrides: Partial<KeyboardEvent> = {}) =>
-  ({ key: 'k', metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...overrides }) as KeyboardEvent;
+  ({ key: 'k', code: 'KeyK', metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...overrides }) as KeyboardEvent;
 
 describe('isPaletteShortcut', () => {
   it('given Cmd+K on macOS or Ctrl+K elsewhere, says it opens the palette (1)', () => {
@@ -19,6 +19,11 @@ describe('isPaletteShortcut', () => {
     expect(isPaletteShortcut(key({ ctrlKey: true, shiftKey: true }), { mac: false })).toBe(false);
     expect(isPaletteShortcut(key({ ctrlKey: true, altKey: true }), { mac: false })).toBe(false);
     expect(isPaletteShortcut(key({ ctrlKey: true, key: 'j' }), { mac: false })).toBe(false);
+  });
+
+  it('given a keyboard layout whose K key types another letter (Cyrillic), still opens it by the key\'s place (review)', () => {
+    expect(isPaletteShortcut(key({ ctrlKey: true, key: 'л', code: 'KeyK' }), { mac: false })).toBe(true);
+    expect(isPaletteShortcut(key({ ctrlKey: true, key: 'л', code: 'KeyL' }), { mac: false })).toBe(false);
   });
 
   it('given the shortcut while another dialog is open, says it does not: that dialog keeps the keyboard (edge case)', () => {

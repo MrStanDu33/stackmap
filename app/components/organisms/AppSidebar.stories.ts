@@ -141,7 +141,10 @@ export const WithWorkspaces: Story = {
   },
 };
 
-/** The Search button says the shortcut in its name and asks to open the palette (1). */
+/**
+ * The Search button is named Search, tells assistive technologies its shortcut, and asks to open the palette
+ * (1, review).
+ */
 export const SearchButton: Story = {
   render: (args) => ({
     components: { AppSidebar },
@@ -150,9 +153,9 @@ export const SearchButton: Story = {
   }),
   args: { onSearch: fn() },
   play: async ({ canvasElement, args }) => {
-    const search = within(canvasElement).getByRole('button', {
-      name: t('palette.button', { shortcut: paletteShortcutLabel(isMac()) }),
-    });
+    const search = within(canvasElement).getByRole('button', { name: t('palette.buttonLabel') });
+    await expect(search).toHaveAttribute('aria-keyshortcuts', isMac() ? 'Meta+K' : 'Control+K');
+    await expect(within(search).getByText(paletteShortcutLabel(isMac()))).toBeVisible();
 
     await userEvent.click(search);
 

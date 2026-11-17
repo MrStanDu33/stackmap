@@ -1,6 +1,6 @@
 /** Whether a key press opens the command palette: Cmd+K on macOS, Ctrl+K elsewhere, and no other dialog open. */
 export function isPaletteShortcut(
-  event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
+  event: Pick<KeyboardEvent, 'key' | 'code' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>,
   { mac, dialogOpen = false }: { mac: boolean; dialogOpen?: boolean },
 ): boolean {
   const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
