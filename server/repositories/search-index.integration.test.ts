@@ -72,7 +72,7 @@ describe.each(DIALECTS)('search index on %s', (dialect: Dialect) => {
       workspaceId: workspaces.a.workspace.id, extension: 'core', entity: 'host', entityId: host.id, title: 'stale', text: 'stale',
     }).execute();
 
-    expect(await refreshSearchIndex(db(), definitions, (id) => workspaces.repositories(id))).toBe(true);
+    expect(await refreshSearchIndex(db(), definitions)).toBe(true);
 
     expect((await rows()).map(({ title }) => title)).toEqual(['Edge router']);
     expect((await rows(workspaces.b.workspace.id)).map(({ title }) => title)).toEqual(['Web server', 'Website']);
@@ -80,14 +80,49 @@ describe.each(DIALECTS)('search index on %s', (dialect: Dialect) => {
       .toBeDefined();
   });
 
+  it('given a workspace whose entities cannot be read, rebuilds the others, records no version and does not throw (review)', async () => {
+    await createHost(workspaces.a.repos, { name: 'Edge router' });
+    await createHost(workspaces.b.repos, { name: 'Web server' });
+    await db().deleteFrom('search_index').execute();
+    // A row the repository cannot read: its tags are not JSON.
+    await db().updateTable('core_host' as never).set({ tags: 'not json' } as never)
+      .where('workspaceId' as never, '=', workspaces.a.workspace.id as never).execute();
+
+    expect(await refreshSearchIndex(db(), definitions)).toBe(true);
+
+    expect(await rows()).toEqual([]);
+    expect((await rows(workspaces.b.workspace.id)).map(({ title }) => title)).toEqual(['Web server']);
+    expect(await db().selectFrom('appSetting').select('key').where('key', '=', 'searchIndexVersion').executeTakeFirst())
+      .toBeUndefined();
+  });
+
+  it('given an entity removed with another one by a cascade, deletes its row in the removal (review)', async () => {
+    const domain = await createDomain(workspaces.a.repos, { name: 'homelab.example' });
+    await workspaces.a.repos.dnsRecords.create({ domainId: domain.id, name: 'app', type: 'A', value: '203.0.113.10' });
+    expect(await rows()).toHaveLength(2);
+
+    await workspaces.a.repos.domains.remove(domain.id);
+
+    expect(await rows()).toEqual([]);
+  });
+
+  it('cuts a title at 200 characters, never inside one (review)', async () => {
+    const id = '0199d6a0-0000-7000-8000-000000000098';
+
+    await indexEntity(db(), workspaces.a.workspace.id, { extension: 'core', entity: 'host', search: ['name'] }, {
+      id, name: `${'a'.repeat(199)}🚀🚀`, tags: [],
+    });
+
+    expect((await rows())[0]?.title).toBe(`${'a'.repeat(199)}🚀`);
+  });
+
   it('given the index up to date with the definitions, rebuilds nothing (8)', async () => {
-    const reposOf = (id: string) => workspaces.repositories(id);
-    await refreshSearchIndex(db(), definitions, reposOf);
+    await refreshSearchIndex(db(), definitions);
     await db().insertInto('search_index').values({
       workspaceId: workspaces.a.workspace.id, extension: 'core', entity: 'host', entityId: 'kept', title: 'kept', text: 'kept',
     }).execute();
 
-    expect(await refreshSearchIndex(db(), definitions, reposOf)).toBe(false);
+    expect(await refreshSearchIndex(db(), definitions)).toBe(false);
     expect((await rows()).map(({ title }) => title)).toEqual(['kept']);
   });
 });
@@ -151,12 +186,12 @@ describe.each(DIALECTS)('searchEntities on %s', (dialect: Dialect) => {
     expect((await search('203.0.113.10')).items.map(({ entity }) => entity)).toEqual(['host']);
   });
 
-  it('leaves out a row whose entity no longer exists, and deletes it (14)', async () => {
+  it('leaves out a row whose entity no longer exists (14)', async () => {
     const { router } = await createPortForwards(workspaces.a.repos);
+    // Removed behind the repositories' back: its rows stay, and search skips them.
     await db().deleteFrom('core_host' as never).where('id' as never, '=', router.id as never).execute();
 
     expect((await search('203.0.113.10')).items).toEqual([]);
-    expect(await db().selectFrom('search_index').select('entityId').where('text', 'like', '%203.0.113.10%').execute()).toEqual([]);
   });
 
   it('never returns another workspace\'s entities (15)', async () => {

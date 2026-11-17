@@ -216,6 +216,18 @@ describe('extensions plugin: lifecycle', () => {
 });
 
 describe('extensions plugin: search index', () => {
+  it('given a rebuild that fails, logs it and keeps serving requests with the index as it was (review)', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    const { nitro } = await runPlugin(undefined, Promise.resolve({}), () => Promise.resolve(), () => Promise.reject(new Error('unreadable row')));
+
+    await nitro.run('request');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(logged).toHaveBeenCalledWith(expect.stringMatching(/\[search\].*unreadable row/));
+    expect(exit).not.toHaveBeenCalled();
+  });
+
   it('refreshes the search index once the extensions have started, before the first request (8)', async () => {
     const order: string[] = [];
     const tls = manifest('tls');

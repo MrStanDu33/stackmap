@@ -27,6 +27,11 @@ describe('searchPatterns', () => {
     expect(searchPatterns('50% a_b c\\d')).toEqual(['%50\\%%', '%a\\_b%', '%c\\\\d%']);
   });
 
+  it('drops repeated words and words another word contains, and keeps at most 8 (review)', () => {
+    expect(searchPatterns('a a edge ed router')).toEqual(['%edge%', '%router%']);
+    expect(searchPatterns('w1 w2 w3 w4 w5 w6 w7 w8 w9 w10')).toHaveLength(8);
+  });
+
   it('gives no pattern for a query of spaces only', () => {
     expect(searchPatterns('   ')).toEqual([]);
   });

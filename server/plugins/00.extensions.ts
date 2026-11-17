@@ -7,10 +7,8 @@ import { startExtensions } from '../extensions/runtime';
 import { refreshSearchIndex } from '../repositories/search-index';
 import { useDatabase } from '../utils/database';
 import { setExtensionRegistry, setExtensionRuntime } from '../utils/extensions';
-import { workspaceRepositories } from '../utils/workspace';
 
 import type { ExtensionRegistry } from '../extensions/registry';
-import type { AuthorizedWorkspace } from '../utils/contract-handler';
 
 const exitWith = (error: unknown) => {
   console.error(`[extensions] ${error instanceof Error ? error.message : String(error)}`);
@@ -53,10 +51,8 @@ export default defineNitroPlugin((nitroApp) => {
       },
     });
     const runtime = await startExtensions(registry);
-    // Before the first request: search finds what was stored before the search fields last changed. No caller here:
-    // the startup reads every workspace, so the authorized-workspace brand is set by hand.
-    const reposOf = (id: string) => workspaceRepositories({ id, role: 'owner' } as AuthorizedWorkspace);
-    if (await refreshSearchIndex(db, registry.repositories(), reposOf)) {
+    // Before the first request: search finds what was stored before the search fields last changed.
+    if (await refreshSearchIndex(db, registry.repositories())) {
       console.info('[search] rebuilt the search index');
     }
     return runtime;

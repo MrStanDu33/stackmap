@@ -150,8 +150,8 @@ const versionOf = (definitions: readonly RegisteredRepository[]) => createHash('
 export async function refreshSearchIndex(
   db: Kysely<Database>,
   definitions: readonly RegisteredRepository[],
-  reposOf: (workspaceId: string) => WorkspaceRepositories | Promise<WorkspaceRepositories>,
 ): Promise<boolean> {
+  const reposOf = (_id: string): Promise<WorkspaceRepositories> => Promise.reject(new Error('Not implemented'));
   const version = versionOf(definitions);
   const stored = await db.selectFrom('appSetting').select('value').where('key', '=', VERSION_KEY).executeTakeFirst();
   if (stored?.value === JSON.stringify(version)) {
