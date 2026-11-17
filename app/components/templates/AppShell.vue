@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { isMac, isPaletteShortcut } from '../../utils/palette-shortcut';
+
 import type { WorkspaceRole } from '#shared/contracts/contract';
+import type { PaletteGroup, PaletteItem } from '../../utils/palette';
 
 /** Every page's frame: the skip link, the sidebar and the main content, with the mobile navigation toggle. */
 defineProps<{
@@ -27,6 +30,29 @@ const skipLink = 'sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-
 const skipToMain = () => {
   main.value?.focus();
 };
+
+// The command palette: Cmd+K / Ctrl+K or the sidebar's Search button, on every page of the shell.
+const paletteOpen = ref(false);
+const searchTerm = ref('');
+// shortcut: no group yet; pages, workspaces, actions and entities join in the next steps of the palette (5d′2).
+const paletteGroups = computed<PaletteGroup[]>(() => []);
+const onKeydown = (event: KeyboardEvent) => {
+  // Another dialog keeps the keyboard; the palette's own shortcut closes nothing.
+  const dialogOpen = !paletteOpen.value && document.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
+  if (isPaletteShortcut(event, { mac: isMac(), dialogOpen })) {
+    event.preventDefault();
+    paletteOpen.value = !paletteOpen.value;
+  }
+};
+const choose = (_item: PaletteItem) => {
+  paletteOpen.value = false;
+};
+onMounted(() => {
+  document.addEventListener('keydown', onKeydown);
+});
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown);
+});
 </script>
 
 <template>
@@ -43,6 +69,13 @@ const skipToMain = () => {
       :can-create="canCreate"
       :view="view"
       @sign-out="emit('signOut')"
+      @search="paletteOpen = true"
+    />
+    <CommandPalette
+      v-model:open="paletteOpen"
+      v-model:search-term="searchTerm"
+      :groups="paletteGroups"
+      @select="choose"
     />
     <UDashboardPanel>
       <template #header>

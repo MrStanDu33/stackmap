@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isMac, paletteShortcutLabel } from '../../utils/palette-shortcut';
+
 import type { WorkspaceRole } from '#shared/contracts/contract';
 
 /** The app's navigation: only the sections that exist, and the display preferences in its footer. */
@@ -14,6 +16,12 @@ const props = defineProps<{
 const emit = defineEmits<{ signOut: []; search: [] }>();
 
 const { t } = useI18n();
+// Known once mounted: the server cannot tell the platform, and the label must not change during hydration.
+const mac = ref(false);
+onMounted(() => {
+  mac.value = isMac();
+});
+const shortcut = computed(() => paletteShortcutLabel(mac.value));
 
 // The views of the current workspace; outside one, the paths that lead to the last one used.
 const base = computed(() => (props.current ? `/w/${props.current}` : ''));
@@ -73,6 +81,23 @@ const items = computed(() => [
         :can-create="canCreate"
         :collapsed="collapsed"
       />
+      <UButton
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-search"
+        :square="collapsed"
+        :aria-label="t('palette.button', { shortcut })"
+        :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'"
+        class="w-full"
+        @click="emit('search')"
+      >
+        <template v-if="!collapsed">
+          <span class="grow text-start">{{ t('palette.buttonLabel') }}</span>
+          <UKbd aria-hidden="true">
+            {{ shortcut }}
+          </UKbd>
+        </template>
+      </UButton>
       <UNavigationMenu
         :collapsed="collapsed"
         :items="items"
