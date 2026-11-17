@@ -2,6 +2,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 
 import AppSidebar from './AppSidebar.vue';
 import { i18n, router } from '../../../.storybook/nuxt-shims';
+import { isMac, paletteShortcutLabel } from '../../utils/palette-shortcut';
 
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
@@ -137,5 +138,24 @@ export const WithWorkspaces: Story = {
       await expect(item.contains(document.elementFromPoint(left + width / 2, top + height / 2))).toBe(true);
     }
     await userEvent.keyboard('{Escape}');
+  },
+};
+
+/** The Search button says the shortcut in its name and asks to open the palette (1). */
+export const SearchButton: Story = {
+  render: (args) => ({
+    components: { AppSidebar },
+    setup: () => ({ args }),
+    template: '<UDashboardGroup><AppSidebar v-bind="args" /></UDashboardGroup>',
+  }),
+  args: { onSearch: fn() },
+  play: async ({ canvasElement, args }) => {
+    const search = within(canvasElement).getByRole('button', {
+      name: t('palette.button', { shortcut: paletteShortcutLabel(isMac()) }),
+    });
+
+    await userEvent.click(search);
+
+    await expect(args.onSearch).toHaveBeenCalled();
   },
 };

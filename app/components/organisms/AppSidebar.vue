@@ -11,7 +11,7 @@ const props = defineProps<{
   /** The page's view, which the switcher's links keep. */
   view?: 'graph' | 'trace';
 }>();
-const emit = defineEmits<{ signOut: [] }>();
+const emit = defineEmits<{ signOut: []; search: [] }>();
 
 const { t } = useI18n();
 
