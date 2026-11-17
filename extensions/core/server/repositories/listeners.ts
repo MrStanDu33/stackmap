@@ -13,6 +13,7 @@ export const listenerRepository = defineEntityRepository<ListenerFields, Listene
   table: 'core_listener',
   schema: listenerSchema,
   columns: ['serviceId', 'port', 'transport', 'protocol', 'bindAddress', 'publishedPort'],
+  search: ['port'],
   kinds: { protocol: 'protocol' },
   filters: ['serviceId'],
   references: ({ serviceId }) => [{ field: 'serviceId', table: 'core_service', id: serviceId }],

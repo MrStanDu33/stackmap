@@ -188,7 +188,8 @@ const tableOwnersOf = (manifest: ExtensionManifest) => [manifest.id, ...manifest
 function entityErrors({ manifest, server }: Entry): string[] {
   const errors: string[] = [];
   const owners = tableOwnersOf(manifest);
-  for (const { key, columns, filters = [], ownedFields = [], dependents = [] } of server?.repositories ?? []) {
+  for (const repository of server?.repositories ?? []) {
+    const { key, columns, filters = [], ownedFields = [], dependents = [], search = [] } = repository;
     if (!REPOSITORY_KEY.test(key) || key === 'transaction') {
       errors.push(`defines repository "${key}", whose key must be camelCase, at most 40 characters, and not transaction`);
       continue;
@@ -196,6 +197,10 @@ function entityErrors({ manifest, server }: Entry): string[] {
     const fields = [...columns, ...filters, ...ownedFields];
     for (const field of fields.filter((name) => (ENTITY_META_FIELDS as readonly string[]).includes(name))) {
       errors.push(`repository "${key}" cannot store, filter or own ${field}: the repository sets it`);
+    }
+    // A column, an owned field, or a field of an owned list's items (addresses.address).
+    for (const field of search.filter((name) => ![...columns, ...ownedFields].includes(name.split('.')[0] ?? ''))) {
+      errors.push(`repository "${key}" searches "${field}", which is neither a column nor an owned field`);
     }
     const outside = dependents.filter((dependent) => !owners.some((owner) => isExtensionTable(owner, dependent.table)));
     for (const { table } of outside) {

@@ -13,6 +13,7 @@ export const siteRepository = defineEntityRepository<SiteFields, SiteInput>({
   table: 'core_site',
   schema: siteSchema,
   columns: ['name'],
+  search: ['name'],
   dependents: [
     { entity: 'host', table: 'core_host', column: 'siteId' },
     { entity: 'network', table: 'core_network', column: 'siteId' },

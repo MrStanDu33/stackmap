@@ -14,6 +14,7 @@ export const serviceRepository = defineEntityRepository<ServiceFields, ServiceIn
   table: 'core_service',
   schema: serviceSchema,
   columns: ['name', 'kind', 'hostId', 'image', 'containerName'],
+  search: ['name', 'image', 'containerName'],
   kinds: { kind: 'service' },
   filters: ['hostId'],
   references: ({ hostId }) => (hostId ? [{ field: 'hostId', table: 'core_host', id: hostId }] : []),

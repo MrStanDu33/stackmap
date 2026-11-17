@@ -33,6 +33,8 @@
   `ownedBy: [{ entity, column }]`: while your extension is off in a workspace, they block that removal instead.
   Declare one for every such cascade; a cascade through the entity's own children (a listener removed with its
   service) is not covered, so avoid one.
+- Search: list in `search` the fields that name your entity (columns, owned fields, or `list.field` for a field of an
+  owned list's items, such as `addresses.address`); the first one titles it in results. Tags are always searched.
 - Inventory: register your entity types with `defineInventory` in `app/inventory.ts` (exported as `./inventory` and
   listed in `app/extensions/inventory.ts`): a hand-written form per type in `app/components/inventory/<Entity>Form.vue`
   (props `EntityFormProps`, built with `useInventoryForm`, `EntityField`, `ReferenceSelect`, `KindSelect`,

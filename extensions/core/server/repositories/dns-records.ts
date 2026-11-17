@@ -13,6 +13,7 @@ export const dnsRecordRepository = defineEntityRepository<DnsRecordFields, DnsRe
   table: 'core_dnsRecord',
   schema: dnsRecordSchema,
   columns: ['domainId', 'name', 'type', 'value', 'view', 'proxied'],
+  search: ['name', 'value'],
   booleans: ['proxied'],
   filters: ['domainId'],
   references: ({ domainId }) => [{ field: 'domainId', table: 'core_domain', id: domainId }],
