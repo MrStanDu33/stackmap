@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
 
 import { inTransaction } from './entity-repository';
+import { createWorkspaceRepositories } from './index';
 import { disabledExtensions } from './workspace-extensions';
 import { normalizeSearchText, searchPatterns } from '../domain/search';
 
@@ -43,6 +44,8 @@ const valueOf = (entity: Record<string, unknown>, field: string): unknown => {
     : value;
 };
 
+// shortcut: requests wait for a rebuild, which only runs after search fields change or an extension fails; run it in
+// the background, with writes made meanwhile re-indexed, if large instances need it.
 const textOf = (value: unknown): string => (Array.isArray(value)
   ? value.map(textOf).filter(Boolean).join(', ')
   : typeof value === 'string' || typeof value === 'number' ? String(value) : '');
@@ -57,7 +60,8 @@ const rowOf = (workspaceId: string, definition: Indexed, entity: Record<string, 
     extension,
     entity: type,
     entityId: id,
-    title: title.slice(0, MAX_TITLE),
+    // By character, not UTF-16 unit: an emoji is never cut in two.
+    title: Array.from(title).slice(0, MAX_TITLE).join(''),
     text: normalizeSearchText([...search.map((field) => valueOf(entity, field)), entity.tags]),
   };
 };
@@ -79,6 +83,22 @@ export async function unindexEntity(
 ): Promise<void> {
   await db.deleteFrom('search_index').where('workspaceId', '=', workspaceId).where('extension', '=', extension)
     .where('entity', '=', entity).where('entityId', '=', id).execute();
+}
+
+/**
+ * Deletes the index rows of the workspace whose entity is gone, such as those removed with another one by a cascade
+ * (a domain's DNS records): run in a removal's transaction, so search never meets them.
+ */
+export async function pruneSearchIndex(
+  db: Kysely<Database>, workspaceId: string, types: readonly Pick<RegisteredRepository, 'extension' | 'entity' | 'table'>[],
+): Promise<void> {
+  for (const { extension, entity, table } of types) {
+    await db.deleteFrom('search_index').where('workspaceId', '=', workspaceId).where('extension', '=', extension)
+      .where('entity', '=', entity)
+      .where('entityId', 'not in', (sub) => (sub as unknown as Kysely<Record<string, { id: string; workspaceId: string }>>)
+        .selectFrom(table).select('id').where('workspaceId', '=', workspaceId))
+      .execute();
+  }
 }
 
 /** The entities of the workspace whose text matches every word of the query, title prefix first. */
@@ -104,8 +124,9 @@ export async function searchEntities(
   const rows = await query.limit(MAX_MATCHES).execute();
   const words = normalizeSearchText([q]).split(' ');
   const prefix = normalizeSearchText([q]);
-  const starts = (title: string) => normalizeSearchText([title]).startsWith(prefix);
-  rows.sort((one, other) => Number(starts(other.title)) - Number(starts(one.title))
+  // Normalized once per row, not in each comparison.
+  const starts = new Map(rows.map(({ title }) => [title, normalizeSearchText([title]).startsWith(prefix)]));
+  rows.sort((one, other) => Number(starts.get(other.title)) - Number(starts.get(one.title))
     || one.title.localeCompare(other.title, 'en'));
 
   const items: SearchHit[] = [];
@@ -118,9 +139,8 @@ export async function searchEntities(
       continue;
     }
     const entity = await repository.get(row.entityId);
+    // Removals prune what they cascade to; a row removed behind the repositories' back is only skipped.
     if (!entity) {
-      // Removed with another entity (a cascade): its row went unnoticed until now.
-      await unindexEntity(db, workspaceId, definition, row.entityId);
       continue;
     }
     if (items.length === limit) {
@@ -151,32 +171,46 @@ export async function refreshSearchIndex(
   db: Kysely<Database>,
   definitions: readonly RegisteredRepository[],
 ): Promise<boolean> {
-  const reposOf = (_id: string): Promise<WorkspaceRepositories> => Promise.reject(new Error('Not implemented'));
+  // Read-only repositories of every type, for the startup: no actor, and no kind is ever set.
+  const reposOf = (workspaceId: string) => createWorkspaceRepositories(definitions)(db, {
+    workspaceId, actorId: null, kinds: { hasKind: () => false },
+  }) as unknown as Record<string, Repository | undefined>;
   const version = versionOf(definitions);
   const stored = await db.selectFrom('appSetting').select('value').where('key', '=', VERSION_KEY).executeTakeFirst();
   if (stored?.value === JSON.stringify(version)) {
     return false;
   }
   const workspaces = await db.selectFrom('workspace').select('id').execute();
+  let complete = true;
   for (const { id: workspaceId } of workspaces) {
-    const repos = await reposOf(workspaceId) as unknown as Record<string, Repository | undefined>;
-    const rows: ReturnType<typeof rowOf>[] = [];
-    for (const definition of definitions) {
-      const repository = repos[definition.key];
-      for (let offset = 0; repository; offset += PAGE) {
-        const page = await repository.list({}, { limit: PAGE, offset });
-        rows.push(...page.map((entity) => rowOf(workspaceId, definition, entity)));
-        if (page.length < PAGE) {
-          break;
+    try {
+      const repos = reposOf(workspaceId);
+      const rows: ReturnType<typeof rowOf>[] = [];
+      for (const definition of definitions) {
+        const repository = repos[definition.key];
+        for (let offset = 0; repository; offset += PAGE) {
+          const page = await repository.list({}, { limit: PAGE, offset });
+          rows.push(...page.map((entity) => rowOf(workspaceId, definition, entity)));
+          if (page.length < PAGE) {
+            break;
+          }
         }
       }
+      await inTransaction(db, async (trx) => {
+        await trx.deleteFrom('search_index').where('workspaceId', '=', workspaceId).execute();
+        for (let start = 0; start < rows.length; start += PAGE) {
+          await trx.insertInto('search_index').values(rows.slice(start, start + PAGE)).execute();
+        }
+      });
+    } catch (error) {
+      // One workspace's unreadable row never stops the others, nor the server: its index stays as it was.
+      complete = false;
+      console.error(`[search] could not rebuild the index of workspace ${workspaceId}: ${error instanceof Error ? error.message : String(error)}`);
     }
-    await inTransaction(db, async (trx) => {
-      await trx.deleteFrom('search_index').where('workspaceId', '=', workspaceId).execute();
-      for (let start = 0; start < rows.length; start += PAGE) {
-        await trx.insertInto('search_index').values(rows.slice(start, start + PAGE)).execute();
-      }
-    });
+  }
+  // Recorded only once every workspace is rebuilt: the next start tries the others again.
+  if (!complete) {
+    return true;
   }
   const now = new Date().toISOString();
   await db.insertInto('appSetting').values({ key: VERSION_KEY, value: JSON.stringify(version), updatedAt: now })

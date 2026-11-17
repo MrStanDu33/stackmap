@@ -57,7 +57,8 @@ export function createWorkspaceRepositories(
   definitions: readonly RegisteredRepository[],
   { flowDerivers = [], logger = loggerFor, deriverTimeoutMs }: WorkspaceRepositoriesOptions = {},
 ): (db: Kysely<Database>, scope: RepositoryScope) => WorkspaceRepositories {
-  const factories = definitions.map((definition) => [definition.key, createEntityRepository(definition)] as const);
+  const factories = definitions
+    .map((definition) => [definition.key, createEntityRepository(definition, definitions)] as const);
   const plain = (db: Kysely<Database>, scope: RepositoryScope) => Object.fromEntries(
     factories.map(([key, factory]) => [key, factory({ db, scope }) as unknown as Repository]),
   );

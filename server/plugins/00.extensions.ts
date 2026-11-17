@@ -52,8 +52,13 @@ export default defineNitroPlugin((nitroApp) => {
     });
     const runtime = await startExtensions(registry);
     // Before the first request: search finds what was stored before the search fields last changed.
-    if (await refreshSearchIndex(db, registry.repositories())) {
-      console.info('[search] rebuilt the search index');
+    try {
+      if (await refreshSearchIndex(db, registry.repositories())) {
+        console.info('[search] rebuilt the search index');
+      }
+    } catch (error) {
+      // A cache: a failed rebuild leaves search as it was, never the server down.
+      console.error(`[search] rebuild failed: ${error instanceof Error ? error.message : String(error)}`);
     }
     return runtime;
   });
