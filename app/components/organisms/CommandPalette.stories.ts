@@ -93,7 +93,9 @@ export const Keyboard: Story = {
     await waitFor(() => expect(field()).toHaveFocus());
     const options = within(list()).getAllByRole('option');
     await expect(options).toHaveLength(3);
-    await expect(options[2]).toHaveAccessibleName(t('palette.option', { label: 'Sign out', group: 'Actions' }));
+    // Its label then its group; the hidden group text is laid out apart, so a space may come before its comma.
+    const group = t('palette.inGroup', { group: 'Actions' }).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await expect(options[2]).toHaveAccessibleName(new RegExp(`^Sign out ?${group}$`));
     await expect(field()).toHaveAttribute('aria-activedescendant', options[0]?.id);
     await expect(options[0]).toHaveAttribute('aria-selected', 'true');
     await expect(outlined(options[0] as Element)).toBe(true);

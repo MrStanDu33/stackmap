@@ -41,9 +41,28 @@ const onKeydown = (event: KeyboardEvent) => {
   const dialogOpen = !paletteOpen.value && document.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
   if (isPaletteShortcut(event, { mac: isMac(), dialogOpen })) {
     event.preventDefault();
-    paletteOpen.value = !paletteOpen.value;
+    if (paletteOpen.value) {
+      paletteOpen.value = false;
+    } else {
+      openPalette();
+    }
   }
 };
+// What had the focus, or the button that opened it: the focus goes back there when it closes.
+let opener: HTMLElement | null = null;
+const openPalette = (from?: HTMLElement) => {
+  opener = from ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  paletteOpen.value = true;
+};
+watch(paletteOpen, async (open) => {
+  if (!open) {
+    await nextTick();
+    // Only when the dialog left it nowhere, as after a click in Safari.
+    if (!document.activeElement || document.activeElement === document.body) {
+      opener?.focus();
+    }
+  }
+});
 const choose = (_item: PaletteItem) => {
   paletteOpen.value = false;
 };
@@ -69,7 +88,7 @@ onBeforeUnmount(() => {
       :can-create="canCreate"
       :view="view"
       @sign-out="emit('signOut')"
-      @search="paletteOpen = true"
+      @search="openPalette"
     />
     <CommandPalette
       v-model:open="paletteOpen"

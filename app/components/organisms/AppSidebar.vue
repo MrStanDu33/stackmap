@@ -13,7 +13,8 @@ const props = defineProps<{
   /** The page's view, which the switcher's links keep. */
   view?: 'graph' | 'trace';
 }>();
-const emit = defineEmits<{ signOut: []; search: [] }>();
+// `search` with the button, so that the focus can go back to it: Safari does not focus a clicked button.
+const emit = defineEmits<{ signOut: []; search: [opener: HTMLElement] }>();
 
 const { t } = useI18n();
 // Known once mounted: the server cannot tell the platform, and the label must not change during hydration.
@@ -81,23 +82,30 @@ const items = computed(() => [
         :can-create="canCreate"
         :collapsed="collapsed"
       />
-      <UButton
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-search"
-        :square="collapsed"
-        :aria-label="t('palette.button', { shortcut })"
-        :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'"
-        class="w-full"
-        @click="emit('search')"
+      <!-- Named Search alone: the shortcut is shown, and told to assistive technologies by aria-keyshortcuts. -->
+      <UTooltip
+        :text="t('palette.buttonLabel')"
+        :kbds="[shortcut]"
+        :disabled="!collapsed"
       >
-        <template v-if="!collapsed">
-          <span class="grow text-start">{{ t('palette.buttonLabel') }}</span>
-          <UKbd aria-hidden="true">
-            {{ shortcut }}
-          </UKbd>
-        </template>
-      </UButton>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-search"
+          :square="collapsed"
+          :aria-label="collapsed ? t('palette.buttonLabel') : undefined"
+          :aria-keyshortcuts="mac ? 'Meta+K' : 'Control+K'"
+          class="w-full"
+          @click="emit('search', $event.currentTarget as HTMLElement)"
+        >
+          <template v-if="!collapsed">
+            <span class="grow text-start">{{ t('palette.buttonLabel') }}</span>
+            <UKbd aria-hidden="true">
+              {{ shortcut }}
+            </UKbd>
+          </template>
+        </UButton>
+      </UTooltip>
       <UNavigationMenu
         :collapsed="collapsed"
         :items="items"

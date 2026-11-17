@@ -568,13 +568,13 @@
     "alsoChecked": "Également coché pour {item} : {names}"
   },
   "palette": {
-    "title": "Rechercher",
-    "placeholder": "Rechercher des pages, entités et actions…",
-    "button": "Rechercher, {shortcut}",
+    "title": "Recherche",
+    "placeholder": "Rechercher des pages, des entités et des actions…",
     "buttonLabel": "Rechercher",
-    "option": "{label}, {group}",
+    "inGroup": ", {group}",
     "results": "Aucun résultat | 1 résultat | {count} résultats",
-    "empty": "Rien ne correspond à « {q} »",
-    "searching": "Recherche…"
+    "empty": "Rien ne correspond à « {q} ».",
+    "searching": "Recherche en cours…",
+    "resultsLabel": "Résultats"
   }
 }

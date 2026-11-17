@@ -4,7 +4,10 @@ export function isPaletteShortcut(
   { mac, dialogOpen = false }: { mac: boolean; dialogOpen?: boolean },
 ): boolean {
   const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
-  return !dialogOpen && modifier && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'k';
+  // By the letter on Latin layouts (Dvorak's K is elsewhere), by the key's place on others (Cyrillic, Greek…).
+  const letter = event.key.toLowerCase();
+  const k = /^[a-z]$/.test(letter) ? letter === 'k' : event.code === 'KeyK';
+  return !dialogOpen && modifier && !event.altKey && !event.shiftKey && k;
 }
 
 /** The shortcut as the platform writes it. */

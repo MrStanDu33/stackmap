@@ -49,6 +49,19 @@ const content: Record<string, unknown> = {
     field.value?.inputRef?.focus();
   },
 };
+// Said once typing settles, and nothing before anything is typed.
+const announced = ref('');
+let settle: ReturnType<typeof setTimeout> | undefined;
+watch([searchTerm, count, () => props.loading], () => {
+  clearTimeout(settle);
+  const typed = searchTerm.value.trim() !== '';
+  settle = setTimeout(() => {
+    announced.value = props.loading ? t('palette.searching') : typed ? t('palette.results', { count: count.value }, count.value) : '';
+  }, 250);
+}, { immediate: true });
+onBeforeUnmount(() => {
+  clearTimeout(settle);
+});
 const activeId = computed(() => options.value[active.value]?.id);
 
 const choose = (index: number) => {
@@ -66,6 +79,10 @@ const move = (step: number) => {
 };
 // Home and End stay with the text field, as in the ARIA combobox pattern.
 const onKeydown = (event: KeyboardEvent) => {
+  // An input method composing text (Chinese, Japanese…) uses the arrows and Enter itself.
+  if (event.isComposing) {
+    return;
+  }
   const keys: Record<string, (() => void) | undefined> = {
     ArrowDown: () => { move(1); },
     ArrowUp: () => { move(-1); },
@@ -84,6 +101,7 @@ const onKeydown = (event: KeyboardEvent) => {
     :open="open"
     :title="t('palette.title')"
     :content="content"
+    :close="false"
     :ui="{ header: 'sr-only', body: 'p-0 sm:p-0' }"
     @update:open="emit('update:open', $event)"
   >
@@ -97,7 +115,10 @@ const onKeydown = (event: KeyboardEvent) => {
           icon="i-lucide-search"
           :loading="loading"
           :placeholder="t('palette.placeholder')"
-          :ui="{ root: 'w-full border-b border-default', leadingIcon: 'motion-safe:animate-none' }"
+          :ui="{
+            root: 'w-full border-b border-default',
+            base: 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
+          }"
           role="combobox"
           aria-autocomplete="list"
           :aria-label="t('palette.title')"
@@ -106,10 +127,12 @@ const onKeydown = (event: KeyboardEvent) => {
           :aria-activedescendant="activeId"
           @keydown="onKeydown"
         />
+        <!-- Only with results: an empty listbox has nothing to choose; the field then says it is collapsed. -->
         <div
+          v-if="count > 0"
           :id="listId"
           role="listbox"
-          :aria-label="t('palette.title')"
+          :aria-label="t('palette.resultsLabel')"
           class="max-h-96 overflow-y-auto p-1"
         >
           <div
@@ -134,9 +157,9 @@ const onKeydown = (event: KeyboardEvent) => {
               :key="option.id"
               role="option"
               :aria-selected="option.id === activeId ? 'true' : 'false'"
-              :aria-label="t('palette.option', { label: option.item.label, group: group.label })"
+              :aria-describedby="option.item.description ? `${option.id}-description` : undefined"
               class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm"
-              :class="option.id === activeId ? 'bg-elevated' : ''"
+              :class="option.id === activeId ? 'bg-elevated text-highlighted ring-2 ring-inset ring-primary' : ''"
               @mousedown.prevent
               @click="choose(options.indexOf(option))"
             >
@@ -146,11 +169,24 @@ const onKeydown = (event: KeyboardEvent) => {
                 class="size-4 shrink-0 text-muted"
                 aria-hidden="true"
               />
-              <span class="grow truncate">{{ option.item.label }}</span>
+              <!-- Named by its label, then its group for screen readers: the visible text starts its name. -->
+              <span class="grow truncate">
+                {{ option.item.label }}<span class="sr-only">{{ t('palette.inGroup', { group: group.label }) }}</span>
+              </span>
+              <!-- Read as the option's description (aria-describedby), not again as part of its name. -->
               <span
                 v-if="option.item.description"
+                :id="`${option.id}-description`"
+                aria-hidden="true"
                 class="text-xs text-muted"
               >{{ option.item.description }}</span>
+              <!-- Beyond the ring: Enter chooses this one. -->
+              <UIcon
+                v-if="option.id === activeId"
+                name="i-lucide-corner-down-left"
+                class="size-4 shrink-0"
+                aria-hidden="true"
+              />
             </div>
             <!-- eslint-enable vuejs-accessibility/click-events-have-key-events -->
             <!-- eslint-enable vuejs-accessibility/interactive-supports-focus -->
@@ -166,7 +202,7 @@ const onKeydown = (event: KeyboardEvent) => {
           role="status"
           class="sr-only"
         >
-          {{ loading ? t('palette.searching') : t('palette.results', { count }, count) }}
+          {{ announced }}
         </p>
       </div>
     </template>
