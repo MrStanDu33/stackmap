@@ -106,6 +106,11 @@ export interface EntityRepositoryDefinition<Fields = unknown, Input = unknown, D
   booleans?: readonly string[];
   /** Fields holding a kind, and the entity whose kinds they are. */
   kinds?: Readonly<Record<string, KindEntity>>;
+  /**
+   * Fields search matches, besides tags: columns, owned fields, or a field of an owned list's items
+   * (`addresses.address`). The first one's value titles the entity in search results.
+   */
+  search?: readonly string[];
   /** Columns `list` can filter on. */
   filters?: readonly string[];
   /** Fields whose combination is unique in the workspace, reported on a conflict. */

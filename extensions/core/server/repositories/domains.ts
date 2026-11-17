@@ -14,5 +14,6 @@ export const domainRepository = defineEntityRepository<DomainFields, DomainInput
   table: 'core_domain',
   schema: domainSchema,
   columns: ['name'],
+  search: ['name'],
   unique: ['name'],
 });

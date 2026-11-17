@@ -42,12 +42,15 @@ const runPlugin = async (
   builtin?: { manifests: ExtensionManifest[]; servers: ExtensionServer[] },
   database: Promise<unknown> = Promise.resolve({}),
   migrateExtensions: () => Promise<void> = () => Promise.resolve(),
+  refreshSearchIndex: () => Promise<boolean> = () => Promise.resolve(false),
 ) => {
   vi.resetModules();
   vi.stubGlobal('defineNitroPlugin', (plugin: unknown) => plugin);
   vi.doMock('../utils/database', () => ({ useDatabase: () => database }));
   // The extension migrations have their own integration tests; here they only need to run at the right time.
   vi.doMock('../extensions/migrations', () => ({ migrateExtensions }));
+  // The search index has its own integration tests too.
+  vi.doMock('../repositories/search-index', () => ({ refreshSearchIndex }));
   if (builtin) {
     vi.doMock('../extensions/builtin', () => ({
       BUILTIN_EXTENSIONS: builtin.manifests,
@@ -63,6 +66,7 @@ const runPlugin = async (
 
 afterEach(() => {
   vi.doUnmock('../extensions/migrations');
+  vi.doUnmock('../repositories/search-index');
   vi.doUnmock('../extensions/builtin');
   vi.doUnmock('../utils/database');
   vi.unstubAllGlobals();
@@ -208,5 +212,41 @@ describe('extensions plugin: lifecycle', () => {
     const plugins = readdirSync(import.meta.dirname).filter((file) => !file.includes('.test.'));
     expect(plugins.sort((a, b) => a.localeCompare(b)).indexOf('00.extensions.ts'))
       .toBeLessThan(plugins.indexOf('database.ts'));
+  });
+});
+
+describe('extensions plugin: search index', () => {
+  it('given a rebuild that fails, logs it and keeps serving requests with the index as it was (review)', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    const { nitro } = await runPlugin(undefined, Promise.resolve({}), () => Promise.resolve(), () => Promise.reject(new Error('unreadable row')));
+
+    await nitro.run('request');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(logged).toHaveBeenCalledWith(expect.stringMatching(/\[search\].*unreadable row/));
+    expect(exit).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the search index once the extensions have started, before the first request (8)', async () => {
+    const order: string[] = [];
+    const tls = manifest('tls');
+    const { nitro } = await runPlugin(
+      { manifests: [tls], servers: [defineExtensionServer(tls, { setup: () => void order.push('setup') })] },
+      Promise.resolve({}),
+      () => {
+        order.push('migrations');
+        return Promise.resolve();
+      },
+      () => {
+        order.push('search');
+        return Promise.resolve(true);
+      },
+    );
+
+    await nitro.run('request');
+    order.push('request');
+
+    expect(order).toEqual(['migrations', 'setup', 'search', 'request']);
   });
 });

@@ -11,13 +11,14 @@ import {
   WorkspaceReferenceError,
 } from './errors';
 import { toIssues } from './issues';
+import { indexEntity, pruneSearchIndex, unindexEntity } from './search-index';
 import { isForeignKeyViolation, isUniqueViolation } from '../database/errors';
 import { newId } from '../database/ids';
 import { fromBoolean, fromJson, fromTimestamp, toBoolean, toJson, toTimestamp } from '../database/serialize';
 
 import type { Dependent } from './errors';
 import type { Database } from '../database/types/schema';
-import type { OwnedRows } from '../extensions/registry';
+import type { RegisteredRepository, OwnedRows } from '../extensions/registry';
 import type {
   EntityReference, EntityRepositoryDefinition, Page, RepositoryContext as DefinitionContext, RepositoryScope,
   ScopedRepository,
@@ -90,6 +91,8 @@ export function createEntityRepository<Fields, Input, DB>(
   definition: EntityRepositoryDefinition<Fields, Input, DB> & {
     extension: string; tableOwners?: readonly string[]; owned?: readonly OwnedRows[];
   },
+  /** Every indexed type of the workspace: a removal prunes the index rows of those it cascades to. */
+  indexed: readonly Pick<RegisteredRepository, 'extension' | 'entity' | 'table'>[] = [],
 ): (context: RepositoryContext) => ScopedRepository<unknown, unknown, unknown, object> {
   const { table } = definition;
   for (const column of [...definition.columns, ...(definition.filters ?? []), ...(definition.ownedFields ?? [])]) {
@@ -220,6 +223,10 @@ export function createEntityRepository<Fields, Input, DB>(
       }
       await audit(trx, action, id, [...changed]);
       const [saved] = await find(trx, { id });
+      // In the same transaction: the index never sees a write that did not commit.
+      if (saved) {
+        await indexEntity(trx, scope.workspaceId, definition, saved);
+      }
       return saved;
     };
 
@@ -361,6 +368,8 @@ export function createEntityRepository<Fields, Input, DB>(
             throw error;
           }
           await audit(trx, 'delete', id, []);
+          await unindexEntity(trx, scope.workspaceId, definition, id);
+          await pruneSearchIndex(trx, scope.workspaceId, indexed);
           return true;
         });
       }),

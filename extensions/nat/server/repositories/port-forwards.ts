@@ -37,6 +37,7 @@ export const portForwardRepository = defineEntityRepository<PortForwardFields, P
   table: 'nat_portForward',
   schema: portForwardSchema,
   columns: ['hostId', 'externalAddress', 'externalPort', 'transport', 'internalAddress', 'internalPort', 'description'],
+  search: ['externalAddress', 'externalPort', 'internalAddress', 'internalPort', 'description'],
   // Deleted with their host (on delete cascade).
   ownedBy: [{ entity: 'host', column: 'hostId' }],
   filters: ['hostId'],

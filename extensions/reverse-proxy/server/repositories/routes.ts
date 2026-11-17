@@ -103,6 +103,7 @@ export const proxyRouteRepository = defineEntityRepository<ProxyRouteFields, Pro
   table: 'reverse_proxy_route',
   schema: proxyRouteSchema,
   columns: ['proxyServiceId', 'upstreamListenerId', 'forceSsl', 'websockets'],
+  search: ['hostnames'],
   ownedFields: ['hostnames'],
   booleans: ['forceSsl', 'websockets'],
   filters: ['proxyServiceId', 'upstreamListenerId'],

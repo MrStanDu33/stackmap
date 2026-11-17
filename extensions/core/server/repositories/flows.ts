@@ -16,6 +16,7 @@ export const flowRepository = defineEntityRepository<FlowFields, FlowInput>({
   table: 'core_flow',
   schema: flowSchema,
   columns: ['sourceServiceId', 'targetListenerId', 'protocol', 'purpose', 'encrypted'],
+  search: ['purpose'],
   booleans: ['encrypted'],
   kinds: { protocol: 'protocol' },
   filters: ['sourceServiceId', 'targetListenerId'],

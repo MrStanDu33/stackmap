@@ -28,7 +28,14 @@ Kysely, with one code path for both (`server/database/`):
 - extensions bring their own tables through migrations of their own (see Extensions);
 - only `server/database/`, the repositories (`server/repositories/`) and extensions' server code query the database,
   and nothing selects every column: a test fails otherwise;
-- integration tests run every migration and query on both databases, and check that both end with the same schema.
+- integration tests run every migration and query on both databases, and check that both end with the same schema;
+- search uses a `search_index` table (`server/repositories/search-index.ts`): each entity's title and the text of its
+  search fields (declared per type in its repository definition, `search`) and tags, lowercased without accents,
+  written in the entity's transaction. A query's words are normalized the same way, `%`, `_` and `\` are escaped, and
+  every word must match (`LIKE … escape '\'`, the same on both databases). Titles starting with the query come first;
+  entities of extensions turned off in the workspace are left out, and a row whose entity went with another one (a
+  cascade) is skipped and deleted. When the search fields change, the index is rebuilt at startup, before the first
+  request (`searchIndexVersion` in `appSetting`). `GET /api/workspaces/:id/search` serves it to every member.
 
 ## Repository layout
 
@@ -452,13 +459,13 @@ healthcheck calls it. The database error goes to the logs, never to the response
   extension's keys or a dependency's (port forwards use the core's transports). Reference options carry the referenced
   row, so a form can offer its fields: a port forward picks its external address among its host's addresses.
   `EntityTable` loads up to 1000 entities per type and sorts, searches, filters (status, kind) and pages them in the
-  browser, with the query in the URL; beyond 1000 it says it shows the first ones (server-side search comes with the
-  search index). Editors create, edit and delete in `EntitySlideover` and `DeleteEntityDialog` through the entity API:
-  an edit sends only the changed fields, validation issues are translated from their codes under their fields and in a
-  summary linked to them (an issue on a row the form does not show, such as a list edited as text, links to its list),
-  and the other refusals (changed, gone, in use, forbidden) are said in place. Outcomes are announced in the table's
-  live region once the slide-over or dialog has closed and focus has moved, since a modal hides the page from assistive
-  technologies; viewers read entities as text and links.
+  browser, with the query in the URL; beyond 1000 it says it shows the first ones (the search index serves the command
+  palette, not the tables). Editors create, edit and delete in `EntitySlideover` and `DeleteEntityDialog` through the
+  entity API: an edit sends only the changed fields, validation issues are translated from their codes under their
+  fields and in a summary linked to them (an issue on a row the form does not show, such as a list edited as text, links
+  to its list), and the other refusals (changed, gone, in use, forbidden) are said in place. Outcomes are announced in
+  the table's live region once the slide-over or dialog has closed and focus has moved, since a modal hides the page
+  from assistive technologies; viewers read entities as text and links.
 - Kinds, entity names and extension names are translated from the installed extensions (`GET /api/extensions`,
   loaded once into shared state by `useExtensions()`, read through `useExtensionLabels()`), falling back to the raw
   id: in the inventory and in the Traffic and Trace views, visible text and accessible names alike.

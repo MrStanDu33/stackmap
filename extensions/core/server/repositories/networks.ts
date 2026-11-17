@@ -44,6 +44,7 @@ export const networkRepository = defineEntityRepository<NetworkFields, NetworkIn
   table: 'core_network',
   schema: networkSchema,
   columns: ['name', 'kind', 'cidr', 'vlan', 'siteId'],
+  search: ['name', 'cidr'],
   kinds: { kind: 'network' },
   filters: ['siteId'],
   references: ({ siteId }) => (siteId ? [{ field: 'siteId', table: 'core_site', id: siteId }] : []),

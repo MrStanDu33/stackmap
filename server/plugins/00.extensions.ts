@@ -4,6 +4,7 @@ import { BUILTIN_EXTENSION_SERVERS, BUILTIN_EXTENSIONS } from '../extensions/bui
 import { migrateExtensions } from '../extensions/migrations';
 import { createExtensionRegistry } from '../extensions/registry';
 import { startExtensions } from '../extensions/runtime';
+import { refreshSearchIndex } from '../repositories/search-index';
 import { useDatabase } from '../utils/database';
 import { setExtensionRegistry, setExtensionRuntime } from '../utils/extensions';
 
@@ -40,7 +41,8 @@ export default defineNitroPlugin((nitroApp) => {
   // extensions' setup, not for their app:ready handlers.
   const ready = Promise.resolve().then(async () => {
     // Their tables first, in registry order, then their setup: setup and requests can rely on the tables.
-    await migrateExtensions(await useDatabase(), registry, {
+    const db = await useDatabase();
+    await migrateExtensions(db, registry, {
       info: (message) => {
         console.info(message);
       },
@@ -48,7 +50,17 @@ export default defineNitroPlugin((nitroApp) => {
         console.error(message);
       },
     });
-    return startExtensions(registry);
+    const runtime = await startExtensions(registry);
+    // Before the first request: search finds what was stored before the search fields last changed.
+    try {
+      if (await refreshSearchIndex(db, registry.repositories())) {
+        console.info('[search] rebuilt the search index');
+      }
+    } catch (error) {
+      // A cache: a failed rebuild leaves search as it was, never the server down.
+      console.error(`[search] rebuild failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return runtime;
   });
   ready
     .then((runtime) => runtime.callHook('app:ready', { version }))

@@ -16,6 +16,7 @@ export interface Database {
   audit_event: AuditEventTable;
   workspace_extension_disabled: WorkspaceExtensionDisabledTable;
   workspace_hidden_entity_kept: WorkspaceHiddenEntityKeptTable;
+  search_index: SearchIndexTable;
 }
 
 /**
@@ -146,4 +147,16 @@ export interface WorkspaceHiddenEntityKeptTable {
   entityId: string;
   keptAt: string;
   keptBy: string | null;
+}
+
+/** What names an entity, for search. No foreign key to it: its table depends on its type. */
+export interface SearchIndexTable {
+  workspaceId: string;
+  extension: string;
+  entity: string;
+  entityId: string;
+  /** As stored: its first search field's value, or its id. */
+  title: string;
+  /** Its search fields and tags, normalized (lowercase, no accents, single spaces). */
+  text: string;
 }

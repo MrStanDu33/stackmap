@@ -90,6 +90,7 @@ export const hostRepository = defineEntityRepository<HostFields, HostInput, Core
   table: 'core_host',
   schema: hostSchema,
   columns: ['name', 'kind', 'os', 'siteId'],
+  search: ['name', 'addresses.address'],
   ownedFields: ['addresses'],
   kinds: { kind: 'host' },
   filters: ['siteId'],
