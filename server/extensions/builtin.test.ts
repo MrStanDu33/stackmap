@@ -90,3 +90,23 @@ describe('built-in extension code', () => {
     }
   });
 });
+
+describe('built-in search fields', () => {
+  it('declares search fields for every built-in entity type, as the spec lists them (3)', () => {
+    const registry = createExtensionRegistry(BUILTIN_EXTENSIONS, { servers: BUILTIN_EXTENSION_SERVERS });
+
+    expect(Object.fromEntries(registry.repositories().map(({ extension, entity, search }) => [`${extension}/${entity}`, search])))
+      .toEqual({
+        'core/site': ['name'],
+        'core/network': ['name', 'cidr'],
+        'core/host': ['name', 'addresses.address'],
+        'core/service': ['name', 'image', 'containerName'],
+        'core/listener': ['port'],
+        'core/domain': ['name'],
+        'core/dns-record': ['name', 'value'],
+        'core/flow': ['purpose'],
+        'nat/port-forward': ['externalAddress', 'externalPort', 'internalAddress', 'internalPort', 'description'],
+        'reverse-proxy/route': ['hostnames'],
+      });
+  });
+});

@@ -61,6 +61,10 @@
       "description": "Document which ports your routers forward and where they send them. Its entities."
     },
     {
+      "name": "Search",
+      "description": "Finding a workspace's entities by what names them: their search fields and tags."
+    },
+    {
       "name": "System",
       "description": "The instance itself: whether it is up, and the description of this API."
     },
@@ -4346,6 +4350,136 @@
                       "detail": "The entity is still used by 1 route.",
                       "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/extensions/nat/orphans/port-forward/0199d6a0-0000-7000-8000-000000000030",
                       "code": "entity_in_use"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/search": {
+      "get": {
+        "operationId": "searchWorkspace",
+        "summary": "Search a workspace",
+        "description": "The workspace's entities whose search fields (a host's name and addresses, a DNS record's name and value, a route's hostnames…) or tags contain every word of `q`, ignoring case and accents. Titles that start with `q` come first, then the others, each by title. Entities of extensions turned off in the workspace are left out.\n\nRequires the viewer role.",
+        "tags": [
+          "Search"
+        ],
+        "x-required-role": "viewer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspaceId",
+            "schema": {
+              "type": "string",
+              "maxLength": 36,
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "The workspace",
+              "examples": [
+                "0199d6a0-0000-7000-8000-000000000001"
+              ]
+            },
+            "required": true,
+            "description": "The workspace",
+            "example": "0199d6a0-0000-7000-8000-000000000001"
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "pattern": "^[^\\u0000-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+              "description": "The words to find, at most 100 characters",
+              "examples": [
+                "router"
+              ]
+            },
+            "required": true,
+            "description": "The words to find, at most 100 characters",
+            "example": "router"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 20,
+              "description": "The most results to give",
+              "examples": [
+                20
+              ],
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "description": "The most results to give",
+            "example": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The entities found, possibly none",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                },
+                "examples": {
+                  "router": {
+                    "summary": "One host found",
+                    "value": {
+                      "items": [
+                        {
+                          "extension": "core",
+                          "entity": "host",
+                          "id": "0199d6a0-0000-7000-8000-000000000002",
+                          "title": "Edge router",
+                          "matched": "name"
+                        }
+                      ],
+                      "truncated": false
+                    }
+                  },
+                  "none": {
+                    "summary": "Nothing found",
+                    "value": {
+                      "items": [],
+                      "truncated": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationFailed"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "404": {
+            "description": "No such workspace, or one the caller is not a member of",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                "examples": {
+                  "workspace_not_found": {
+                    "summary": "Unknown workspace",
+                    "value": {
+                      "type": "urn:stackmap:problem:workspace_not_found",
+                      "title": "The workspace does not exist",
+                      "status": 404,
+                      "detail": "No workspace 0199d6a0-0000-7000-8000-000000000001.",
+                      "instance": "/api/workspaces/0199d6a0-0000-7000-8000-000000000001/search",
+                      "code": "workspace_not_found"
                     }
                   }
                 }
@@ -23872,6 +24006,114 @@
           {
             "id": "nat",
             "enabled": false
+          }
+        ]
+      },
+      "SearchResults": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            },
+            "description": "Title prefix first, then by title"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "Whether more entities matched than `limit`",
+            "examples": [
+              false
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "truncated"
+        ],
+        "additionalProperties": false,
+        "description": "Search results",
+        "examples": [
+          {
+            "items": [
+              {
+                "extension": "core",
+                "entity": "host",
+                "id": "0199d6a0-0000-7000-8000-000000000002",
+                "title": "Edge router",
+                "matched": "name"
+              }
+            ],
+            "truncated": false
+          }
+        ]
+      },
+      "SearchHit": {
+        "type": "object",
+        "properties": {
+          "extension": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "The extension of its type",
+            "examples": [
+              "core"
+            ]
+          },
+          "entity": {
+            "type": "string",
+            "maxLength": 40,
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "description": "Its type, in the extension",
+            "examples": [
+              "host"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 36,
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Its id",
+            "examples": [
+              "0199d6a0-0000-7000-8000-000000000002"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "What names it: its first search field's value, or its id",
+            "examples": [
+              "Edge router"
+            ]
+          },
+          "matched": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F-\\u009F\\u200B\\u200C\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069\\uFEFF]*$",
+            "description": "The search field whose value matched first, or `tags`",
+            "examples": [
+              "name"
+            ]
+          }
+        },
+        "required": [
+          "extension",
+          "entity",
+          "id",
+          "title",
+          "matched"
+        ],
+        "additionalProperties": false,
+        "description": "An entity search found",
+        "examples": [
+          {
+            "extension": "core",
+            "entity": "host",
+            "id": "0199d6a0-0000-7000-8000-000000000002",
+            "title": "Edge router",
+            "matched": "name"
           }
         ]
       },

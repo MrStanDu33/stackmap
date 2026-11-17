@@ -15,6 +15,9 @@ export const TAGS: Readonly<Record<string, TagDocs>> = {
       url: 'https://github.com/MrStanDu33/stackmap/blob/develop/docs/ARCHITECTURE.md#extensions',
     },
   },
+  Search: {
+    description: 'Finding a workspace\'s entities by what names them: their search fields and tags.',
+  },
   Traces: {
     description: 'The path of a request to a hostname, hop by hop, computed from the workspace\'s flows.',
   },

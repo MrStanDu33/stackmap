@@ -579,3 +579,29 @@ describe('extension registry: trace hop resolvers', () => {
     ]);
   });
 });
+
+describe('extension registry: search fields', () => {
+  const entity = (extension: string, id: string) => ({ id, table: `${extension}_${id}`, label: `extensions.${extension}.entities.${id}` });
+  const tls = (() => {
+    const base = manifest('tls', { code: { server: true } });
+    return { ...base, contributes: { ...base.contributes, entities: [entity('tls', 'certificate')] } } satisfies ExtensionManifest;
+  })();
+  const certificates = (search?: string[]) => defineEntityRepository({
+    entity: 'certificate', key: 'certificates', table: 'tls_certificate', schema: { input: {}, patch: {} } as never,
+    columns: ['commonName'], ownedFields: ['sans'], ...(search ? { search } : {}),
+  });
+
+  it('given a repository whose search lists a field that is neither a column nor an owned field, fails the extension naming it (1)', () => {
+    expect(summary([tls], { servers: [defineExtensionServer(tls, { repositories: [certificates(['commonName', 'issuer'])] })] }))
+      .toEqual([expect.stringMatching(/^tls failed: .*repository "certificates" searches "issuer", which is neither a column nor an owned field/)]);
+  });
+
+  it('accepts a column, an owned field, and a field of an owned list\'s items (sans.name) (1)', () => {
+    expect(summary([tls], { servers: [defineExtensionServer(tls, { repositories: [certificates(['commonName', 'sans', 'sans.name'])] })] }))
+      .toEqual(['tls active']);
+  });
+
+  it('given a repository without search, accepts it: its entities are found by their tags (2)', () => {
+    expect(summary([tls], { servers: [defineExtensionServer(tls, { repositories: [certificates()] })] })).toEqual(['tls active']);
+  });
+});
