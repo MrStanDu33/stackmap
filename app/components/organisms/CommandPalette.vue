@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaletteGroup, PaletteItem } from '../../utils/palette';
+import type { PaletteColor, PaletteGroup, PaletteItem } from '../../utils/palette';
 
 /**
  * The command palette: a search field over groups of results, in a dialog. A combobox and listbox of its own (ARIA
@@ -19,6 +19,11 @@ const { t } = useI18n();
 const baseId = useId();
 const listId = `${baseId}-list`;
 
+// Literal classes, so that Tailwind generates them.
+const COLORS: Record<PaletteColor, string> = {
+  primary: 'text-primary', info: 'text-info', secondary: 'text-secondary', warning: 'text-warning',
+};
+const colorOf = (group: PaletteGroup) => (group.color ? COLORS[group.color] : 'text-muted');
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 // Filtered here: the count said is the count shown.
 const shown = computed(() => {
@@ -26,15 +31,21 @@ const shown = computed(() => {
   return props.groups
     .map((group) => ({
       ...group,
-      items: group.items.filter(({ label, description }) =>
-        words.every((word) => normalize(`${label} ${description ?? ''}`).includes(word))),
+      // A group matched on the server shows what it found: its titles may not hold the words (an address did).
+      items: group.searched
+        ? group.items
+        : group.items.filter(({ label, description }) =>
+            words.every((word) => normalize(`${label} ${description ?? ''}`).includes(word))),
     }))
-    .filter(({ items }) => items.length > 0);
+    .filter(({ items, message }) => items.length > 0 || message !== undefined);
 });
 /** Every option in order, with its id in the listbox. */
 const options = computed(() => shown.value.flatMap((group) => group.items.map((item, index) => ({
   item, group, id: `${baseId}-${group.id}-${String(index)}`,
 }))));
+// With nothing to list, a group's message (searching, failed) says more than "nothing matches".
+const emptyText = computed(() => shown.value.find(({ message }) => message)?.message
+  ?? t('palette.empty', { q: searchTerm.value.trim() }));
 const count = computed(() => options.value.length);
 const active = ref(0);
 // A new search starts from the first result; an index past the list is never pointed at.
@@ -144,10 +155,25 @@ const onKeydown = (event: KeyboardEvent) => {
             <div
               :id="`${baseId}-${group.id}-label`"
               role="presentation"
-              class="px-2 py-1 text-xs font-semibold text-muted"
+              class="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-muted"
             >
+              <UIcon
+                v-if="group.icon"
+                :name="group.icon"
+                :data-icon="group.icon"
+                class="size-3.5"
+                :class="colorOf(group)"
+                aria-hidden="true"
+              />
               {{ group.label }}
             </div>
+            <p
+              v-if="group.message"
+              role="presentation"
+              class="px-2 py-1 text-sm text-muted"
+            >
+              {{ group.message }}
+            </p>
             <!-- Reached through the combobox's aria-activedescendant, not focus; the mouse chooses one too. -->
             <!-- eslint-disable vuejs-accessibility/click-events-have-key-events -->
             <!-- eslint-disable vuejs-accessibility/interactive-supports-focus -->
@@ -166,7 +192,9 @@ const onKeydown = (event: KeyboardEvent) => {
               <UIcon
                 v-if="option.item.icon"
                 :name="option.item.icon"
-                class="size-4 shrink-0 text-muted"
+                :data-icon="option.item.icon"
+                class="size-4 shrink-0"
+                :class="colorOf(group)"
                 aria-hidden="true"
               />
               <!-- Named by its label, then its group for screen readers: the visible text starts its name. -->
@@ -193,10 +221,10 @@ const onKeydown = (event: KeyboardEvent) => {
           </div>
         </div>
         <p
-          v-if="count === 0 && searchTerm.trim() !== '' && !loading"
+          v-if="count === 0 && searchTerm.trim() !== ''"
           class="px-3 py-6 text-center text-sm text-muted"
         >
-          {{ t('palette.empty', { q: searchTerm.trim() }) }}
+          {{ emptyText }}
         </p>
         <p
           role="status"

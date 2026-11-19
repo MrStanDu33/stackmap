@@ -5,7 +5,8 @@ import { usePaletteSearch } from './usePaletteSearch';
 
 const HIT = { extension: 'core', entity: 'host', id: '0199d6a0-0000-7000-8000-000000000002', title: 'Edge router', matched: 'name' };
 
-const setUp = (workspaceId: string | undefined = 'w1') => {
+// The workspace is passed explicitly: a default parameter would turn undefined into an id.
+const setUp = (workspaceId: string | undefined) => {
   const q = ref('');
   const id = ref(workspaceId);
   const scope = effectScope();
@@ -37,7 +38,7 @@ describe('usePaletteSearch', () => {
   });
 
   it('searches the workspace 200 ms after typing stops, at most 20 entities (4)', async () => {
-    const { q, entities } = setUp();
+    const { q, entities } = setUp('w1');
 
     q.value = 'router';
     await flush(150);
@@ -57,7 +58,7 @@ describe('usePaletteSearch', () => {
       signals.push(signal);
       return new Promise(() => undefined);
     });
-    const { q } = setUp();
+    const { q } = setUp('w1');
 
     q.value = 'rou';
     await flush(210);
@@ -69,7 +70,7 @@ describe('usePaletteSearch', () => {
 
   it('says it failed when the request fails, with no entities (4)', async () => {
     fetched.mockImplementation(() => Promise.reject(new Error('down')));
-    const { q, entities } = setUp();
+    const { q, entities } = setUp('w1');
 
     q.value = 'router';
     await flush(210);

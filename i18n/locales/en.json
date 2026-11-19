@@ -575,6 +575,19 @@
     "results": "No results | 1 result | {count} results",
     "empty": "Nothing matches “{q}”.",
     "searching": "Searching…",
-    "resultsLabel": "Results"
+    "resultsLabel": "Results",
+    "groups": {
+      "entities": "Entities",
+      "pages": "Pages",
+      "workspaces": "Workspaces",
+      "actions": "Actions"
+    },
+    "failed": "Search failed",
+    "actions": {
+      "theme": "Theme: {value}",
+      "contrast": "Contrast: {value}",
+      "language": "Language: {value}",
+      "trace": "Trace {hostname}"
+    }
   }
 }
