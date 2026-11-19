@@ -2,7 +2,6 @@
 import { isMac, isPaletteShortcut } from '../../utils/palette-shortcut';
 
 import type { WorkspaceRole } from '#shared/contracts/contract';
-import type { PaletteGroup, PaletteItem } from '../../utils/palette';
 
 /** Every page's frame: the skip link, the sidebar and the main content, with the mobile navigation toggle. */
 defineProps<{
@@ -31,11 +30,9 @@ const skipToMain = () => {
   main.value?.focus();
 };
 
-// The command palette: Cmd+K / Ctrl+K or the sidebar's Search button, on every page of the shell.
-const paletteOpen = ref(false);
-const searchTerm = ref('');
-// shortcut: no group yet; pages, workspaces, actions and entities join in the next steps of the palette (5d′2).
-const paletteGroups = computed<PaletteGroup[]>(() => []);
+// The command palette, which app.vue renders with its groups: Cmd+K / Ctrl+K or the sidebar's Search button open it,
+// on every page of the shell.
+const paletteOpen = useState('palette.open', () => false);
 const onKeydown = (event: KeyboardEvent) => {
   // Another dialog keeps the keyboard; the palette's own shortcut closes nothing.
   const dialogOpen = !paletteOpen.value && document.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
@@ -63,9 +60,6 @@ watch(paletteOpen, async (open) => {
     }
   }
 });
-const choose = (_item: PaletteItem) => {
-  paletteOpen.value = false;
-};
 onMounted(() => {
   document.addEventListener('keydown', onKeydown);
 });
@@ -89,12 +83,6 @@ onBeforeUnmount(() => {
       :view="view"
       @sign-out="emit('signOut')"
       @search="openPalette"
-    />
-    <CommandPalette
-      v-model:open="paletteOpen"
-      v-model:search-term="searchTerm"
-      :groups="paletteGroups"
-      @select="choose"
     />
     <UDashboardPanel>
       <template #header>

@@ -14,6 +14,9 @@ watch(locale, async (code) => {
   uiLocale.value = bundled[code] ?? (await import('#shared/i18n/ui-locale')).uiLocaleFor(code);
 }, { immediate: true });
 
+// One palette for every page of the shell, which opens it.
+const palette = useCommandPalette();
+
 useHead({
   htmlAttrs: {
     lang: () => localeHead.value.htmlAttrs.lang,
@@ -26,5 +29,12 @@ useHead({
   <UApp :locale="uiLocale">
     <NuxtRouteAnnouncer />
     <NuxtPage />
+    <CommandPalette
+      v-model:open="palette.open.value"
+      v-model:search-term="palette.searchTerm.value"
+      :groups="palette.groups.value"
+      :loading="palette.loading.value"
+      @select="palette.choose"
+    />
   </UApp>
 </template>
