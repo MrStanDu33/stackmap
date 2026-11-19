@@ -55,13 +55,13 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
       ? entities.hits.map(({ extension, entity, id, title }) => ({
           id: `${extension}/${entity}/${id}`,
           label: title,
-          description: typeOf(extension, entity)?.name ?? entity,
+          description: typeOf(extension, entity)?.name ?? t('palette.unknownType'),
           icon: typeOf(extension, entity)?.icon ?? 'i-lucide-box',
           command: navigate(`${base}/inventory/${extension}/${entity}`),
         }))
       : [],
     ...(entities.state === 'loading' ? { message: t('palette.searching') } : {}),
-    ...(entities.state === 'failed' ? { message: t('palette.failed') } : {}),
+    ...(entities.state === 'failed' ? { message: t('palette.failed'), failed: true } : {}),
   };
 
   const page = (id: string, label: string, to: string, icon: string) => ({ id, label, icon, command: navigate(to) });
@@ -125,16 +125,17 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
           }))
         : []),
       {
-        id: 'theme', label: t('palette.actions.theme', { value: t(theme === 'light' ? 'preferences.light' : 'preferences.midnight') }),
+        id: 'theme', label: t(theme === 'light' ? 'palette.actions.themeLight' : 'palette.actions.themeMidnight'),
         icon: theme === 'light' ? 'i-lucide-sun' : 'i-lucide-moon', command: { kind: 'display', changes: { theme } },
       },
       {
-        id: 'contrast', label: t('palette.actions.contrast', { value: t(`preferences.${contrast}`) }),
+        id: 'contrast', label: t(contrast === 'strict' ? 'palette.actions.contrastStrict' : 'palette.actions.contrastStandard'),
         icon: 'i-lucide-contrast', command: { kind: 'display', changes: { contrast } },
       },
       ...(locale
         ? [{
             id: 'language', label: t('palette.actions.language', { value: locale.name }), icon: 'i-lucide-languages',
+            foreign: { text: locale.name, lang: locale.language },
             command: { kind: 'display' as const, changes: { locale: locale.code as Display['locale'] } },
           }]
         : []),

@@ -582,12 +582,15 @@
       "workspaces": "Workspaces",
       "actions": "Actions"
     },
-    "failed": "Search failed",
+    "failed": "The search failed. Try again.",
     "actions": {
-      "theme": "Theme: {value}",
-      "contrast": "Contrast: {value}",
-      "language": "Language: {value}",
+      "themeLight": "Switch to the light theme",
+      "themeMidnight": "Switch to the Midnight theme",
+      "contrastStrict": "Use RGAA strict contrast",
+      "contrastStandard": "Use standard contrast",
+      "language": "Switch language to {value}",
       "trace": "Trace {hostname}"
-    }
+    },
+    "unknownType": "Other type"
   }
 }

@@ -582,12 +582,15 @@
       "workspaces": "Espaces de travail",
       "actions": "Actions"
     },
-    "failed": "La recherche a échoué",
+    "failed": "La recherche a échoué. Réessayez.",
     "actions": {
-      "theme": "Thème : {value}",
-      "contrast": "Contraste : {value}",
-      "language": "Langue : {value}",
+      "themeLight": "Passer au thème clair",
+      "themeMidnight": "Passer au thème Nuit",
+      "contrastStrict": "Activer le contraste RGAA renforcé",
+      "contrastStandard": "Revenir au contraste standard",
+      "language": "Passer la langue en {value}",
       "trace": "Tracer {hostname}"
-    }
+    },
+    "unknownType": "Autre type"
   }
 }
