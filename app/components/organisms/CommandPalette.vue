@@ -43,9 +43,16 @@ const shown = computed(() => {
 const options = computed(() => shown.value.flatMap((group) => group.items.map((item, index) => ({
   item, group, id: `${baseId}-${group.id}-${String(index)}`,
 }))));
-// With nothing to list, a group's message (searching, failed) says more than "nothing matches".
-const emptyText = computed(() => shown.value.find(({ message }) => message)?.message
-  ?? t('palette.empty', { q: searchTerm.value.trim() }));
+// Only groups with options in the listbox; a group's message (searching, failed) is shown once, outside it.
+const listed = computed(() => shown.value.filter(({ items }) => items.length > 0));
+const message = computed(() => shown.value.find((group) => group.message));
+/** The label around its part in another language, if any. */
+const parts = ({ label, foreign }: PaletteItem) => {
+  const at = foreign ? label.indexOf(foreign.text) : -1;
+  return foreign && at >= 0
+    ? { before: label.slice(0, at), foreign, after: label.slice(at + foreign.text.length) }
+    : { before: label, foreign: undefined, after: '' };
+};
 const count = computed(() => options.value.length);
 const active = ref(0);
 // A new search starts from the first result; an index past the list is never pointed at.
@@ -63,11 +70,14 @@ const content: Record<string, unknown> = {
 // Said once typing settles, and nothing before anything is typed.
 const announced = ref('');
 let settle: ReturnType<typeof setTimeout> | undefined;
-watch([searchTerm, count, () => props.loading], () => {
+watch([searchTerm, count, () => props.loading, () => message.value?.message], () => {
   clearTimeout(settle);
   const typed = searchTerm.value.trim() !== '';
   settle = setTimeout(() => {
-    announced.value = props.loading ? t('palette.searching') : typed ? t('palette.results', { count: count.value }, count.value) : '';
+    announced.value = props.loading
+      ? t('palette.searching')
+      : [typed ? t('palette.results', { count: count.value }, count.value) : '', message.value?.message ?? '']
+          .filter(Boolean).join(' ');
   }, 250);
 }, { immediate: true });
 onBeforeUnmount(() => {
@@ -147,7 +157,7 @@ const onKeydown = (event: KeyboardEvent) => {
           class="max-h-96 overflow-y-auto p-1"
         >
           <div
-            v-for="group in shown"
+            v-for="group in listed"
             :key="group.id"
             role="group"
             :aria-labelledby="`${baseId}-${group.id}-label`"
@@ -167,13 +177,6 @@ const onKeydown = (event: KeyboardEvent) => {
               />
               {{ group.label }}
             </div>
-            <p
-              v-if="group.message"
-              role="presentation"
-              class="px-2 py-1 text-sm text-muted"
-            >
-              {{ group.message }}
-            </p>
             <!-- Reached through the combobox's aria-activedescendant, not focus; the mouse chooses one too. -->
             <!-- eslint-disable vuejs-accessibility/click-events-have-key-events -->
             <!-- eslint-disable vuejs-accessibility/interactive-supports-focus -->
@@ -199,7 +202,12 @@ const onKeydown = (event: KeyboardEvent) => {
               />
               <!-- Named by its label, then its group for screen readers: the visible text starts its name. -->
               <span class="grow truncate">
-                {{ option.item.label }}<span class="sr-only">{{ t('palette.inGroup', { group: group.label }) }}</span>
+                {{ parts(option.item).before }}<span
+                  v-if="parts(option.item).foreign"
+                  :lang="parts(option.item).foreign?.lang"
+                >{{ parts(option.item).foreign?.text }}</span>{{ parts(option.item).after }}<span
+                  class="sr-only"
+                >{{ t('palette.inGroup', { group: group.label }) }}</span>
               </span>
               <!-- Read as the option's description (aria-describedby), not again as part of its name. -->
               <span
@@ -221,10 +229,23 @@ const onKeydown = (event: KeyboardEvent) => {
           </div>
         </div>
         <p
-          v-if="count === 0 && searchTerm.trim() !== ''"
+          v-if="message"
+          class="flex items-center justify-center gap-1.5 px-3 py-3 text-sm text-muted"
+        >
+          <UIcon
+            v-if="message.failed"
+            name="i-lucide-circle-alert"
+            data-icon="i-lucide-circle-alert"
+            class="size-4 shrink-0 text-error"
+            aria-hidden="true"
+          />
+          {{ message.message }}
+        </p>
+        <p
+          v-else-if="count === 0 && searchTerm.trim() !== ''"
           class="px-3 py-6 text-center text-sm text-muted"
         >
-          {{ emptyText }}
+          {{ t('palette.empty', { q: searchTerm.trim() }) }}
         </p>
         <p
           role="status"
