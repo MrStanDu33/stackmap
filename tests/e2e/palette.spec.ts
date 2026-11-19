@@ -88,9 +88,16 @@ test.describe('command palette groups', () => {
   });
 
   test('going back while it is open closes it, with the focus in the page\'s main content (review)', async ({ page }) => {
-    await page.goto('/w/demo/graph');
-    await hydrated(page);
-    const dialog = await open(page, '/w/demo/members');
+    // Within the app: a page loaded with goto would be reloaded by Back.
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('Members');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(`${DEMO_URL}/w/demo/members`);
+    await expect(page.locator('#main')).toBeFocused();
+    // Until it has gone, the closing palette counts as another dialog, which keeps the shortcut.
+    await expect(dialog).toHaveCount(0);
+    await page.keyboard.press(SHORTCUT);
+    await expect(dialog.getByRole('combobox', { name: 'Search' })).toBeFocused();
 
     await page.goBack();
 

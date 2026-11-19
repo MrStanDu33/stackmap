@@ -43,12 +43,44 @@ export function useCommandPalette() {
     entities: entities.value,
   }));
 
+  // The palette's opener goes with the page it leaves: the new page's main content takes the focus once shown.
+  const nuxtApp = useNuxtApp();
+  let focusPending = false;
+  const focusNextPage = () => {
+    if (!focusPending) {
+      focusPending = true;
+      nuxtApp.hooks.hookOnce('page:finish', async () => {
+        focusPending = false;
+        await nextTick();
+        // Reopened meanwhile: the palette keeps the focus.
+        if (!open.value) {
+          document.getElementById('main')?.focus();
+        }
+      });
+    }
+  };
+  // Leaving the page while it is open (Back) closes it.
+  const router = useRouter();
+  router.afterEach((to, from) => {
+    if (open.value && to.path !== from.path) {
+      open.value = false;
+      focusNextPage();
+    }
+  });
+
   const choose = async ({ command }: PaletteItem) => {
-    open.value = false;
     searchTerm.value = '';
     if (command?.kind === 'navigate') {
+      // Another page's main content takes the focus; on the same page, the shell gives it back to the opener.
+      if (router.resolve(command.to).path !== route.path) {
+        focusNextPage();
+      }
+      open.value = false;
       await navigateTo(command.to);
-    } else if (command?.kind === 'display') {
+      return;
+    }
+    open.value = false;
+    if (command?.kind === 'display') {
       // Applied as the account's own would be; the preferences plugin saves the change to the account.
       await preferences.apply({ ...NO_PREFERENCES, ...command.changes });
     } else if (command?.kind === 'signOut') {
