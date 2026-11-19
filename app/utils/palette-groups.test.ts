@@ -58,11 +58,20 @@ describe('paletteGroups', () => {
     }]);
   });
 
+  it('names the type of an entity whose type is not offered in words, never by its id (4, review)', () => {
+    const groups = paletteGroups(context({
+      q: 'router',
+      entities: { state: 'done', hits: [{ extension: 'old', entity: 'gone-type', id: HOST_ID, title: 'Edge router', matched: 'name' }] },
+    }));
+
+    expect(group(groups, 'entities')?.items[0]).toMatchObject({ description: t('palette.unknownType'), icon: 'i-lucide-box' });
+  });
+
   it('says the entities are being searched, or that the search failed, in the entities group alone (4)', () => {
     expect(group(paletteGroups(context({ q: 'router', entities: { state: 'loading', hits: [] } })), 'entities'))
       .toMatchObject({ items: [], message: t('palette.searching') });
     expect(group(paletteGroups(context({ q: 'router', entities: { state: 'failed', hits: [] } })), 'entities'))
-      .toMatchObject({ items: [], message: t('palette.failed') });
+      .toMatchObject({ items: [], message: t('palette.failed'), failed: true });
     expect(group(paletteGroups(context({ q: 'router', entities: { state: 'failed', hits: [] } })), 'pages')?.message)
       .toBeUndefined();
   });
@@ -106,13 +115,21 @@ describe('paletteGroups', () => {
     expect(news('viewer')).toEqual([]);
   });
 
-  it('offers the theme, contrast and language switches, each saying the value it sets (7)', () => {
-    const switches = group(paletteGroups(context()), 'actions')?.items.filter(({ command }) => command?.kind === 'display');
+  it('offers the theme, contrast and language switches, each saying what it does; the language in its own (7, review)', () => {
+    const switches = (display: PaletteContext['display']) => group(paletteGroups(context({ display })), 'actions')
+      ?.items.filter(({ command }) => command?.kind === 'display').map(({ label, foreign, command }) => ({ label, foreign, command }));
 
-    expect(switches?.map(({ label, command }) => ({ label, command }))).toEqual([
-      { label: t('palette.actions.theme', { value: t('preferences.light') }), command: { kind: 'display', changes: { theme: 'light' } } },
-      { label: t('palette.actions.contrast', { value: t('preferences.strict') }), command: { kind: 'display', changes: { contrast: 'strict' } } },
-      { label: t('palette.actions.language', { value: 'Français' }), command: { kind: 'display', changes: { locale: 'fr' } } },
+    expect(switches({ theme: 'dark', contrast: 'standard', locale: 'en' })).toEqual([
+      { label: t('palette.actions.themeLight'), foreign: undefined, command: { kind: 'display', changes: { theme: 'light' } } },
+      { label: t('palette.actions.contrastStrict'), foreign: undefined, command: { kind: 'display', changes: { contrast: 'strict' } } },
+      {
+        label: t('palette.actions.language', { value: 'Français' }),
+        foreign: { text: 'Français', lang: 'fr-FR' },
+        command: { kind: 'display', changes: { locale: 'fr' } },
+      },
+    ]);
+    expect(switches({ theme: 'light', contrast: 'strict', locale: 'fr' })?.map(({ label }) => label)).toEqual([
+      t('palette.actions.themeMidnight'), t('palette.actions.contrastStandard'), t('palette.actions.language', { value: 'English' }),
     ]);
   });
 

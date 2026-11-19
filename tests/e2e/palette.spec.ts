@@ -70,19 +70,33 @@ test.describe('command palette groups', () => {
     await expect(group(dialog, 'Entities').getByRole('option', { name: /^Edge router/ })).toBeVisible();
   });
 
-  test('choosing a page opens it, choosing a workspace opens the same page there (5, 6)', async ({ page }) => {
+  test('choosing a page opens it, choosing a workspace opens the same page there, the focus in its main content (5, 6, review)', async ({ page }) => {
     const lab = `lab-${String(Date.now())}`;
     expect((await page.request.post(`${DEMO_URL}/api/workspaces`, { data: { name: `Lab ${lab}`, slug: lab } })).status()).toBe(201);
     await open(page, '/w/demo/graph');
     await page.keyboard.type('Members');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(`${DEMO_URL}/w/demo/members`);
+    await expect(page.locator('#main')).toBeFocused();
 
     const dialog = await open(page, '/w/demo/members');
     await page.keyboard.type(`Lab ${lab}`);
     await expect(group(dialog, 'Workspaces').getByRole('option')).toHaveCount(1);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(`${DEMO_URL}/w/${lab}/members`);
+    await expect(page.locator('#main')).toBeFocused();
+  });
+
+  test('going back while it is open closes it, with the focus in the page\'s main content (review)', async ({ page }) => {
+    await page.goto('/w/demo/graph');
+    await hydrated(page);
+    const dialog = await open(page, '/w/demo/members');
+
+    await page.goBack();
+
+    await expect(page).toHaveURL(`${DEMO_URL}/w/demo/graph`);
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('#main')).toBeFocused();
   });
 
   test('the theme switch changes the theme and says so; Sign out signs out (7)', async ({ browser }) => {

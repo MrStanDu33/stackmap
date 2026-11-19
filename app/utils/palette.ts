@@ -13,6 +13,8 @@ export interface PaletteItem {
   /** A second line, such as an entity's type. */
   description?: string;
   icon?: string;
+  /** A part of the label in another language, such as a language's own name: read in that language's voice. */
+  foreign?: { text: string; lang: string };
   command?: PaletteCommand;
 }
 
@@ -30,4 +32,6 @@ export interface PaletteGroup {
   searched?: boolean;
   /** Said in place of its items, such as "Searching…" or "Search failed". */
   message?: string;
+  /** Its message says something failed. */
+  failed?: boolean;
 }

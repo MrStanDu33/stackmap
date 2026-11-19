@@ -248,3 +248,55 @@ export const SearchedGroup: Story = {
     await expect(within(dialog()).getByText('Search failed')).toBeVisible();
   },
 };
+
+/**
+ * A group's message is said in the status with the count, and shown once outside the listbox, with an icon when it
+ * failed; a group with nothing to list is no empty group in the listbox (4, review).
+ */
+export const FailedSearch: Story = {
+  args: {
+    groups: [
+      { id: 'entities', label: 'Entities', searched: true, items: [], message: 'The search failed. Try again.', failed: true },
+      GROUPS[0] as PaletteGroup,
+    ],
+  },
+  render: (args) => ({
+    components: { CommandPalette },
+    setup: () => ({ args, searchTerm: ref('') }),
+    template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" />',
+  }),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'trace');
+
+    const status = within(dialog()).getByRole('status');
+    await waitFor(() => expect(status).toHaveTextContent(t('palette.results', { count: 1 }, 1)));
+    await expect(status).toHaveTextContent('The search failed. Try again.');
+    await expect(within(list()).queryByRole('group', { name: 'Entities' })).toBeNull();
+    const message = within(dialog()).getByText('The search failed. Try again.');
+    await expect(list().contains(message)).toBe(false);
+    await expect(message.closest('p')?.querySelector('[data-icon="i-lucide-circle-alert"]')).toHaveClass('text-error');
+
+    await userEvent.clear(field());
+    await userEvent.type(field(), 'zzz');
+    await waitFor(() => expect(status).toHaveTextContent('The search failed. Try again.'));
+    await expect(within(dialog()).getAllByText('The search failed. Try again.')).toHaveLength(1);
+  },
+};
+
+/** A part of a label in another language, such as a language's own name, is marked as such (review). */
+export const ForeignPart: Story = {
+  args: {
+    groups: [{
+      id: 'actions',
+      label: 'Actions',
+      items: [{ id: 'language', label: 'Switch language to Français', foreign: { text: 'Français', lang: 'fr-FR' } }],
+    }],
+  },
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    const option = within(list()).getByRole('option');
+    await expect(option.querySelector('[lang="fr-FR"]')).toHaveTextContent('Français');
+    await expect(option).toHaveAccessibleName(/^Switch language to Français/);
+  },
+};
