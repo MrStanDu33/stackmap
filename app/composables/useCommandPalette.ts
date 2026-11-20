@@ -41,6 +41,8 @@ export function useCommandPalette() {
     types: types.value,
     display: preferences.display(),
     entities: entities.value,
+    query: {},
+    drawn: {},
   }));
 
   // The palette's opener goes with the page it leaves: the new page's main content takes the focus once shown.

@@ -1,4 +1,5 @@
 import type { TraceIndex, TraceSelection } from './trace-index';
+import type { Trace } from '../../shared/contracts/traces';
 
 /** `?selected=` as a selection, when it names something in the trace. */
 export function parseSelected(raw: unknown, index: TraceIndex): TraceSelection | null {
@@ -27,3 +28,8 @@ export const selectedParam = (selection: TraceSelection | null): string | undefi
   }
   return selection.type === 'client' ? 'client' : `${selection.type}:${selection.id}`;
 };
+
+/** What the trace draws that the palette can select: each hop's entity to its first step, each port to itself. */
+export function traceDrawn(_trace: Trace): Record<string, string> {
+  return {};
+}

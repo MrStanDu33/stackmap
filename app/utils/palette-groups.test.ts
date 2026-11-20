@@ -24,6 +24,8 @@ const context = (overrides: Partial<PaletteContext> = {}): PaletteContext => ({
   ],
   display: { theme: 'dark', contrast: 'standard', locale: 'en' },
   entities: { state: 'idle', hits: [] },
+  query: {},
+  drawn: {},
   ...overrides,
 });
 
@@ -54,7 +56,7 @@ describe('paletteGroups', () => {
       label: 'Edge router',
       description: 'Host',
       icon: 'i-lucide-layers',
-      command: { kind: 'navigate', to: '/w/home/inventory/core/host' },
+      command: { kind: 'navigate', to: `/w/home/inventory/core/host?open=${HOST_ID}` },
     }]);
   });
 
@@ -65,6 +67,30 @@ describe('paletteGroups', () => {
     }));
 
     expect(group(groups, 'entities')?.items[0]).toMatchObject({ description: t('palette.unknownType'), icon: 'i-lucide-box' });
+  });
+
+  it('given an entity the current page draws, selects it there, keeping the page\'s query (9, 10)', () => {
+    const groups = paletteGroups(context({
+      q: 'router',
+      path: '/w/home/trace',
+      query: { hostname: 'app.homelab.example', selected: 'client' },
+      drawn: { [HOST_ID]: 'step:a:client' },
+      entities: { state: 'done', hits: [{ extension: 'core', entity: 'host', id: HOST_ID, title: 'Edge router', matched: 'name' }] },
+    }));
+
+    expect(group(groups, 'entities')?.items[0]?.command)
+      .toEqual({ kind: 'navigate', to: '/w/home/trace?hostname=app.homelab.example&selected=step%3Aa%3Aclient' });
+  });
+
+  it('given an entity the page does not draw, opens it in the inventory with ?open=<id> (11)', () => {
+    const groups = paletteGroups(context({
+      q: 'router',
+      drawn: { other: 'host:other' },
+      entities: { state: 'done', hits: [{ extension: 'core', entity: 'host', id: HOST_ID, title: 'Edge router', matched: 'name' }] },
+    }));
+
+    expect(group(groups, 'entities')?.items[0]?.command)
+      .toEqual({ kind: 'navigate', to: `/w/home/inventory/core/host?open=${HOST_ID}` });
   });
 
   it('says the entities are being searched, or that the search failed, in the entities group alone (4)', () => {

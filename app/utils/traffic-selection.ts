@@ -21,3 +21,13 @@ export function relatedFlowIds(traffic: Traffic, selection: Selection): Set<stri
   };
   return new Set(traffic.flows.filter(matches[selection.type]).map(({ id }) => id));
 }
+
+/** `?selected=` as a selection, when it names something the traffic draws. */
+export function parseTrafficSelected(_raw: unknown, _traffic: Traffic): Selection | null {
+  return null;
+}
+
+/** What the traffic draws that the palette can select: each host, service and port's id, to its `?selected=` value. */
+export function trafficDrawn(_traffic: Traffic): Record<string, string> {
+  return {};
+}

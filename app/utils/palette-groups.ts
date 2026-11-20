@@ -31,6 +31,10 @@ export interface PaletteContext {
   types: readonly PaletteType[];
   display: Display;
   entities: PaletteEntities;
+  /** The current page's query, which selecting an entity there keeps. */
+  query: Readonly<Record<string, string>>;
+  /** What the current page draws: an entity's id to its `?selected=` value there. */
+  drawn: Readonly<Record<string, string>>;
 }
 
 // One or more labels, then a top-level label of letters: what a hostname looks like.
