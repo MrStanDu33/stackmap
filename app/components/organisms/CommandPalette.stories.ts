@@ -208,3 +208,95 @@ export const Loading: Story = {
     await expect(icon && getComputedStyle(icon).animationName !== 'none').toBe(!reduced);
   },
 };
+
+/** Each group shows its icon and color on its heading and on each result; its name says it in text too (8). */
+export const GroupColors: Story = {
+  args: {
+    groups: [
+      { ...(GROUPS[0] as PaletteGroup), icon: 'i-lucide-file-text', color: 'info' },
+      { ...(GROUPS[1] as PaletteGroup), icon: 'i-lucide-zap', color: 'warning' },
+    ],
+  },
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    const heading = within(list()).getByText('Pages');
+    await expect(heading.querySelector('[data-icon="i-lucide-file-text"]')).toHaveClass('text-info');
+    const signOut = within(list()).getAllByRole('option')[2] as HTMLElement;
+    await expect(signOut.querySelector('[data-icon="i-lucide-log-out"]')).toHaveClass('text-warning');
+  },
+};
+
+/** A group matched on the server keeps its items as they are, and a group's message is shown in place of them (4). */
+export const SearchedGroup: Story = {
+  args: {
+    groups: [
+      { id: 'entities', label: 'Entities', searched: true, items: [{ id: 'router', label: 'Edge router', description: 'Host' }] },
+      { id: 'others', label: 'Others', searched: true, items: [], message: 'Search failed' },
+    ],
+  },
+  render: (args) => ({
+    components: { CommandPalette },
+    setup: () => ({ args, searchTerm: ref('') }),
+    template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" />',
+  }),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    // Found by its address, say: its title does not hold the words, and it stays.
+    await userEvent.type(field(), '203.0.113');
+
+    await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
+    await expect(within(dialog()).getByText('Search failed')).toBeVisible();
+  },
+};
+
+/**
+ * A group's message is said in the status with the count, and shown once outside the listbox, with an icon when it
+ * failed; a group with nothing to list is no empty group in the listbox (4, review).
+ */
+export const FailedSearch: Story = {
+  args: {
+    groups: [
+      { id: 'entities', label: 'Entities', searched: true, items: [], message: 'The search failed. Try again.', failed: true },
+      GROUPS[0] as PaletteGroup,
+    ],
+  },
+  render: (args) => ({
+    components: { CommandPalette },
+    setup: () => ({ args, searchTerm: ref('') }),
+    template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" />',
+  }),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'trace');
+
+    const status = within(dialog()).getByRole('status');
+    await waitFor(() => expect(status).toHaveTextContent(t('palette.results', { count: 1 }, 1)));
+    await expect(status).toHaveTextContent('The search failed. Try again.');
+    await expect(within(list()).queryByRole('group', { name: 'Entities' })).toBeNull();
+    const message = within(dialog()).getByText('The search failed. Try again.');
+    await expect(list().contains(message)).toBe(false);
+    await expect(message.closest('p')?.querySelector('[data-icon="i-lucide-circle-alert"]')).toHaveClass('text-error');
+
+    await userEvent.clear(field());
+    await userEvent.type(field(), 'zzz');
+    await waitFor(() => expect(status).toHaveTextContent('The search failed. Try again.'));
+    await expect(within(dialog()).getAllByText('The search failed. Try again.')).toHaveLength(1);
+  },
+};
+
+/** A part of a label in another language, such as a language's own name, is marked as such (review). */
+export const ForeignPart: Story = {
+  args: {
+    groups: [{
+      id: 'actions',
+      label: 'Actions',
+      items: [{ id: 'language', label: 'Switch language to Français', foreign: { text: 'Français', lang: 'fr-FR' } }],
+    }],
+  },
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    const option = within(list()).getByRole('option');
+    await expect(option.querySelector('[lang="fr-FR"]')).toHaveTextContent('Français');
+    await expect(option).toHaveAccessibleName(/^Switch language to Français/);
+  },
+};

@@ -575,6 +575,22 @@
     "results": "Aucun résultat | 1 résultat | {count} résultats",
     "empty": "Rien ne correspond à « {q} ».",
     "searching": "Recherche en cours…",
-    "resultsLabel": "Résultats"
+    "resultsLabel": "Résultats",
+    "groups": {
+      "entities": "Entités",
+      "pages": "Pages",
+      "workspaces": "Espaces de travail",
+      "actions": "Actions"
+    },
+    "failed": "La recherche a échoué. Réessayez.",
+    "actions": {
+      "themeLight": "Passer au thème clair",
+      "themeMidnight": "Passer au thème Nuit",
+      "contrastStrict": "Activer le contraste RGAA renforcé",
+      "contrastStandard": "Revenir au contraste standard",
+      "language": "Passer la langue en {value}",
+      "trace": "Tracer {hostname}"
+    },
+    "unknownType": "Autre type"
   }
 }
