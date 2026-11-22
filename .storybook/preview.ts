@@ -89,6 +89,11 @@ const preview: Preview = {
     locale: import.meta.env.STORYBOOK_LOCALE ?? 'en',
   },
   decorators: [withAppGlobals],
+  // The story's locale before its own beforeEach and loaders, which may translate: the decorator only sets it when the
+  // story renders, so the first story of a file once stored English notices in the French projects.
+  beforeEach: ({ globals }) => {
+    i18n.global.locale.value = (globals.locale ?? 'en') as Locale;
+  },
 };
 
 export default preview;
