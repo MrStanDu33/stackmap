@@ -59,4 +59,15 @@ describe.each(DIALECTS)('GET /api/session on %s', (dialect: Dialect) => {
 
     expect((json as Session).user.preferences).toEqual({ theme: 'light', contrast: null, locale: null, landingPage: 'trace', palette: { hidden: [] } });
   });
+
+  it('given a stored palette that is no longer valid, still answers the session: the account is never locked out (review)', async () => {
+    const cookie = await accounts.signedIn();
+    await accounts.call('PUT', '/api/account/preferences', { cookie, body: { theme: 'light' } });
+    await accounts.db().updateTable('userPreference').set({ paletteHidden: 'not json' }).execute();
+
+    const { status, json } = await accounts.call('GET', '/api/session', { cookie });
+
+    expect(status).toBe(200);
+    expect((json as Session).user.preferences).toMatchObject({ theme: 'light', palette: { hidden: [] } });
+  });
 });

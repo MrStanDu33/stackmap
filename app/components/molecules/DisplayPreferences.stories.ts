@@ -108,3 +108,16 @@ export const WithoutLandmark: Story = {
     await expect(canvas.getByRole('radiogroup', { name: t('preferences.theme') })).toBeVisible();
   },
 };
+
+/** Without its status, for a page that shows how the save went after its other settings (/settings, review). */
+export const WithoutStatus: Story = {
+  args: { status: false },
+  play: async ({ canvasElement }) => {
+    useState<'saved' | 'error' | null>('preferences.status').value = 'error';
+
+    // Given the time to render it, as the Default story's status would be.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect(within(canvasElement).queryByText(t('settings.saveError'))).toBeNull();
+    clearNuxtState();
+  },
+};

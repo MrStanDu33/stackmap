@@ -110,6 +110,18 @@ describe('paletteGroups', () => {
     expect(groups.map(({ id }) => id)).toEqual(['workspaces', 'actions']);
   });
 
+  it('given every group hidden, says so and offers Settings, whatever is typed (review)', () => {
+    const hidden = ['group:entities', 'group:pages', 'group:workspaces', 'group:actions'];
+
+    expect(paletteGroups(context({ hidden, q: 'router' }))).toEqual([{
+      id: 'hidden',
+      label: t('settings.title'),
+      icon: 'i-lucide-eye-off',
+      message: t('palette.allHidden'),
+      items: [{ id: 'settings', label: t('palette.openSettings'), icon: 'i-lucide-settings', command: { kind: 'navigate', to: '/settings' } }],
+    }]);
+  });
+
   it('says the entities are being searched, or that the search failed, in the entities group alone (4)', () => {
     expect(group(paletteGroups(context({ q: 'router', entities: { state: 'loading', hits: [] } })), 'entities'))
       .toMatchObject({ items: [], message: t('palette.searching') });

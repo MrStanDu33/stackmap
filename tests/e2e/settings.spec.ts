@@ -120,7 +120,7 @@ test.describe('settings', () => {
     const { page: own, context } = await ownAccount(page, browser);
     await own.goto('/settings');
     await hydrated(own);
-    const section = own.getByRole('group', { name: 'Command palette' });
+    const section = own.getByRole('group', { name: 'Search' });
     for (const name of ['Entities', 'Pages', 'Workspaces', 'Actions']) {
       await expect(section.getByRole('checkbox', { name })).toBeChecked();
     }
@@ -130,7 +130,7 @@ test.describe('settings', () => {
     await saved;
     await own.reload();
     await hydrated(own);
-    await expect(own.getByRole('group', { name: 'Command palette' }).getByRole('checkbox', { name: 'Entities' })).not.toBeChecked();
+    await expect(own.getByRole('group', { name: 'Search' }).getByRole('checkbox', { name: 'Entities' })).not.toBeChecked();
 
     const searches: string[] = [];
     own.on('request', (request) => {
@@ -145,6 +145,72 @@ test.describe('settings', () => {
     await expect(dialog.getByRole('group', { name: 'Pages' })).toBeVisible();
     await expect(dialog.getByRole('group', { name: 'Entities' })).toHaveCount(0);
     expect(searches).toEqual([]);
+    await context.close();
+  });
+
+  test('the Search settings sit in a section named for them; a failed save is shown after them and puts the checkbox back (review)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const section = own.getByRole('region', { name: 'Display, landing page and search' });
+    const search = section.getByRole('group', { name: 'Search' });
+    await expect(search).toBeVisible();
+
+    await own.route('**/api/account/preferences', (route) => route.fulfill({ status: 500 }));
+    await search.getByRole('checkbox', { name: 'Pages' }).click();
+
+    const error = section.getByText('Your preferences could not be saved. Try again.');
+    await expect(error).toBeVisible();
+    // After the checkboxes, where the eye is: the fieldset comes before it.
+    const follows = await search.evaluate(
+      (fieldset, message) => (fieldset.compareDocumentPosition(message as Node) & Node.DOCUMENT_POSITION_FOLLOWING) > 0,
+      await error.elementHandle(),
+    );
+    expect(follows).toBe(true);
+    await expect(search.getByRole('checkbox', { name: 'Pages' })).toBeChecked();
+    await context.close();
+  });
+
+  test('quick changes are saved in order: the last one wins (review)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const search = own.getByRole('group', { name: 'Search' });
+    // The first save is slow on its way: sent alone, the second would reach the server first.
+    let first = true;
+    await own.route('**/api/account/preferences', async (route) => {
+      if (first) {
+        first = false;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+      await route.continue();
+    });
+
+    await search.getByRole('checkbox', { name: 'Entities' }).click();
+    await search.getByRole('checkbox', { name: 'Pages' }).click();
+    await expect.poll(async () => {
+      const session = await (await own.request.get(`${DEMO_URL}/api/session`)).json() as { user: { preferences: { palette: { hidden: string[] } } } };
+      return session.user.preferences.palette.hidden;
+    }, { timeout: 5000 }).toEqual(['group:entities', 'group:pages']);
+    await context.close();
+  });
+
+  test('a checkbox focused with the keyboard shows a solid outline (review)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const entities = own.getByRole('group', { name: 'Search' }).getByRole('checkbox', { name: 'Entities' });
+    // From the landing page's radios, with the keyboard: focus-visible applies.
+    await own.getByRole('radio', { name: 'Trace' }).focus();
+    const focused = () => entities.evaluate((box) => box === document.activeElement);
+    for (let presses = 0; presses < 20 && !await focused(); presses += 1) {
+      await own.keyboard.press('Tab');
+    }
+    await expect(entities).toBeFocused();
+
+    const outline = await entities.evaluate((box) => getComputedStyle(box).outlineColor);
+    // Fully opaque: Nuxt UI's is a quarter of the primary color, below 3:1.
+    expect(outline).not.toMatch(/\/\s*0?\.\d+\)|,\s*0?\.\d+\)$/);
     await context.close();
   });
 
