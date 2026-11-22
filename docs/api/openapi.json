@@ -4468,6 +4468,36 @@
             },
             "description": "The most results to give",
             "example": 20
+          },
+          {
+            "in": "query",
+            "name": "extension",
+            "schema": {
+              "description": "Search only this extension's entities; one that does not exist finds nothing",
+              "examples": [
+                "nat"
+              ],
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "description": "Search only this extension's entities; one that does not exist finds nothing",
+            "example": "nat"
+          },
+          {
+            "in": "query",
+            "name": "entity",
+            "schema": {
+              "description": "Search only entities of this type, in every extension unless `extension` is given; one that does not exist finds nothing",
+              "examples": [
+                "host"
+              ],
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "description": "Search only entities of this type, in every extension unless `extension` is given; one that does not exist finds nothing",
+            "example": "host"
           }
         ],
         "responses": {
