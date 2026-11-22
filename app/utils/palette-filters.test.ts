@@ -64,12 +64,12 @@ describe('paletteFilters', () => {
     expect(offered('entité', { t: (key, params = {}) => french.t(key, params) })).toEqual([{ kind: 'group', group: 'entities' }]);
   });
 
-  it('given words that name nothing in full, offers nothing (14)', () => {
+  it('given letters found in no name in that order, offers nothing (14)', () => {
     expect(offered('host')).toHaveLength(1);
     expect(offered('')).toEqual([]);
     expect(offered('host router')).toEqual([]);
-    expect(offered('router')).toEqual([]);
-    expect(offered('hos')).toEqual([]);
+    expect(offered('edge')).toEqual([]);
+    expect(offered('wfo')).toEqual([]);
   });
 
   it('given a word naming a type and its extension alike, offers both (14)', () => {
@@ -111,5 +111,41 @@ describe('paletteFilters', () => {
     expect(names({ hidden: ['group:workspaces', 'extension:nat'] })).toEqual(['Entity', 'Page', 'Action', 'Core', 'Host']);
     expect(names({ hidden: ['group:entities'] })).toEqual(['Page', 'Workspace', 'Action']);
     expect(names({ extensions: [{ id: 'core', name: 'Core' }], types: [] })).toEqual(['Entity', 'Page', 'Workspace', 'Action', 'Core']);
+  });
+
+  it('as the user types, offers each filter whose name has a word starting with each typed word: "port", "forw" and "port f" offer Port forward (14)', () => {
+    const forward = { kind: 'type', extension: 'nat', entity: 'port-forward' };
+    for (const q of ['port', 'forw', 'port f', 'F PORT', 'pôrt']) {
+      expect(offered(q), q).toEqual([forward]);
+    }
+    expect(paletteFilters(context({ q: 'port' }))[0]).toMatchObject({ name: 'Port forward', word: 'port' });
+  });
+
+  it('finds what is typed inside a word: "ort" and "orward" offer Port forward (14)', () => {
+    const forward = { kind: 'type', extension: 'nat', entity: 'port-forward' };
+
+    expect(offered('ort')).toEqual([forward]);
+    expect(offered('orward')).toEqual([forward]);
+    expect(offered('hos')).toEqual([{ kind: 'type', extension: 'core', entity: 'host' }]);
+  });
+
+  it('finds letters typed in that order: "ofw" offers Port forward (14)', () => {
+    expect(offered('ofw')).toEqual([{ kind: 'type', extension: 'nat', entity: 'port-forward' }]);
+  });
+
+  it('lists the most exact match first: the whole name, then the starts of its words, then inside a word, then its letters in order (14)', () => {
+    const type = (entity: string, name: string) => ({ extension: 'x', entity, name, plural: `${name}s` });
+    const names = paletteFilters(context({
+      q: 'port',
+      extensions: [],
+      types: [type('rate', 'Pivot rate'), type('support', 'Support'), type('forward', 'Port forward'), type('port', 'Port')],
+    })).map(({ name }) => name);
+
+    expect(names).toEqual(['Port', 'Port forward', 'Support', 'Pivot rate']);
+  });
+
+  it('given "router", offers the extension named Router and NAT (14)', () => {
+    expect(offered('router')).toEqual([{ kind: 'extension', extension: 'nat' }]);
+    expect(offered('na')).toEqual([{ kind: 'extension', extension: 'nat' }]);
   });
 });

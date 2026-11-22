@@ -435,6 +435,18 @@ test.describe('command palette filters', () => {
     await expect(group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ })).toBeVisible();
   });
 
+  test('typing "port" offers Filter by Port forward, then the less exact Proxy route, before the results; choosing one shows its chip (14)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('port');
+
+    await expect(group(dialog, 'Filters').getByRole('option'))
+      .toHaveText([/^Search “port”/, /^Filter by Port forward/, /^Filter by Proxy route/]);
+    await expect(dialog.getByRole('group').first()).toHaveAccessibleName('Filters');
+    await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Port forward/ }).click();
+
+    await expect(dialog.getByRole('combobox', { name: 'Search' })).toHaveAccessibleDescription('Filter: Port forward');
+  });
+
   test('the palette with a chip has no axe violation (15)', async ({ page }) => {
     await withHostChip(page);
     await page.keyboard.type('edge');
