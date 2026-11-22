@@ -22,9 +22,11 @@ const storybookProjects = THEMES.flatMap((theme) => CONTRASTS.flatMap((contrast)
     },
     test: {
       name: `storybook:${theme}-${contrast}-${locale}`,
-      // A file's first story also pays for loading the file in the browser: 9–12 s on CI's runners, too close to the
-      // default 15 s once eight projects share them.
+      // A file's first story also pays for its first render and axe run in a fresh page.
       testTimeout: 30_000,
+      // The eight projects run at once, and Vitest opens up to (CPUs - 1) pages for each: 24 on CI's 4 vCPUs, where
+      // first stories queued for the CPU past the timeout. One page per project is also the fastest run locally.
+      maxWorkers: 1,
       browser: {
         enabled: true,
         headless: true,
