@@ -401,17 +401,38 @@ test.describe('command palette filters', () => {
     await expect(field).toBeFocused();
   });
 
-  test('with nothing typed, the Filters group comes first; choosing Filter by Host shows its chip, the focus in the field (19)', async ({ page }) => {
+  test('with nothing typed, the Filters group comes first; choosing Filter by Page shows its chip, the focus in the field (19)', async ({ page }) => {
     const dialog = await open(page, '/w/demo/graph');
 
     await expect(dialog.getByRole('group').first()).toHaveAccessibleName('Filters');
     await expect(dialog.getByRole('option').first()).toHaveText(/^Filter by Entity/);
-    await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Host/ }).click();
+    await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Page/ }).click();
 
     const field = dialog.getByRole('combobox', { name: 'Search' });
-    await expect(field).toHaveAccessibleDescription('Filter: Host');
+    await expect(field).toHaveAccessibleDescription('Filter: Page');
     await expect(field).toBeFocused();
     await expect(group(dialog, 'Filters')).toHaveCount(0);
+  });
+
+  test('Extension filters… lists the extensions\' and types\' filters, the focus in the field; Back to all filters goes back; closing goes back too (20)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Filter by Host/ })).toHaveCount(0);
+
+    await group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ }).click();
+    await expect(field).toBeFocused();
+    await expect(dialog.getByRole('group')).toHaveCount(1);
+    await expect(dialog.getByRole('option').first()).toHaveText(/^Back to all filters/);
+    await expect(group(dialog, 'Extension filters').getByRole('option', { name: /^Filter by Host/ })).toBeVisible();
+
+    await group(dialog, 'Extension filters').getByRole('option', { name: /^Back to all filters/ }).click();
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ })).toBeVisible();
+    await expect(group(dialog, 'Pages')).toBeVisible();
+
+    await group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ }).click();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press(SHORTCUT);
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ })).toBeVisible();
   });
 
   test('the palette with a chip has no axe violation (15)', async ({ page }) => {

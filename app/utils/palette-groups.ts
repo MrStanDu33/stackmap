@@ -46,6 +46,8 @@ export interface PaletteContext {
   filter?: PaletteFilterOption | null;
   /** A word the user chose to search as typed: no filter is offered for it. */
   keptWord?: string;
+  /** Nothing typed: the extensions' and types' filters are listed in place of everything else. */
+  browsingExtensions?: boolean;
 }
 
 // One or more labels, then a top-level label of letters: what a hostname looks like.

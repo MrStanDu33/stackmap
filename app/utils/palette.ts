@@ -23,7 +23,9 @@ export type PaletteCommand
     | { kind: 'signOut' }
     | { kind: 'filter'; option: PaletteFilterOption }
     /** Search the word as typed: no filter is offered for it again. */
-    | { kind: 'keepWord'; word: string };
+    | { kind: 'keepWord'; word: string }
+    /** List the extensions' and types' filters (true), or go back to all filters (false). */
+    | { kind: 'browseFilters'; extensions: boolean };
 
 /** An item the palette can list: a page, a workspace, an action or an entity. */
 export interface PaletteItem {

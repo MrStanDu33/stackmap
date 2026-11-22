@@ -614,7 +614,10 @@
       "search": "Search “{word}”",
       "by": "Filter by {name}",
       "chip": "Filter: {name}",
-      "remove": "Remove the {name} filter"
+      "remove": "Remove the {name} filter",
+      "extensions": "Extension filters…",
+      "extensionsTitle": "Extension filters",
+      "back": "Back to all filters"
     }
   }
 }

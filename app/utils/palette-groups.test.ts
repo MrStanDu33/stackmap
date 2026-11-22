@@ -274,17 +274,14 @@ describe('paletteGroups', () => {
       expect(labels(paletteGroups(context({ q: 'edge', entities, hidden: ['type:core/host'] })), 'entities')).toEqual(['Edge router :443']);
     });
 
-    it('given nothing typed and no chip, starts with a Filters group listing Filter by <name> for each available filter (19)', () => {
+    it('given nothing typed and no chip, starts with a Filters group listing Filter by <name> for each available filter (19, 20)', () => {
       const groups = paletteGroups(context({ extensions }));
 
       expect(groups.map(({ id }) => id)).toEqual(['filters', 'pages', 'workspaces', 'actions']);
       expect(groups[0]).toMatchObject({ label: 'Filters', searched: true });
-      expect(labels(groups, 'filters')).toEqual([
-        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action',
-        'Filter by Core', 'Filter by Router and NAT', 'Filter by Host', 'Filter by Port forward',
-      ]);
-      expect(group(groups, 'filters')?.items[6]).toEqual({
-        id: 'filter/type/core/host', label: 'Filter by Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: { ...hostFilter, word: '' } },
+      expect(group(groups, 'filters')?.items[1]).toEqual({
+        id: 'filter/group/pages', label: 'Filter by Page', icon: 'i-lucide-file-text',
+        command: { kind: 'filter', option: { filter: { kind: 'group', group: 'pages' }, name: 'Page', word: '', icon: 'i-lucide-file-text', color: 'info' } },
       });
     });
 
@@ -293,6 +290,47 @@ describe('paletteGroups', () => {
       const hidden = ['group:entities', 'group:pages', 'group:workspaces'];
       expect(paletteGroups(context({ extensions, hidden })).map(({ id }) => id)).toEqual(['filters', 'actions']);
       expect(labels(paletteGroups(context({ extensions, hidden })), 'filters')).toEqual(['Filter by Action']);
+    });
+
+    it('given nothing typed, lists the groups\' filters then one Extension filters… entry, and no extension or type filter (20)', () => {
+      const groups = paletteGroups(context({ extensions }));
+
+      expect(labels(groups, 'filters')).toEqual([
+        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action', 'Extension filters…',
+      ]);
+      expect(group(groups, 'filters')?.items[4]).toEqual({
+        id: 'extension-filters', label: 'Extension filters…', icon: 'i-lucide-puzzle', command: { kind: 'browseFilters', extensions: true },
+      });
+    });
+
+    it('given no extension or type to filter by, lists no Extension filters… entry (20)', () => {
+      expect(labels(paletteGroups(context({ extensions: [], types: [] })), 'filters')).toEqual([
+        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action',
+      ]);
+      expect(labels(paletteGroups(context({ extensions, hidden: ['group:entities'] })), 'filters')).not.toContain('Extension filters…');
+    });
+
+    it('browsing the extension filters, lists only an Extension filters group: Back to all filters, then each extension and type (20)', () => {
+      const groups = paletteGroups(context({ extensions, browsingExtensions: true }));
+
+      expect(groups).toHaveLength(1);
+      expect(groups[0]).toMatchObject({ id: 'filters', label: 'Extension filters', icon: 'i-lucide-puzzle', searched: true });
+      expect(labels(groups, 'filters')).toEqual([
+        'Back to all filters', 'Filter by Core', 'Filter by Router and NAT', 'Filter by Host', 'Filter by Port forward',
+      ]);
+      expect(groups[0]?.items[0]).toEqual({
+        id: 'all-filters', label: 'Back to all filters', icon: 'i-lucide-arrow-left', command: { kind: 'browseFilters', extensions: false },
+      });
+      expect(groups[0]?.items[3]).toEqual({
+        id: 'filter/type/core/host', label: 'Filter by Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: { ...hostFilter, word: '' } },
+      });
+    });
+
+    it('browsing the extension filters with something typed, lists the groups for what is typed, as before (20)', () => {
+      const groups = paletteGroups(context({ q: 'host', extensions, browsingExtensions: true, entities: { state: 'done', hits: [] } }));
+
+      expect(groups.map(({ id }) => id)).toEqual(['filters', 'entities', 'pages', 'workspaces', 'actions']);
+      expect(labels(groups, 'filters')).toEqual(['Search “host”', 'Filter by Host']);
     });
   });
 });

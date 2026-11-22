@@ -614,7 +614,10 @@
       "search": "Rechercher « {word} »",
       "by": "Filtrer par {name}",
       "chip": "Filtre : {name}",
-      "remove": "Retirer le filtre {name}"
+      "remove": "Retirer le filtre {name}",
+      "extensions": "Filtres des extensions…",
+      "extensionsTitle": "Filtres des extensions",
+      "back": "Revenir à tous les filtres"
     }
   }
 }
