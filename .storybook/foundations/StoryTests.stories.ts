@@ -29,14 +29,14 @@ export const WaitsLongerThanASecond: Story = {
   },
 };
 
-/** The browser prefers reduced motion, so a transition ends at once: no story checks an element mid-animation. */
-export const TransitionsEndAtOnce: Story = {
+/** The browser prefers reduced motion, so nothing animates: no story checks an element mid-animation. */
+export const NothingAnimates: Story = {
   render: () => ({
     template: '<p style="transition: opacity 2s">Fading</p>',
   }),
   play: async ({ canvasElement }) => {
     await expect(window.matchMedia('(prefers-reduced-motion: reduce)').matches).toBe(true);
-    // a11y.css shortens every transition to 0.01 ms under reduced motion.
-    await expect(getComputedStyle(within(canvasElement).getByText('Fading')).transitionDuration).toBe('1e-05s');
+    // a11y.css turns every transition and animation off under reduced motion.
+    await expect(getComputedStyle(within(canvasElement).getByText('Fading')).transitionDuration).toBe('0s');
   },
 };
