@@ -30,10 +30,13 @@ export function useCommandPalette() {
   // The chip chosen, and a word the user chose to search as typed rather than as a filter; both go when it closes.
   const filter = ref<PaletteFilterOption | null>(null);
   const keptWord = ref<string>();
+  // Listing the extensions' and types' filters in place of the rest, from the Extension filters entry.
+  const browsingExtensions = ref(false);
   watch(open, (opened) => {
     if (!opened) {
       filter.value = null;
       keptWord.value = undefined;
+      browsingExtensions.value = false;
     }
   });
   const entities = usePaletteSearch(
@@ -77,6 +80,7 @@ export function useCommandPalette() {
     extensions: extensions.value,
     filter: filter.value,
     keptWord: keptWord.value,
+    browsingExtensions: browsingExtensions.value,
   }));
 
   // The palette's opener goes with the page it leaves: the new page's main content takes the focus once shown.
@@ -121,6 +125,11 @@ export function useCommandPalette() {
     if (command?.kind === 'filter') {
       filter.value = command.option;
       searchTerm.value = '';
+      browsingExtensions.value = false;
+      return;
+    }
+    if (command?.kind === 'browseFilters') {
+      browsingExtensions.value = command.extensions;
       return;
     }
     if (command?.kind === 'keepWord') {

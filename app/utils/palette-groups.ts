@@ -80,7 +80,7 @@ const offerGroup = (t: PaletteContext['t'], options: readonly PaletteFilterOptio
 /** The palette's groups for what is typed: entities, pages, workspaces and actions. */
 export function paletteGroups(context: PaletteContext): PaletteGroup[] {
   const { q, t, path, workspace, workspaces, types, display, entities, query, drawn, hidden } = context;
-  const { extensions = [], filter = null, keptWord } = context;
+  const { extensions = [], filter = null, keptWord, browsingExtensions = false } = context;
   const typed = q.trim() !== '';
   const base = workspace ? `/w/${workspace.slug}` : '';
   const navigate = (to: string) => ({ kind: 'navigate' as const, to });
@@ -210,7 +210,23 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
   const filterContext = { q, t, extensions, types, hidden, filter };
   if (!typed) {
     const all = availableFilters(filterContext);
-    return [...(all.length > 0 ? [offerGroup(t, all)] : []), ...listed];
+    // The extensions' and types' filters, which can be many, are one entry until it is chosen.
+    const byExtension = all.filter(({ filter: { kind } }) => kind !== 'group');
+    if (browsingExtensions) {
+      const back = {
+        id: 'all-filters', label: t('palette.filters.back'), icon: 'i-lucide-arrow-left',
+        command: { kind: 'browseFilters' as const, extensions: false },
+      };
+      return [{ ...offerGroup(t, byExtension, back), label: t('palette.filters.extensionsTitle'), icon: 'i-lucide-puzzle' }];
+    }
+    const filters = offerGroup(t, all.filter(({ filter: { kind } }) => kind === 'group'));
+    if (byExtension.length > 0) {
+      filters.items.push({
+        id: 'extension-filters', label: t('palette.filters.extensions'), icon: 'i-lucide-puzzle',
+        command: { kind: 'browseFilters', extensions: true },
+      });
+    }
+    return [...(filters.items.length > 0 ? [filters] : []), ...listed];
   }
   const offers = word === keptWord ? [] : paletteFilters(filterContext);
   const keep = { id: 'keep-word', label: t('palette.filters.search', { word }), icon: 'i-lucide-search', command: { kind: 'keepWord' as const, word } };
