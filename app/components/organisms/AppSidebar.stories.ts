@@ -80,12 +80,11 @@ export const SignedInCollapsed: Story = {
 
     // Icons alone: a tooltip shows each name to sighted users too, after the usual hover delay (700 ms). It is what is
     // seen that counts: screen readers have the button's name already, so Reka hides the tooltip's copy from them.
-    const delay = { timeout: 2000 };
     const shownTooltip = () => document.querySelector('[data-reka-popper-content-wrapper] [data-slot="content"]');
     await userEvent.hover(signOut);
-    await waitFor(() => expect(shownTooltip()).toHaveTextContent(t('auth.signOutOf', { name: 'Ada' })), delay);
+    await waitFor(() => expect(shownTooltip()).toHaveTextContent(t('auth.signOutOf', { name: 'Ada' })));
     await userEvent.hover(within(canvasElement).getByRole('link', { name: t('trace.title') }));
-    await waitFor(() => expect(shownTooltip()).toHaveTextContent(t('trace.title')), delay);
+    await waitFor(() => expect(shownTooltip()).toHaveTextContent(t('trace.title')));
 
     await userEvent.click(signOut);
     await expect(args.onSignOut).toHaveBeenCalledOnce();

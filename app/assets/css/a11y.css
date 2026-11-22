@@ -3,14 +3,17 @@
  * Strict mode is enabled with `data-contrast="strict"` on <html> (RGAA strict setting).
  */
 
+/*
+ * Reduced motion: no animation at all, as in strict mode. A shortened animation still starts on its first frame: Nuxt
+ * UI's reduced-motion fades began at opacity 0, so a panel could be checked, or seen, before it showed.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
   ::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
+    transition: none !important;
+    animation: none !important;
   }
 }
 

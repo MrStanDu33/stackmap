@@ -406,7 +406,7 @@ healthcheck calls it. The database error goes to the logs, never to the response
 - Icons are Lucide (`i-lucide-…`), bundled with the app (`@iconify-json/lucide`): the Iconify API is never called, so
   the app works offline and tells no third party where it runs.
 - Accessibility targets RGAA 4.1 / WCAG 2.1 AA; the strict mode raises contrast to AAA, removes motion, keeps focus
-  visible and enlarges targets. Every graph has an accessible table equivalent.
+  visible and enlarges targets. Asking the system for reduced motion removes motion too. Every graph has an accessible table equivalent.
 - Every page sits in the `AppShell` template: a skip link, the `AppSidebar` (only the sections that exist; a drawer
   on narrow screens) with the display preferences (theme, contrast, language), and the main landmark. The shell holds
   the page's one live region and alert, for preference saves and a notice a page leaves for the next one.
@@ -482,7 +482,11 @@ without). Coverage thresholds and nightly mutation testing guard the domain
 logic. Test data comes from factories (the core's in `extensions/core/testing`, for its tests and those of the
 extensions built on it) and the demo stack, with fictional values only (documentation and private IP ranges,
 `.example` names), which tests check. On Postgres, each test gets its own schema, in a database of its Vitest worker.
-See [CONTRIBUTING.md](../CONTRIBUTING.md).
+Story tests pass or fail on the code alone, never on the machine's speed: their waits (10 s) and clock (120 s) only
+stop a hung story, no story sets a timeout of its own, the browser prefers reduced motion so nothing animates, and
+each project opens one page. A nightly flake hunt (`pnpm test:stories:hunt`) runs them 5 times shuffled, overloaded
+and never retried; a story it catches is fixed at its cause, from the seed it prints. See
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Glossary
 

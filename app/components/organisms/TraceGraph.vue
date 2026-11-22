@@ -161,17 +161,21 @@ const onKeydown = (event: KeyboardEvent) => {
 const root = useTemplateRef<HTMLElement>('root');
 // The view fits again when its room changes: the detail panel opens, the window is resized.
 let resized: ResizeObserver | undefined;
+// Until it has: shown as data-fitting, which stories wait for rather than for the zoom to look still.
+const fitting = ref(true);
 onMounted(() => {
   root.value?.addEventListener('keydown', onKeydown);
   root.value?.addEventListener('focusin', onFocusin);
   // Debounced: after Vue Flow has measured its new size, and once per resize rather than per frame.
   let pending: ReturnType<typeof setTimeout> | undefined;
   resized = new ResizeObserver(() => {
+    fitting.value = true;
     clearTimeout(pending);
     pending = setTimeout(() => {
       if (props.layout?.nodes.length) {
         fit();
       }
+      fitting.value = false;
     }, 100);
   });
   if (root.value) {
@@ -203,6 +207,7 @@ const legendClass = 'absolute start-2 bottom-2 z-10 flex flex-wrap gap-x-4 gap-y
     ref="root"
     class="relative flex h-full min-h-96 flex-col rounded-lg border border-default bg-default"
     :style="{ '--graph-zoom': String(viewport.zoom) }"
+    :data-fitting="fitting || undefined"
   >
     <div
       v-if="error"

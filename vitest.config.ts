@@ -22,13 +22,18 @@ const storybookProjects = THEMES.flatMap((theme) => CONTRASTS.flatMap((contrast)
     },
     test: {
       name: `storybook:${theme}-${contrast}-${locale}`,
-      // A file's first story also pays for loading the file in the browser: 9–12 s on CI's runners, too close to the
-      // default 15 s once eight projects share them.
-      testTimeout: 30_000,
+      // Only stops a hung story: a story passes or fails on the code, never on how busy the machine is. Waits are
+      // guarded the same way, in .storybook/preview.ts.
+      testTimeout: 120_000,
+      // The eight projects run at once, and Vitest opens up to (CPUs - 1) pages for each: 24 on CI's 4 vCPUs. One page
+      // per project is also the fastest run locally; the flake hunt sets 0 to overload the runner on purpose.
+      maxWorkers: Number(process.env.STORY_PAGES_PER_PROJECT ?? 1) || undefined,
       browser: {
         enabled: true,
         headless: true,
-        provider: playwright(),
+        // Nothing animates (a11y.css), so no story checks an element mid-animation. The e2e tests keep the default
+        // motion, with axe.
+        provider: playwright({ contextOptions: { reducedMotion: 'reduce' } }),
         instances: [{ browser: 'chromium' }],
       },
     },

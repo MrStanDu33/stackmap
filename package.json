@@ -27,6 +27,7 @@
     "storybook:build": "storybook build",
     "test:unit": "vitest run --project scripts --project unit",
     "test:stories": "vitest run --project 'storybook:*'",
+    "test:stories:hunt": "node scripts/checks/check-flakes.mjs",
     "release:prepare": "node scripts/release/prepare.mjs",
     "check:stories": "node scripts/checks/check-story-coverage.mjs",
     "test:mutation": "stryker run",
