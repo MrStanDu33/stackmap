@@ -401,6 +401,19 @@ test.describe('command palette filters', () => {
     await expect(field).toBeFocused();
   });
 
+  test('with nothing typed, the Filters group comes first; choosing Filter by Host shows its chip, the focus in the field (19)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+
+    await expect(dialog.getByRole('group').first()).toHaveAccessibleName('Filters');
+    await expect(dialog.getByRole('option').first()).toHaveText(/^Filter by Entity/);
+    await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Host/ }).click();
+
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+    await expect(field).toHaveAccessibleDescription('Filter: Host');
+    await expect(field).toBeFocused();
+    await expect(group(dialog, 'Filters')).toHaveCount(0);
+  });
+
   test('the palette with a chip has no axe violation (15)', async ({ page }) => {
     await withHostChip(page);
     await page.keyboard.type('edge');

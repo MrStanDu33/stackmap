@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { paletteFilters } from './palette-filters';
+import { availableFilters, paletteFilters } from './palette-filters';
 import { createTestI18n } from '../../tests/support/i18n';
 
 import type { PaletteFilterContext } from './palette-filters';
@@ -98,5 +98,18 @@ describe('paletteFilters', () => {
 
     expect(offered('host')).toHaveLength(1);
     expect(offered('host', { filter })).toEqual([]);
+  });
+
+  it('availableFilters lists every group, extension and type the user can filter by, in that order, leaving out what is hidden or turned off (19)', () => {
+    const names = (overrides: Partial<PaletteFilterContext> = {}) =>
+      availableFilters(context(overrides)).map(({ name }) => name);
+
+    expect(names()).toEqual(['Entity', 'Page', 'Workspace', 'Action', 'Core', 'Router and NAT', 'Host', 'Port forward']);
+    expect(availableFilters(context())[6]).toEqual({
+      filter: { kind: 'type', extension: 'core', entity: 'host' }, name: 'Host', word: '', icon: 'i-lucide-layers', color: 'primary',
+    });
+    expect(names({ hidden: ['group:workspaces', 'extension:nat'] })).toEqual(['Entity', 'Page', 'Action', 'Core', 'Host']);
+    expect(names({ hidden: ['group:entities'] })).toEqual(['Page', 'Workspace', 'Action']);
+    expect(names({ extensions: [{ id: 'core', name: 'Core' }], types: [] })).toEqual(['Entity', 'Page', 'Workspace', 'Action', 'Core']);
   });
 });

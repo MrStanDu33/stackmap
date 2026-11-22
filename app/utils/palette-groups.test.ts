@@ -273,5 +273,26 @@ describe('paletteGroups', () => {
       expect(labels(paletteGroups(context({ q: 'edge', entities, hidden: ['extension:nat'] })), 'entities')).toEqual(['Edge router']);
       expect(labels(paletteGroups(context({ q: 'edge', entities, hidden: ['type:core/host'] })), 'entities')).toEqual(['Edge router :443']);
     });
+
+    it('given nothing typed and no chip, starts with a Filters group listing Filter by <name> for each available filter (19)', () => {
+      const groups = paletteGroups(context({ extensions }));
+
+      expect(groups.map(({ id }) => id)).toEqual(['filters', 'pages', 'workspaces', 'actions']);
+      expect(groups[0]).toMatchObject({ label: 'Filters', searched: true });
+      expect(labels(groups, 'filters')).toEqual([
+        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action',
+        'Filter by Core', 'Filter by Router and NAT', 'Filter by Host', 'Filter by Port forward',
+      ]);
+      expect(group(groups, 'filters')?.items[6]).toEqual({
+        id: 'filter/type/core/host', label: 'Filter by Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: { ...hostFilter, word: '' } },
+      });
+    });
+
+    it('given nothing typed with a chip, lists no Filters group; with groups hidden, offers only the others (19)', () => {
+      expect(group(paletteGroups(context({ extensions, filter: hostFilter })), 'filters')).toBeUndefined();
+      const hidden = ['group:entities', 'group:pages', 'group:workspaces'];
+      expect(paletteGroups(context({ extensions, hidden })).map(({ id }) => id)).toEqual(['filters', 'actions']);
+      expect(labels(paletteGroups(context({ extensions, hidden })), 'filters')).toEqual(['Filter by Action']);
+    });
   });
 });

@@ -35,6 +35,11 @@ export const entitiesHidden = (hidden: readonly string[], extension: string, ent
   hidden.includes('group:entities') || hidden.includes(`extension:${extension}`)
   || (entity !== undefined && hidden.includes(`type:${extension}/${entity}`));
 
+/** Every filter the user can choose: groups, extensions, then entity types, none hidden or turned off. */
+export function availableFilters(_context: PaletteFilterContext): PaletteFilterOption[] {
+  return [];
+}
+
 /** The filters what is typed names in full: groups, extensions and entity types, in the current language. */
 export function paletteFilters(context: PaletteFilterContext): PaletteFilterOption[] {
   const { q, t, extensions, types, hidden, filter } = context;
