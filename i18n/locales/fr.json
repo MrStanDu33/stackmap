@@ -362,7 +362,7 @@
   },
   "settings": {
     "title": "Paramètres",
-    "display": "Affichage et page d’accueil",
+    "display": "Affichage, page d’accueil et recherche",
     "displayHint": "Ces réglages sont enregistrés sur votre compte : ils vous suivent dans tous les navigateurs où vous vous connectez.",
     "landingPage": "Page d’accueil",
     "landingPageHint": "La page sur laquelle Stackmap s’ouvre.",
@@ -391,6 +391,10 @@
       "current": "Afficher le mot de passe actuel",
       "next": "Afficher le nouveau mot de passe",
       "confirm": "Afficher la confirmation"
+    },
+    "palette": {
+      "title": "Recherche",
+      "hint": "Choisissez ce que la recherche ({shortcut}) affiche et parcourt."
     }
   },
   "inventory": {
@@ -595,6 +599,8 @@
       "language": "Passer la langue en {value}",
       "trace": "Tracer {hostname}"
     },
-    "unknownType": "Autre type"
+    "unknownType": "Autre type",
+    "allHidden": "Tous les groupes sont masqués dans les paramètres.",
+    "openSettings": "Ouvrir les paramètres"
   }
 }

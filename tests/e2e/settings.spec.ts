@@ -39,7 +39,7 @@ test.describe('settings', () => {
     await own.getByRole('main').getByRole('radio', { name: 'Light' }).check();
 
     await expect(own.locator('html')).toHaveClass(/light/);
-    await expect(own.getByRole('region', { name: 'Display and landing page' })).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display, landing page and search' })).toContainText('Saved');
     const session = await (await own.request.get(`${DEMO_URL}/api/session`)).json() as { user: { preferences: { theme: string } } };
     expect(session.user.preferences.theme).toBe('light');
     await context.close();
@@ -68,7 +68,7 @@ test.describe('settings', () => {
     await hydrated(own);
 
     await own.getByRole('radio', { name: 'Trace' }).check();
-    await expect(own.getByRole('region', { name: 'Display and landing page' })).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display, landing page and search' })).toContainText('Saved');
     await own.goto('/');
 
     await expect(own).toHaveURL(/\/trace/);
@@ -113,6 +113,111 @@ test.describe('settings', () => {
     await own.getByRole('button', { name: 'Change the password' }).click();
 
     await expect(own).toHaveURL(new RegExp(`^${DEMO_URL}/graph`));
+    await context.close();
+  });
+
+  test('Settings has a Command palette section, every group checked; one unchecked is saved, and the palette neither lists nor searches it (13)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const section = own.getByRole('group', { name: 'Search' });
+    for (const name of ['Entities', 'Pages', 'Workspaces', 'Actions']) {
+      await expect(section.getByRole('checkbox', { name })).toBeChecked();
+    }
+
+    const saved = own.waitForResponse((response) => response.url().endsWith('/api/account/preferences') && response.ok());
+    await section.getByRole('checkbox', { name: 'Entities' }).click();
+    await saved;
+    await own.reload();
+    await hydrated(own);
+    await expect(own.getByRole('group', { name: 'Search' }).getByRole('checkbox', { name: 'Entities' })).not.toBeChecked();
+
+    const searches: string[] = [];
+    own.on('request', (request) => {
+      if (request.url().includes('/search?')) {
+        searches.push(request.url());
+      }
+    });
+    await own.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    const dialog = own.getByRole('dialog', { name: 'Search' });
+    await expect(dialog.getByRole('combobox', { name: 'Search' })).toBeFocused();
+    await own.keyboard.type('Settings');
+    await expect(dialog.getByRole('group', { name: 'Pages' })).toBeVisible();
+    await expect(dialog.getByRole('group', { name: 'Entities' })).toHaveCount(0);
+    expect(searches).toEqual([]);
+    await context.close();
+  });
+
+  test('the Search settings sit in a section named for them; a failed save is shown after them and puts the checkbox back (review)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const section = own.getByRole('region', { name: 'Display, landing page and search' });
+    const search = section.getByRole('group', { name: 'Search' });
+    await expect(search).toBeVisible();
+
+    await own.route('**/api/account/preferences', (route) => route.fulfill({ status: 500 }));
+    await search.getByRole('checkbox', { name: 'Pages' }).click();
+
+    const error = section.getByText('Your preferences could not be saved. Try again.');
+    await expect(error).toBeVisible();
+    // After the checkboxes, where the eye is: the fieldset comes before it.
+    const follows = await search.evaluate(
+      (fieldset, message) => (fieldset.compareDocumentPosition(message as Node) & Node.DOCUMENT_POSITION_FOLLOWING) > 0,
+      await error.elementHandle(),
+    );
+    expect(follows).toBe(true);
+    await expect(search.getByRole('checkbox', { name: 'Pages' })).toBeChecked();
+    await context.close();
+  });
+
+  test('quick changes are saved in order: the last one wins, in the account and in the palette (review)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const search = own.getByRole('group', { name: 'Search' });
+    // The first answer is slow to come back: sent together, the older answer would be the last one applied.
+    let first = true;
+    await own.route('**/api/account/preferences', async (route) => {
+      const response = await route.fetch();
+      if (first) {
+        first = false;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+      await route.fulfill({ response });
+    });
+
+    await search.getByRole('checkbox', { name: 'Entities' }).click();
+    await search.getByRole('checkbox', { name: 'Pages' }).click();
+    await expect.poll(async () => {
+      const session = await (await own.request.get(`${DEMO_URL}/api/session`)).json() as { user: { preferences: { palette: { hidden: string[] } } } };
+      return session.user.preferences.palette.hidden;
+    }, { timeout: 5000 }).toEqual(['group:entities', 'group:pages']);
+    await own.waitForTimeout(1200);
+
+    await own.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    const dialog = own.getByRole('dialog', { name: 'Search' });
+    await expect(dialog.getByRole('group', { name: 'Actions' })).toBeVisible();
+    await expect(dialog.getByRole('group', { name: 'Pages' })).toHaveCount(0);
+    await context.close();
+  });
+
+  test('a checkbox focused with the keyboard shows a solid outline (review)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const entities = own.getByRole('group', { name: 'Search' }).getByRole('checkbox', { name: 'Entities' });
+    // From the landing page's radios, with the keyboard: focus-visible applies.
+    await own.getByRole('radio', { name: 'Trace' }).focus();
+    const focused = () => entities.evaluate((box) => box === document.activeElement);
+    for (let presses = 0; presses < 20 && !await focused(); presses += 1) {
+      await own.keyboard.press('Tab');
+    }
+    await expect(entities).toBeFocused();
+
+    const outline = await entities.evaluate((box) => getComputedStyle(box).outlineColor);
+    // Fully opaque: Nuxt UI's is a quarter of the primary color, below 3:1.
+    expect(outline).not.toMatch(/\/\s*0?\.\d+\)|,\s*0?\.\d+\)$/);
     await context.close();
   });
 

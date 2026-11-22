@@ -9,6 +9,7 @@ import { migration as auditEvent } from './0008_audit_event';
 import { migration as workspaceExtensionDisabled } from './0009_workspace_extension_disabled';
 import { migration as workspaceHiddenEntityKept } from './0010_workspace_hidden_entity_kept';
 import { migration as searchIndex } from './0011_search_index';
+import { migration as userPreferencePalette } from './0012_user_preference_palette';
 
 import type { Migration } from 'kysely/migration';
 
@@ -25,4 +26,5 @@ export const MIGRATIONS: Record<string, Migration> = {
   '0009_workspace_extension_disabled': workspaceExtensionDisabled,
   '0010_workspace_hidden_entity_kept': workspaceHiddenEntityKept,
   '0011_search_index': searchIndex,
+  '0012_user_preference_palette': userPreferencePalette,
 };

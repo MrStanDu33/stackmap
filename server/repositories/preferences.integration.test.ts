@@ -30,6 +30,36 @@ describe.each(DIALECTS)('preferences repository on %s', (dialect: Dialect) => {
     expect(await preferencesOf(db(), id)).toEqual({ ...NO_PREFERENCES, theme: 'light', locale: 'fr' });
   });
 
+  it('given no palette choice saved, hides no group of the palette (13)', async () => {
+    const { id } = await grace();
+    await savePreferences(db(), id, { theme: 'light' });
+
+    expect((await preferencesOf(db(), id)).palette).toEqual({ hidden: [] });
+  });
+
+  it('saves the palette\'s hidden groups, keeping the other preferences, and answers them (13)', async () => {
+    const { id } = await grace();
+    await savePreferences(db(), id, { theme: 'light' });
+    const palette = { hidden: ['group:entities', 'group:actions'] };
+
+    expect(await savePreferences(db(), id, { palette })).toEqual({ ...NO_PREFERENCES, theme: 'light', palette });
+    expect(await savePreferences(db(), id, { locale: 'fr' })).toEqual({ ...NO_PREFERENCES, theme: 'light', locale: 'fr', palette });
+    expect(await preferencesOf(db(), id)).toEqual({ ...NO_PREFERENCES, theme: 'light', locale: 'fr', palette });
+  });
+
+  it('reads a stored palette that is not JSON as hiding nothing, and keeps only the valid, distinct keys of an outdated one (review)', async () => {
+    const { id } = await grace();
+    await savePreferences(db(), id, { theme: 'light' });
+    const store = (paletteHidden: string) => db().updateTable('userPreference').set({ paletteHidden }).where('userId', '=', id).execute();
+
+    await store('not json');
+    expect(await preferencesOf(db(), id)).toEqual({ ...NO_PREFERENCES, theme: 'light' });
+    await store('{"hidden":[]}');
+    expect((await preferencesOf(db(), id)).palette).toEqual({ hidden: [] });
+    await store('["group:files", "group:pages", 42, "group:pages", "extension:nat"]');
+    expect((await preferencesOf(db(), id)).palette).toEqual({ hidden: ['group:pages', 'extension:nat'] });
+  });
+
   it('refuses a value outside its choices in the database too (2)', async () => {
     const { id } = await grace();
 

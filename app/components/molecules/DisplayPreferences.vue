@@ -8,7 +8,11 @@ import { APP_LOCALES } from '#shared/i18n/locales';
 type Contrast = 'standard' | 'strict';
 
 /** `landmark: false` inside a page section that names it already (/settings): one landmark per name. */
-const props = withDefaults(defineProps<{ landmark?: boolean }>(), { landmark: true });
+const props = withDefaults(defineProps<{
+  landmark?: boolean;
+  /** `false` where the page shows how the save went itself, after its other settings (/settings). */
+  status?: boolean;
+}>(), { landmark: true, status: true });
 
 const { t, locale } = useI18n();
 const titleId = useId();
@@ -102,7 +106,7 @@ const languages = APP_LOCALES.map(({ code, name }) => ({ label: name, value: cod
     </UFormField>
     <!-- Shown here, announced once by the page's shell (AppShell): the sidebar and /settings may both show this. -->
     <p
-      v-if="saveStatus"
+      v-if="status && saveStatus"
       class="text-sm"
       :class="saveStatus === 'error' ? 'text-error' : 'text-muted'"
     >

@@ -15,9 +15,22 @@ const solid = [
   { color: 'error', variant: 'solid', class: 'hover:bg-error active:bg-error not-disabled:hover:underline' },
 ] as const;
 
+/*
+ * Checkboxes show a solid focus outline: Nuxt UI's is a quarter of the color, below 3:1 against the page (RGAA 10.7).
+ */
+const checkbox = [
+  { color: 'primary', class: { base: 'outline-primary' } },
+  { color: 'secondary', class: { base: 'outline-secondary' } },
+  { color: 'success', class: { base: 'outline-success' } },
+  { color: 'info', class: { base: 'outline-info' } },
+  { color: 'warning', class: { base: 'outline-warning' } },
+  { color: 'error', class: { base: 'outline-error' } },
+] as const;
+
 export default defineAppConfig({
   ui: {
     colors: UI_COLORS,
     button: { compoundVariants: [...solid] },
+    checkbox: { compoundVariants: [...checkbox] },
   },
 });
