@@ -8,7 +8,7 @@ import { MAX_TRACE_NODES, MAX_TRACE_STEPS } from '#shared/contracts/traces';
 import { traceElkToVueFlow, traceToElk } from '~/utils/trace-graph';
 import { indexTrace, listenerName, stepName } from '~/utils/trace-index';
 import { parseTraceQuery } from '~/utils/trace-query';
-import { parseSelected, selectedParam } from '~/utils/trace-selection';
+import { parseSelected, selectedParam, traceDrawn } from '~/utils/trace-selection';
 
 const { t, n, locale } = useI18n();
 const { session, signOut } = useAccount();
@@ -238,6 +238,21 @@ watch(index, (loaded) => {
     selection.value = parseSelected(route.query.selected, loaded);
     writeSelected(selectedParam(selection.value));
   }
+});
+// Selected through the URL on the page itself, as the palette does.
+watch(() => route.query.selected, (raw) => {
+  if (index.value && raw !== selectedParam(selection.value)) {
+    selection.value = parseSelected(raw, index.value);
+    writeSelected(selectedParam(selection.value));
+  }
+});
+// What the palette can select here, until the page is left.
+const drawn = useState<Record<string, string>>('palette.drawn', () => ({}));
+watch(trace, (loaded) => {
+  drawn.value = loaded ? traceDrawn(loaded) : {};
+}, { immediate: true });
+onBeforeUnmount(() => {
+  drawn.value = {};
 });
 watch(selection, (selected) => {
   if (index.value) {

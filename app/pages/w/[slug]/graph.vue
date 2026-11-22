@@ -3,6 +3,7 @@ import type { Traffic } from '#shared/contracts/traffic';
 import type { Selection } from '~/utils/traffic-selection';
 
 import { indexTraffic, selectionName } from '~/utils/traffic-index';
+import { parseTrafficSelected, trafficDrawn } from '~/utils/traffic-selection';
 
 const { t, locale } = useI18n();
 const { session, signOut } = useAccount();
@@ -133,6 +134,31 @@ watch(traffic, (loadedTraffic) => {
     services: t('traffic.count.services', { count: services.length }, services.length),
     flows: t('traffic.count.flows', { count: flows.length }, flows.length),
   });
+});
+// The selection is kept in the URL, so that it can be linked (the palette selects through it); replaced, so Back leaves
+// the page.
+const selectedParam = (selected: Selection | null) => (selected ? `${selected.type}:${selected.id}` : undefined);
+const fromUrl = () => {
+  if (traffic.value && route.query.selected !== selectedParam(selection.value)) {
+    selection.value = parseTrafficSelected(route.query.selected, traffic.value);
+    if (route.query.selected !== selectedParam(selection.value)) {
+      void router.replace({ query: { ...route.query, selected: selectedParam(selection.value) } });
+    }
+  }
+};
+watch([traffic, () => route.query.selected], fromUrl);
+watch(selection, (selected) => {
+  if (traffic.value && route.query.selected !== selectedParam(selected)) {
+    void router.replace({ query: { ...route.query, selected: selectedParam(selected) } });
+  }
+});
+// What the palette can select here, until the page is left.
+const drawn = useState<Record<string, string>>('palette.drawn', () => ({}));
+watch(traffic, (loaded) => {
+  drawn.value = loaded ? trafficDrawn(loaded) : {};
+}, { immediate: true });
+onBeforeUnmount(() => {
+  drawn.value = {};
 });
 watch(selection, (selected) => {
   const name = selected && index.value ? selectionName(index.value, selected, t) : undefined;

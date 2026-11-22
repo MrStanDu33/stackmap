@@ -30,6 +30,17 @@ export const selectedParam = (selection: TraceSelection | null): string | undefi
 };
 
 /** What the trace draws that the palette can select: each hop's entity to its first step, each port to itself. */
-export function traceDrawn(_trace: Trace): Record<string, string> {
-  return {};
+export function traceDrawn(trace: Trace): Record<string, string> {
+  const drawn: Record<string, string> = {};
+  for (const step of trace.steps) {
+    for (const { id } of step.hops) {
+      drawn[id] ??= `step:${step.id}`;
+    }
+  }
+  for (const node of trace.nodes) {
+    if (node.type === 'listener') {
+      drawn[node.id] = `listener:${node.id}`;
+    }
+  }
+  return drawn;
 }

@@ -20,6 +20,8 @@ export function useCommandPalette() {
   const preferences = usePreferences();
   const { data } = useNuxtData<{ workspaces: MemberWorkspace[] }>('workspaces');
   const installed = useState<InstalledExtension[]>('extensions', () => []);
+  // What the current page draws (Traffic, Trace): an entity there is selected rather than opened in the inventory.
+  const drawn = useState<Record<string, string>>('palette.drawn', () => ({}));
 
   const workspaces = computed(() => data.value?.workspaces ?? []);
   const workspace = computed(() => workspaces.value.find(({ slug }) => slug === route.params.slug) ?? null);
@@ -41,8 +43,8 @@ export function useCommandPalette() {
     types: types.value,
     display: preferences.display(),
     entities: entities.value,
-    query: {},
-    drawn: {},
+    query: Object.fromEntries(Object.entries(route.query).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
+    drawn: drawn.value,
   }));
 
   // The palette's opener goes with the page it leaves: the new page's main content takes the focus once shown.
