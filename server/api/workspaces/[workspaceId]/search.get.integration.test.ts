@@ -77,7 +77,7 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/search on %s', (dialec
   it('answers 400 to an extension or entity that is not a kebab id (18)', async () => {
     await signInAs('viewer');
 
-    for (const query of ['extension=', 'extension=Nat', 'entity=port_forward', `entity=${'a'.repeat(101)}`, 'extension=nat&extension=core']) {
+    for (const query of ['extension=', 'extension=Nat', 'entity=port_forward', `entity=${'a'.repeat(41)}`, 'extension=nat&extension=core']) {
       const { status, json } = await get(path(`q=router&${query}`));
 
       expect(status, query).toBe(400);

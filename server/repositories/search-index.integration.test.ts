@@ -220,6 +220,21 @@ describe.each(DIALECTS)('searchEntities on %s', (dialect: Dialect) => {
     expect(await types({ extension: 'nat', entity: 'host' })).toEqual([]);
   });
 
+  it('given a filter naming an extension turned off in the workspace, finds nothing, as for one that does not exist (review)', async () => {
+    await createPortForwards(workspaces.a.repos);
+    await setExtensionsEnabled(db(), workspaces.a.workspace.id, ['nat'], false, null);
+
+    expect(await types({ extension: 'nat' })).toEqual([]);
+    expect(await types({ extension: 'nat', entity: 'port-forward' })).toEqual([]);
+  });
+
+  it('given a filter, never returns another workspace\'s entities (review)', async () => {
+    await createPortForwards(workspaces.b.repos);
+
+    expect(await types({ extension: 'nat' })).toEqual([]);
+    expect(await types({ entity: 'host' })).toEqual([]);
+  });
+
   it('never returns another workspace\'s entities (15)', async () => {
     await createHost(workspaces.b.repos, { name: 'Edge router' });
 
