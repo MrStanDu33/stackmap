@@ -1,4 +1,5 @@
 import { expect, userEvent, waitFor, within } from 'storybook/test';
+import { nextTick } from 'vue';
 
 import DisplayPreferences from './DisplayPreferences.vue';
 import { clearNuxtState, i18n, useState } from '../../../.storybook/nuxt-shims';
@@ -115,8 +116,8 @@ export const WithoutStatus: Story = {
   play: async ({ canvasElement }) => {
     useState<'saved' | 'error' | null>('preferences.status').value = 'error';
 
-    // Given the time to render it, as the Default story's status would be.
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Once Vue has rendered the change: the Default story's status would be there by then.
+    await nextTick();
     await expect(within(canvasElement).queryByText(t('settings.saveError'))).toBeNull();
     clearNuxtState();
   },
