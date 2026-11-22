@@ -213,4 +213,65 @@ describe('paletteGroups', () => {
       { id: 'actions', label: t('palette.groups.actions'), color: 'warning', icon: 'i-lucide-zap' },
     ]);
   });
+
+  describe('filters', () => {
+    const extensions = [{ id: 'core', name: 'Core', icon: 'i-lucide-layers' }, { id: 'nat', name: 'Router and NAT', icon: 'i-lucide-arrow-right-left' }];
+    const hostHit = { extension: 'core', entity: 'host', id: HOST_ID, title: 'Edge router', matched: 'name' };
+    const forwardHit = { extension: 'nat', entity: 'port-forward', id: '0199d6a0-0000-7000-8000-000000000003', title: 'Edge router :443', matched: 'name' };
+    const hostFilter = {
+      filter: { kind: 'type' as const, extension: 'core', entity: 'host' }, name: 'Host', word: 'host', icon: 'i-lucide-layers', color: 'primary' as const,
+    };
+
+    it('given a word naming a filter, starts with a group whose first options are Search “<word>” then Filter by <name> (14)', () => {
+      const groups = paletteGroups(context({ q: 'host', extensions, entities: { state: 'done', hits: [] } }));
+
+      expect(groups[0]).toMatchObject({ id: 'filters', label: 'Filters', searched: true });
+      expect(groups[0]?.items).toEqual([
+        { id: 'keep-word', label: 'Search “host”', icon: 'i-lucide-search', command: { kind: 'keepWord', word: 'host' } },
+        { id: 'filter/type/core/host', label: 'Filter by Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: hostFilter } },
+      ]);
+      expect(groups.map(({ id }) => id)).toEqual(['filters', 'entities', 'pages', 'workspaces', 'actions']);
+    });
+
+    it('given a hostname that names a filter too, lists Search, Filter by and Trace <hostname> (14, edge case)', () => {
+      const groups = paletteGroups(context({
+        q: 'web.example',
+        extensions,
+        types: [{ extension: 'core', entity: 'web', name: 'Web.example', plural: 'Web.examples' }],
+      }));
+
+      expect(labels(groups, 'filters')).toEqual(['Search “web.example”', 'Filter by Web.example']);
+      expect(labels(groups, 'actions')).toContain('Trace web.example');
+    });
+
+    it('given Search “<word>” chosen, offers no filter for that word again until it changes (14)', () => {
+      expect(group(paletteGroups(context({ q: 'host', extensions, keptWord: 'host' })), 'filters')).toBeUndefined();
+      expect(group(paletteGroups(context({ q: 'hosts', extensions, keptWord: 'host' })), 'filters')).toBeDefined();
+    });
+
+    it('given a group filter, lists only that group (16)', () => {
+      const pages = { filter: { kind: 'group' as const, group: 'pages' as const }, name: 'Page', word: 'page' };
+
+      expect(paletteGroups(context({ q: '', extensions, filter: pages })).map(({ id }) => id)).toEqual(['pages']);
+      expect(paletteGroups(context({ q: 'trace', extensions, filter: pages, entities: { state: 'done', hits: [hostHit] } }))
+        .map(({ id }) => id)).toEqual(['pages']);
+    });
+
+    it('given an extension or type filter, lists only entities, the found ones of that extension or type (16)', () => {
+      const entities = { state: 'done' as const, hits: [hostHit, forwardHit] };
+      const nat = { filter: { kind: 'extension' as const, extension: 'nat' }, name: 'Router and NAT', word: 'nat' };
+
+      const byType = paletteGroups(context({ q: 'edge', extensions, filter: hostFilter, entities }));
+      expect(byType.map(({ id }) => id)).toEqual(['entities']);
+      expect(labels(byType, 'entities')).toEqual(['Edge router']);
+      expect(labels(paletteGroups(context({ q: 'edge', extensions, filter: nat, entities })), 'entities')).toEqual(['Edge router :443']);
+    });
+
+    it('leaves out found entities of an extension or type hidden in Settings (17)', () => {
+      const entities = { state: 'done' as const, hits: [hostHit, forwardHit] };
+
+      expect(labels(paletteGroups(context({ q: 'edge', entities, hidden: ['extension:nat'] })), 'entities')).toEqual(['Edge router']);
+      expect(labels(paletteGroups(context({ q: 'edge', entities, hidden: ['type:core/host'] })), 'entities')).toEqual(['Edge router :443']);
+    });
+  });
 });

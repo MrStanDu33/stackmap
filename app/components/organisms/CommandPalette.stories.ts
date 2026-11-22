@@ -4,7 +4,7 @@ import { ref } from 'vue';
 import CommandPalette from './CommandPalette.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
 
-import type { PaletteGroup } from '../../utils/palette';
+import type { PaletteFilterOption, PaletteGroup } from '../../utils/palette';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
 const { t } = i18n.global;
@@ -316,5 +316,71 @@ export const AfterLeave: Story = {
 
     await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(args.onClosed).toHaveBeenCalledOnce());
+  },
+};
+
+const HOST_FILTER: PaletteFilterOption = {
+  filter: { kind: 'type', extension: 'core', entity: 'host' }, name: 'Host', word: 'host', icon: 'i-lucide-layers', color: 'primary',
+};
+/** The palette with a chip, its search term and filter kept as the app keeps them. */
+const withChip = (initial = '') => (args: Record<string, unknown>) => ({
+  components: { CommandPalette },
+  setup: () => {
+    const searchTerm = ref(initial);
+    const filter = ref<PaletteFilterOption | null>(HOST_FILTER);
+    const update = (next: PaletteFilterOption | null) => {
+      filter.value = next;
+      (args['onUpdate:filter'] as ((next: PaletteFilterOption | null) => void) | undefined)?.(next);
+    };
+    return { args, searchTerm, filter, update };
+  },
+  template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" :filter="filter" @update:filter="update" />'
+    + '<output data-testid="term">{{ searchTerm }}</output>',
+});
+const chip = () => within(dialog()).getByText('Host');
+const removeChip = () => within(dialog()).getByRole('button', { name: t('palette.filters.remove', { name: 'Host' }) });
+const term = () => within(document.body).getByTestId('term');
+
+/** A chip shows its icon and name in the field, which keeps the focus and says the filter; a button removes it (15). */
+export const WithChip: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip(),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await expect(chip()).toBeVisible();
+    await expect(dialog().querySelector('[data-icon="i-lucide-layers"]')).not.toBeNull();
+    await expect(field()).toHaveAccessibleDescription(t('palette.filters.chip', { name: 'Host' }));
+    await expect(removeChip()).toBeVisible();
+  },
+};
+
+/** Backspace with text deletes text; in the empty field it removes the chip and gives its word back (15). */
+export const ChipBackspace: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip('e'),
+  play: async ({ args }) => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Backspace}');
+    await expect(args['onUpdate:filter']).not.toHaveBeenCalled();
+    await expect(chip()).toBeVisible();
+
+    await userEvent.keyboard('{Backspace}');
+
+    await expect(args['onUpdate:filter']).toHaveBeenCalledWith(null);
+    await expect(term()).toHaveTextContent('host');
+    await expect(field()).toHaveFocus();
+  },
+};
+
+/** The chip's remove button removes it, gives its word back and the focus to the field (15). */
+export const ChipRemove: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip(),
+  play: async ({ args }) => {
+    await userEvent.click(removeChip());
+
+    await expect(args['onUpdate:filter']).toHaveBeenCalledWith(null);
+    await expect(term()).toHaveTextContent('host');
+    await waitFor(() => expect(field()).toHaveFocus());
   },
 };

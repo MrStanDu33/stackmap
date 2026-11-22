@@ -4,7 +4,11 @@ import { isMac, paletteShortcutLabel } from '../../utils/palette-shortcut';
 import { PALETTE_GROUPS } from '#shared/contracts/preferences';
 
 /** What the command palette lists and searches: a checkbox per group, all checked until one is hidden. */
-const props = defineProps<{ hidden: readonly string[] }>();
+const props = defineProps<{
+  hidden: readonly string[];
+  /** The installed extensions, with i18n keys of their names and of their entity types'. */
+  extensions?: readonly { id: string; name: string; entities: readonly { id: string; label: string }[] }[];
+}>();
 const emit = defineEmits<{ 'update:hidden': [hidden: string[]] }>();
 
 const { t } = useI18n();

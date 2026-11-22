@@ -221,6 +221,49 @@ test.describe('settings', () => {
     await context.close();
   });
 
+  test('Search lists every extension and its entity types under Entities, each checked; NAT unchecked is saved, not offered as a filter, and its entities are not found (17)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const entities = own.getByRole('group', { name: 'Search' }).getByRole('group', { name: 'Entities' });
+    for (const name of ['Core', 'Host', 'Router and NAT', 'Port forward', 'Reverse proxy']) {
+      await expect(entities.getByRole('checkbox', { name, exact: true })).toBeChecked();
+    }
+
+    const saved = own.waitForResponse((response) => response.url().endsWith('/api/account/preferences') && response.ok());
+    await entities.getByRole('checkbox', { name: 'Router and NAT' }).click();
+    await saved;
+    await own.reload();
+    await hydrated(own);
+    await expect(own.getByRole('group', { name: 'Entities' }).getByRole('checkbox', { name: 'Router and NAT' })).not.toBeChecked();
+
+    await own.goto('/w/demo/graph');
+    await hydrated(own);
+    await own.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    const dialog = own.getByRole('dialog', { name: 'Search' });
+    await own.keyboard.type('nat');
+    await expect(dialog.getByRole('option', { name: /^Filter by/ })).toHaveCount(0);
+    await own.keyboard.press('Control+a');
+    await own.keyboard.type('203.0.113.10');
+    const found = dialog.getByRole('group', { name: 'Entities' });
+    await expect(found.getByRole('option', { name: /^Edge router/ })).toBeVisible();
+    await expect(found.getByRole('option', { name: /Port forward/ })).toHaveCount(0);
+    await context.close();
+  });
+
+  test('with Entities unchecked, the extension and type checkboxes are disabled and say why (17)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.request.put(`${DEMO_URL}/api/account/preferences`, { data: { palette: { hidden: ['group:entities'] } } });
+    await own.goto('/settings');
+    await hydrated(own);
+    const search = own.getByRole('group', { name: 'Search' });
+
+    await expect(search.getByRole('checkbox', { name: 'Router and NAT' })).toBeDisabled();
+    await expect(search.getByRole('checkbox', { name: 'Host', exact: true })).toBeDisabled();
+    await expect(search.getByText('Check Entities to choose these.')).toBeVisible();
+    await context.close();
+  });
+
   test('/settings and /settings/password have no axe violation', async ({ page, browser }) => {
     await page.goto('/settings');
     await hydrated(page);

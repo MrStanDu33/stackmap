@@ -8,7 +8,11 @@ const SETTLE_MS = 200;
 const LIMIT = 20;
 
 /** The workspace's entities matching what is typed in the palette, searched once typing settles. */
-export function usePaletteSearch(workspaceId: () => string | undefined, q: () => string): Ref<PaletteEntities> {
+export function usePaletteSearch(
+  workspaceId: () => string | undefined,
+  q: () => string,
+  _only: () => { extension?: string; entity?: string } = () => ({}),
+): Ref<PaletteEntities> {
   const entities = ref<PaletteEntities>({ state: 'idle', hits: [] });
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: AbortController | undefined;

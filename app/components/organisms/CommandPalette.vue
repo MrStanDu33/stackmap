@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { PaletteColor, PaletteGroup, PaletteItem } from '../../utils/palette';
+import type { PaletteColor, PaletteFilterOption, PaletteGroup, PaletteItem } from '../../utils/palette';
 
 /**
  * The command palette: a search field over groups of results, in a dialog. A combobox and listbox of its own (ARIA
@@ -11,12 +11,16 @@ const props = defineProps<{
   groups: PaletteGroup[];
   /** Results are being fetched. */
   loading?: boolean;
+  /** The filter chip chosen, if any. */
+  filter?: PaletteFilterOption | null;
 }>();
 const emit = defineEmits<{
   'update:open': [open: boolean];
   select: [item: PaletteItem, group: PaletteGroup];
   /** It has gone, its closing animation over: the page is no longer hidden from screen readers. */
   closed: [];
+  /** The chip removed (null). */
+  'update:filter': [filter: PaletteFilterOption | null];
 }>();
 const searchTerm = defineModel<string>('searchTerm', { default: '' });
 

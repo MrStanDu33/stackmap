@@ -1,4 +1,5 @@
-import type { PaletteGroup } from './palette';
+import type { PaletteFilterOption, PaletteGroup } from './palette';
+import type { PaletteExtension } from './palette-filters';
 import type { Display } from './preferences-sync';
 import type { WorkspaceRole } from '../../shared/contracts/contract';
 import type { SearchHit } from '../../shared/contracts/search';
@@ -35,8 +36,14 @@ export interface PaletteContext {
   query: Readonly<Record<string, string>>;
   /** What the current page draws: an entity's id to its `?selected=` value there. */
   drawn: Readonly<Record<string, string>>;
-  /** What the user hid in Settings: `group:<id>` keys. */
+  /** What the user hid in Settings: `group:<id>`, `extension:<id>` and `type:<extension>/<entity>` keys. */
   hidden: readonly string[];
+  /** The extensions on in the workspace, which can be filtered by. */
+  extensions?: readonly PaletteExtension[];
+  /** The chip chosen, if any. */
+  filter?: PaletteFilterOption | null;
+  /** A word the user chose to search as typed: no filter is offered for it. */
+  keptWord?: string;
 }
 
 // One or more labels, then a top-level label of letters: what a hostname looks like.

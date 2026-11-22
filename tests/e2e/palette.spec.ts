@@ -325,3 +325,85 @@ test.describe('command palette, opening an entity', () => {
     await expect(page.getByRole('button', { name: 'New Host' })).toBeFocused();
   });
 });
+
+test.describe('command palette filters', () => {
+  const group = (dialog: ReturnType<Page['getByRole']>, name: string) => dialog.getByRole('group', { name });
+  /** Opens the palette on Traffic and turns "host" into a chip. */
+  const withHostChip = async (page: Page) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('host');
+    await dialog.getByRole('option', { name: /^Filter by Host/ }).click();
+    return dialog;
+  };
+
+  test('typing "host" offers Search “host” then Filter by Host; choosing the filter shows a Host chip, empties the field and keeps the focus there (14, 15)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('host');
+
+    const options = group(dialog, 'Filters').getByRole('option');
+    await expect(options).toHaveText([/^Search “host”/, /^Filter by Host/]);
+    await expect(dialog.getByRole('option').first()).toHaveText(/^Search “host”/);
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+    await expect(dialog.getByText('Host', { exact: true })).toBeVisible();
+    await expect(field).toHaveValue('');
+    await expect(field).toBeFocused();
+    await expect(field).toHaveAccessibleDescription('Filter: Host');
+  });
+
+  test('with a Host chip, typing searches only hosts (entity=host), and lists no pages, workspaces or actions (16)', async ({ page }) => {
+    const dialog = await withHostChip(page);
+    const searched = page.waitForRequest((request) => request.url().includes('/search?'));
+    await page.keyboard.type('203.0.113.10');
+
+    const url = new URL((await searched).url());
+    expect(url.searchParams.get('extension')).toBe('core');
+    expect(url.searchParams.get('entity')).toBe('host');
+    await expect(group(dialog, 'Entities').getByRole('option', { name: /^Edge router/ })).toBeVisible();
+    await expect(group(dialog, 'Entities').getByRole('option')).toHaveCount(1);
+    for (const name of ['Pages', 'Workspaces', 'Actions']) {
+      await expect(group(dialog, name)).toHaveCount(0);
+    }
+  });
+
+  test('with a Pages chip, only pages are listed and no entity is searched (16)', async ({ page }) => {
+    const searches: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/search?')) {
+        searches.push(request.url());
+      }
+    });
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('pages');
+    await dialog.getByRole('option', { name: /^Filter by Page/ }).click();
+    await page.keyboard.type('trace');
+
+    await expect(group(dialog, 'Pages').getByRole('option', { name: /^Trace/ })).toBeVisible();
+    await expect(dialog.getByRole('group')).toHaveCount(1);
+    expect(searches).toEqual([]);
+  });
+
+  test('Backspace in the empty field removes the chip and gives its word back; the chip\'s remove button does too, the focus in the field (15)', async ({ page }) => {
+    const dialog = await withHostChip(page);
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+
+    await page.keyboard.press('Backspace');
+    await expect(dialog.getByRole('button', { name: 'Remove the Host filter' })).toHaveCount(0);
+    await expect(field).toHaveValue('host');
+
+    await dialog.getByRole('option', { name: /^Filter by Host/ }).click();
+    await dialog.getByRole('button', { name: 'Remove the Host filter' }).click();
+    await expect(dialog.getByRole('button', { name: 'Remove the Host filter' })).toHaveCount(0);
+    await expect(field).toHaveValue('host');
+    await expect(field).toBeFocused();
+  });
+
+  test('the palette with a chip has no axe violation (15)', async ({ page }) => {
+    await withHostChip(page);
+    await page.keyboard.type('edge');
+
+    await expectNoAxeViolation(page);
+  });
+});

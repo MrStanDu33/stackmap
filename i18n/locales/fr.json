@@ -394,7 +394,8 @@
     },
     "palette": {
       "title": "Recherche",
-      "hint": "Choisissez ce que la recherche ({shortcut}) affiche et parcourt."
+      "hint": "Choisissez ce que la recherche ({shortcut}) affiche et parcourt.",
+      "entitiesOff": "Cochez Entités pour les choisir."
     }
   },
   "inventory": {
@@ -590,6 +591,12 @@
       "workspaces": "Espaces de travail",
       "actions": "Actions"
     },
+    "groupName": {
+      "entities": "Entité",
+      "pages": "Page",
+      "workspaces": "Espace de travail",
+      "actions": "Action"
+    },
     "failed": "La recherche a échoué. Réessayez.",
     "actions": {
       "themeLight": "Passer au thème clair",
@@ -601,6 +608,13 @@
     },
     "unknownType": "Autre type",
     "allHidden": "Tous les groupes sont masqués dans les paramètres.",
-    "openSettings": "Ouvrir les paramètres"
+    "openSettings": "Ouvrir les paramètres",
+    "filters": {
+      "title": "Filtres",
+      "search": "Rechercher « {word} »",
+      "by": "Filtrer par {name}",
+      "chip": "Filtre : {name}",
+      "remove": "Retirer le filtre {name}"
+    }
   }
 }

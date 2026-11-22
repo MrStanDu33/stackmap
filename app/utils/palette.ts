@@ -1,10 +1,29 @@
 import type { Display } from './preferences-sync';
 
-/** What choosing an item does: open a page, change the display, or sign out. */
+/** What a filter chip keeps: one group, one extension's entities, or one type's. */
+export type PaletteFilter
+  = | { kind: 'group'; group: 'entities' | 'pages' | 'workspaces' | 'actions' }
+    | { kind: 'extension'; extension: string }
+    | { kind: 'type'; extension: string; entity: string };
+
+/** A filter the palette offers, or the chip it became: what it keeps, its name, and the word that named it. */
+export interface PaletteFilterOption {
+  filter: PaletteFilter;
+  name: string;
+  /** What was typed, given back when the chip is removed. */
+  word: string;
+  icon?: string;
+  color?: PaletteColor;
+}
+
+/** What choosing an item does: open a page, change the display, sign out, or answer a filter offer. */
 export type PaletteCommand
   = | { kind: 'navigate'; to: string }
     | { kind: 'display'; changes: Partial<Display> }
-    | { kind: 'signOut' };
+    | { kind: 'signOut' }
+    | { kind: 'filter'; option: PaletteFilterOption }
+    /** Search the word as typed: no filter is offered for it again. */
+    | { kind: 'keepWord'; word: string };
 
 /** An item the palette can list: a page, a workspace, an action or an entity. */
 export interface PaletteItem {

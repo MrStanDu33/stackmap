@@ -394,7 +394,8 @@
     },
     "palette": {
       "title": "Search",
-      "hint": "Choose what Search ({shortcut}) lists and looks through."
+      "hint": "Choose what Search ({shortcut}) lists and looks through.",
+      "entitiesOff": "Check Entities to choose these."
     }
   },
   "inventory": {
@@ -590,6 +591,12 @@
       "workspaces": "Workspaces",
       "actions": "Actions"
     },
+    "groupName": {
+      "entities": "Entity",
+      "pages": "Page",
+      "workspaces": "Workspace",
+      "actions": "Action"
+    },
     "failed": "The search failed. Try again.",
     "actions": {
       "themeLight": "Switch to the light theme",
@@ -601,6 +608,13 @@
     },
     "unknownType": "Other type",
     "allHidden": "Every group is hidden in Settings.",
-    "openSettings": "Open Settings"
+    "openSettings": "Open Settings",
+    "filters": {
+      "title": "Filters",
+      "search": "Search “{word}”",
+      "by": "Filter by {name}",
+      "chip": "Filter: {name}",
+      "remove": "Remove the {name} filter"
+    }
   }
 }
