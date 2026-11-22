@@ -12,7 +12,12 @@ const props = defineProps<{
   /** Results are being fetched. */
   loading?: boolean;
 }>();
-const emit = defineEmits<{ 'update:open': [open: boolean]; select: [item: PaletteItem, group: PaletteGroup] }>();
+const emit = defineEmits<{
+  'update:open': [open: boolean];
+  select: [item: PaletteItem, group: PaletteGroup];
+  /** It has gone, its closing animation over: the page is no longer hidden from screen readers. */
+  closed: [];
+}>();
 const searchTerm = defineModel<string>('searchTerm', { default: '' });
 
 const { t } = useI18n();
@@ -125,6 +130,7 @@ const onKeydown = (event: KeyboardEvent) => {
     :close="false"
     :ui="{ header: 'sr-only', body: 'p-0 sm:p-0' }"
     @update:open="emit('update:open', $event)"
+    @after:leave="emit('closed')"
   >
     <template #body>
       <div class="flex flex-col">

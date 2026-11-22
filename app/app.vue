@@ -35,6 +35,7 @@ useHead({
       :groups="palette.groups.value"
       :loading="palette.loading.value"
       @select="palette.choose"
+      @closed="palette.closed"
     />
   </UApp>
 </template>

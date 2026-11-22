@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { indexTrace } from './trace-index';
-import { parseSelected, selectedParam } from './trace-selection';
-import { DEMO_TRACE } from '../../tests/support/demo-trace';
+import { parseSelected, selectedParam, traceDrawn } from './trace-selection';
+import { DEMO_HOP_IDS, DEMO_TRACE } from '../../tests/support/demo-trace';
 import { DEMO_IDS } from '../../tests/support/demo-traffic';
 
 const { listeners, flows } = DEMO_IDS;
@@ -37,5 +37,24 @@ describe('selectedParam', () => {
     expect(selectedParam({ type: 'listener', id: listeners.website })).toBe(`listener:${listeners.website}`);
     expect(selectedParam({ type: 'client', id: 'client' })).toBe('client');
     expect(selectedParam(null)).toBeUndefined();
+  });
+});
+
+describe('traceDrawn', () => {
+  it('maps each hop\'s entity to the first step it is on, and each listener to itself (10)', () => {
+    const drawn = traceDrawn(DEMO_TRACE);
+
+    expect(drawn[DEMO_HOP_IDS.appRecord]).toBe(`step:${flows.publicHttp}:client`);
+    expect(drawn[DEMO_HOP_IDS.forwardHttps]).toBe(`step:${flows.publicHttps}:client`);
+    expect(drawn[DEMO_HOP_IDS.routeWebsite]).toBe(`step:${flows.routeWebsite}:${listeners.npmHttp}`);
+    expect(drawn[listeners.website]).toBe(`listener:${listeners.website}`);
+    expect(drawn.client).toBeUndefined();
+  });
+
+  it('maps a hop whose id is an inherited property\'s name too (review)', () => {
+    const [first] = DEMO_TRACE.steps;
+    const trace = { ...DEMO_TRACE, steps: [{ ...first, hops: [{ ...first?.hops[0], id: 'toString' }] }] } as typeof DEMO_TRACE;
+
+    expect(Object.hasOwn(traceDrawn(trace), 'toString')).toBe(true);
   });
 });

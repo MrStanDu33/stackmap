@@ -3,6 +3,7 @@ import type { Traffic } from '#shared/contracts/traffic';
 import type { Selection } from '~/utils/traffic-selection';
 
 import { indexTraffic, selectionName } from '~/utils/traffic-index';
+import { parseTrafficSelected, trafficDrawn } from '~/utils/traffic-selection';
 
 const { t, locale } = useI18n();
 const { session, signOut } = useAccount();
@@ -134,9 +135,67 @@ watch(traffic, (loadedTraffic) => {
     flows: t('traffic.count.flows', { count: flows.length }, flows.length),
   });
 });
+// The selection is kept in the URL, so that it can be linked (the palette selects through it); replaced, so Back leaves
+// the page.
+const selectedParam = (selected: Selection | null) => (selected ? `${selected.type}:${selected.id}` : undefined);
+// Selected from a link as the traffic arrives: said after its summary, not in place of it.
+let linked = false;
+const fromUrl = (arrived: boolean) => {
+  if (traffic.value && route.query.selected !== selectedParam(selection.value)) {
+    const next = parseTrafficSelected(route.query.selected, traffic.value);
+    // As a click does: the focus goes back where it was (the palette gave it back to its opener) when it closes.
+    if (next && !selection.value) {
+      const active = document.activeElement;
+      opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
+    linked = arrived && next !== null;
+    selection.value = next;
+    if (route.query.selected !== selectedParam(selection.value)) {
+      void router.replace({ query: { ...route.query, selected: selectedParam(selection.value) } });
+    }
+  }
+};
+watch(traffic, () => {
+  fromUrl(true);
+});
+watch(() => route.query.selected, () => {
+  fromUrl(false);
+});
 watch(selection, (selected) => {
+  if (traffic.value && route.query.selected !== selectedParam(selected)) {
+    void router.replace({ query: { ...route.query, selected: selectedParam(selected) } });
+  }
+});
+// What the palette can select here, until the page is left.
+const drawn = useState<Record<string, string>>('palette.drawn', () => ({}));
+watch(traffic, (loaded) => {
+  drawn.value = loaded ? trafficDrawn(loaded) : {};
+}, { immediate: true });
+// Another workspace: nothing of the last one's traffic is drawn until its own arrives.
+watch(trafficUrl, () => {
+  drawn.value = {};
+});
+const chosen = useState('palette.chosen', () => '');
+const reselected = useState('palette.reselected', () => 0);
+onBeforeUnmount(() => {
+  drawn.value = {};
+});
+const selectedText = (selected: Selection | null) => {
   const name = selected && index.value ? selectionName(index.value, selected, t) : undefined;
-  announcement.value = name ? t('traffic.selected', { name }) : '';
+  return name ? t('traffic.selected', { name }) : '';
+};
+watch(selection, (selected) => {
+  chosen.value = '';
+  const said = selectedText(selected);
+  announcement.value = linked && said ? `${announcement.value} ${said}` : said;
+  linked = false;
+});
+// Chosen again in the palette: said again, emptied first so that it changes.
+watch(reselected, async () => {
+  chosen.value = '';
+  announcement.value = '';
+  await nextTick();
+  announcement.value = selectedText(selection.value);
 });
 </script>
 

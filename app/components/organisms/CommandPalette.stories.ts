@@ -245,7 +245,8 @@ export const SearchedGroup: Story = {
     await userEvent.type(field(), '203.0.113');
 
     await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
-    await expect(within(dialog()).getByText('Search failed')).toBeVisible();
+    // The shown message, not the status: until typing settles, the status says the message alone, word for word.
+    await expect(within(dialog()).getByText('Search failed', { ignore: 'script, style, [role="status"]' })).toBeVisible();
   },
 };
 
@@ -298,5 +299,22 @@ export const ForeignPart: Story = {
     const option = within(list()).getByRole('option');
     await expect(option.querySelector('[lang="fr-FR"]')).toHaveTextContent('Français');
     await expect(option).toHaveAccessibleName(/^Switch language to Français/);
+  },
+};
+
+/** Once it has gone, it says so: what was chosen on the page then happens where screen readers hear it (review). */
+export const AfterLeave: Story = {
+  args: { onClosed: fn() },
+  render: (args) => ({
+    components: { CommandPalette },
+    setup: () => ({ args, open: ref(true) }),
+    template: '<CommandPalette v-bind="args" v-model:open="open" />',
+  }),
+  play: async ({ args }) => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Escape}');
+
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(args.onClosed).toHaveBeenCalledOnce());
   },
 };

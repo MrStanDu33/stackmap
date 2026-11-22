@@ -1,3 +1,5 @@
+import { FLOW_CLIENTS } from '@stackmap/extension-sdk/server';
+
 import type { Traffic, TrafficFlow } from '../../shared/contracts/traffic';
 
 /** What is selected in the Traffic view: a client (`public` or `internal`), a host, a service, a port or a flow. */
@@ -20,4 +22,33 @@ export function relatedFlowIds(traffic: Traffic, selection: Selection): Set<stri
     flow: ({ id }) => id === selection.id,
   };
   return new Set(traffic.flows.filter(matches[selection.type]).map(({ id }) => id));
+}
+
+/** `?selected=` as a selection, when it names something the traffic draws. */
+export function parseTrafficSelected(raw: unknown, traffic: Traffic): Selection | null {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+  const separator = raw.indexOf(':');
+  const type = raw.slice(0, separator);
+  const id = raw.slice(separator + 1);
+  const ids: Record<Selection['type'], () => readonly string[]> = {
+    client: () => FLOW_CLIENTS,
+    host: () => traffic.hosts.map((host) => host.id),
+    service: () => traffic.services.map((service) => service.id),
+    listener: () => traffic.listeners.map((listener) => listener.id),
+    flow: () => traffic.flows.map((flow) => flow.id),
+  };
+  const known = separator > 0 && Object.hasOwn(ids, type) ? ids[type as Selection['type']]() : [];
+  return known.includes(id) ? { type: type as Selection['type'], id } : null;
+}
+
+/** What the traffic draws that the palette can select: each host, service and port's id, to its `?selected=` value. */
+export function trafficDrawn(traffic: Traffic): Record<string, string> {
+  const drawn: [string, string][] = [
+    ...traffic.hosts.map(({ id }): [string, string] => [id, `host:${id}`]),
+    ...traffic.services.map(({ id }): [string, string] => [id, `service:${id}`]),
+    ...traffic.listeners.map(({ id }): [string, string] => [id, `listener:${id}`]),
+  ];
+  return Object.fromEntries(drawn);
 }

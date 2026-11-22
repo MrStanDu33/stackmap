@@ -8,7 +8,7 @@ import { MAX_TRACE_NODES, MAX_TRACE_STEPS } from '#shared/contracts/traces';
 import { traceElkToVueFlow, traceToElk } from '~/utils/trace-graph';
 import { indexTrace, listenerName, stepName } from '~/utils/trace-index';
 import { parseTraceQuery } from '~/utils/trace-query';
-import { parseSelected, selectedParam } from '~/utils/trace-selection';
+import { parseSelected, selectedParam, traceDrawn } from '~/utils/trace-selection';
 
 const { t, n, locale } = useI18n();
 const { session, signOut } = useAccount();
@@ -239,6 +239,41 @@ watch(index, (loaded) => {
     writeSelected(selectedParam(selection.value));
   }
 });
+// Selected through the URL on the page itself, as the palette does.
+watch(() => route.query.selected, (raw) => {
+  if (index.value && raw !== selectedParam(selection.value)) {
+    const next = parseSelected(raw, index.value);
+    // As a click does: the focus goes back where it was (the palette gave it back to its opener) when it closes.
+    if (next && !selection.value) {
+      const active = document.activeElement;
+      opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
+    selection.value = next;
+    writeSelected(selectedParam(selection.value));
+  }
+});
+// The entity chosen in the palette, named before its step; and a choice made again, said again.
+const chosen = useState('palette.chosen', () => '');
+const reselected = useState('palette.reselected', () => 0);
+watch(reselected, async () => {
+  const said = announcement.value;
+  announcement.value = '';
+  await nextTick();
+  announcement.value = said;
+  chosen.value = '';
+});
+// What the palette can select here, until the page is left.
+const drawn = useState<Record<string, string>>('palette.drawn', () => ({}));
+watch(trace, (loaded) => {
+  drawn.value = loaded ? traceDrawn(loaded) : {};
+}, { immediate: true });
+// Another workspace or trace: nothing of the last one is drawn until its own arrives.
+watch(traceUrl, () => {
+  drawn.value = {};
+});
+onBeforeUnmount(() => {
+  drawn.value = {};
+});
 watch(selection, (selected) => {
   if (index.value) {
     writeSelected(selectedParam(selected));
@@ -246,7 +281,9 @@ watch(selection, (selected) => {
   const name = selected ? selectionName(selected) : undefined;
   const position = selected?.type === 'step' ? index.value?.position(selected.id) : undefined;
   if (name && position) {
-    const step = t('trace.walk.announce', { ...position, name });
+    const walked = t('trace.walk.announce', { ...position, name });
+    const step = chosen.value ? `${t('trace.walk.chosen', { name: chosen.value })} ${walked}` : walked;
+    chosen.value = '';
     // Restored from a link: the result's summary, set in the same tick, is said first rather than replaced.
     announcement.value = restored ? `${announcement.value} ${step}` : step;
     restored = false;

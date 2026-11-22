@@ -84,7 +84,8 @@
       "position": "Step {position} of {total}",
       "previous": "Previous step",
       "next": "Next step",
-      "announce": "Step {position} of {total}: {name}"
+      "announce": "Step {position} of {total}: {name}",
+      "chosen": "Chosen: {name}."
     }
   },
   "common": {
@@ -469,7 +470,10 @@
     "no": "No",
     "extensionsFailed": "The extensions could not be loaded.",
     "typeDisabled": "This type's extension is turned off in this workspace.",
-    "manageExtensions": "Manage extensions"
+    "manageExtensions": "Manage extensions",
+    "openNotFound": "This entity was not found.",
+    "openFailed": "This entity could not be opened. Check your connection and try again.",
+    "newForbidden": "Only editors can add entities here."
   },
   "issues": {
     "invalid_type": "Expected {expected}",

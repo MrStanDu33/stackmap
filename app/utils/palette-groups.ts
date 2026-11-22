@@ -31,6 +31,10 @@ export interface PaletteContext {
   types: readonly PaletteType[];
   display: Display;
   entities: PaletteEntities;
+  /** The current page's query, which selecting an entity there keeps. */
+  query: Readonly<Record<string, string>>;
+  /** What the current page draws: an entity's id to its `?selected=` value there. */
+  drawn: Readonly<Record<string, string>>;
 }
 
 // One or more labels, then a top-level label of letters: what a hostname looks like.
@@ -38,7 +42,7 @@ const HOSTNAME = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]
 
 /** The palette's groups for what is typed: entities, pages, workspaces and actions. */
 export function paletteGroups(context: PaletteContext): PaletteGroup[] {
-  const { q, t, path, workspace, workspaces, types, display, entities } = context;
+  const { q, t, path, workspace, workspaces, types, display, entities, query, drawn } = context;
   const typed = q.trim() !== '';
   const base = workspace ? `/w/${workspace.slug}` : '';
   const navigate = (to: string) => ({ kind: 'navigate' as const, to });
@@ -57,7 +61,10 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
           label: title,
           description: typeOf(extension, entity)?.name ?? t('palette.unknownType'),
           icon: typeOf(extension, entity)?.icon ?? 'i-lucide-box',
-          command: navigate(`${base}/inventory/${extension}/${entity}`),
+          // Selected where the page draws it; opened in the inventory otherwise.
+          command: navigate(Object.hasOwn(drawn, id)
+            ? `${path}?${new URLSearchParams({ ...query, selected: drawn[id] ?? '' }).toString()}`
+            : `${base}/inventory/${extension}/${entity}?open=${encodeURIComponent(id)}`),
         }))
       : [],
     ...(entities.state === 'loading' ? { message: t('palette.searching') } : {}),
