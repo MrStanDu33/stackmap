@@ -130,6 +130,7 @@ const onKeydown = (event: KeyboardEvent) => {
     :close="false"
     :ui="{ header: 'sr-only', body: 'p-0 sm:p-0' }"
     @update:open="emit('update:open', $event)"
+    @after:leave="emit('closed')"
   >
     <template #body>
       <div class="flex flex-col">

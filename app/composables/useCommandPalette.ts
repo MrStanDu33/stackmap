@@ -72,15 +72,40 @@ export function useCommandPalette() {
     }
   });
 
-  const choose = async ({ command }: PaletteItem) => {
+  // While the palette closes, the page is hidden from screen readers: a change on the same page waits for it to go,
+  // or it would be made, and announced, where nobody hears it.
+  let leaving: (() => void) | null = null;
+  const closed = () => {
+    leaving?.();
+    leaving = null;
+  };
+  // The item chosen, for the page that selects it to name it (Trace selects a step for one of its hops).
+  const chosen = useState('palette.chosen', () => '');
+  // Counted each time the selection chosen is already the page's: it says it again.
+  const reselected = useState('palette.reselected', () => 0);
+
+  const choose = async ({ command, label }: PaletteItem) => {
     searchTerm.value = '';
     if (command?.kind === 'navigate') {
       // Another page's main content takes the focus; on the same page, the shell gives it back to the opener.
-      if (router.resolve(command.to).path !== route.path) {
+      const samePage = router.resolve(command.to).path === route.path;
+      if (!samePage) {
         focusNextPage();
+        open.value = false;
+        await navigateTo(command.to);
+        return;
       }
+      const gone = new Promise<void>((resolve) => {
+        leaving = resolve;
+      });
       open.value = false;
-      await navigateTo(command.to);
+      await gone;
+      chosen.value = label;
+      if (router.resolve(command.to).fullPath === route.fullPath) {
+        reselected.value += 1;
+      } else {
+        await navigateTo(command.to);
+      }
       return;
     }
     open.value = false;
@@ -92,5 +117,5 @@ export function useCommandPalette() {
     }
   };
 
-  return { open, searchTerm, groups, loading: computed(() => entities.value.state === 'loading'), choose };
+  return { open, searchTerm, groups, loading: computed(() => entities.value.state === 'loading'), choose, closed };
 }

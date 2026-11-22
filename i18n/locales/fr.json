@@ -84,7 +84,8 @@
       "position": "Étape {position} sur {total}",
       "previous": "Étape précédente",
       "next": "Étape suivante",
-      "announce": "Étape {position} sur {total} : {name}"
+      "announce": "Étape {position} sur {total} : {name}",
+      "chosen": "Choisi : {name}."
     }
   },
   "common": {
@@ -470,7 +471,9 @@
     "extensionsFailed": "Les extensions n’ont pas pu être chargées.",
     "typeDisabled": "L’extension de ce type est désactivée dans cet espace de travail.",
     "manageExtensions": "Gérer les extensions",
-    "openNotFound": "Cette entité est introuvable."
+    "openNotFound": "Cette entité est introuvable.",
+    "openFailed": "Cette entité n’a pas pu être ouverte. Vérifiez votre connexion et réessayez.",
+    "newForbidden": "Seuls les rédacteurs peuvent ajouter des entités ici."
   },
   "issues": {
     "invalid_type": "Valeur attendue : {expected}",
