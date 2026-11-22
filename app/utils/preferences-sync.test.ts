@@ -15,7 +15,7 @@ describe('preferences sync', () => {
 
     expect(preferencesToSave(saved, { theme: 'dark', contrast: 'standard', locale: 'en' }))
       .toEqual({ contrast: 'standard', locale: 'en' });
-    expect(preferencesToSave({ theme: 'dark', contrast: 'standard', locale: 'en', landingPage: null },
+    expect(preferencesToSave({ ...NO_PREFERENCES, theme: 'dark', contrast: 'standard', locale: 'en' },
       { theme: 'dark', contrast: 'standard', locale: 'en' })).toBeNull();
     expect(preferencesToSave(saved, { theme: 'light', contrast: 'standard', locale: 'en' }))
       .toEqual({ theme: 'light', contrast: 'standard', locale: 'en' });

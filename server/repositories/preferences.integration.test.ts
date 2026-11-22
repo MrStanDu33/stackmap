@@ -30,6 +30,23 @@ describe.each(DIALECTS)('preferences repository on %s', (dialect: Dialect) => {
     expect(await preferencesOf(db(), id)).toEqual({ ...NO_PREFERENCES, theme: 'light', locale: 'fr' });
   });
 
+  it('given no palette choice saved, hides no group of the palette (13)', async () => {
+    const { id } = await grace();
+    await savePreferences(db(), id, { theme: 'light' });
+
+    expect((await preferencesOf(db(), id)).palette).toEqual({ hidden: [] });
+  });
+
+  it('saves the palette\'s hidden groups, keeping the other preferences, and answers them (13)', async () => {
+    const { id } = await grace();
+    await savePreferences(db(), id, { theme: 'light' });
+    const palette = { hidden: ['group:entities', 'group:actions'] };
+
+    expect(await savePreferences(db(), id, { palette })).toEqual({ ...NO_PREFERENCES, theme: 'light', palette });
+    expect(await savePreferences(db(), id, { locale: 'fr' })).toEqual({ ...NO_PREFERENCES, theme: 'light', locale: 'fr', palette });
+    expect(await preferencesOf(db(), id)).toEqual({ ...NO_PREFERENCES, theme: 'light', locale: 'fr', palette });
+  });
+
   it('refuses a value outside its choices in the database too (2)', async () => {
     const { id } = await grace();
 

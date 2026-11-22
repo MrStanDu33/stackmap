@@ -35,6 +35,8 @@ export interface PaletteContext {
   query: Readonly<Record<string, string>>;
   /** What the current page draws: an entity's id to its `?selected=` value there. */
   drawn: Readonly<Record<string, string>>;
+  /** What the user hid in Settings: `group:<id>` keys. */
+  hidden: readonly string[];
 }
 
 // One or more labels, then a top-level label of letters: what a hostname looks like.

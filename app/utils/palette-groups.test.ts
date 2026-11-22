@@ -26,6 +26,7 @@ const context = (overrides: Partial<PaletteContext> = {}): PaletteContext => ({
   entities: { state: 'idle', hits: [] },
   query: {},
   drawn: {},
+  hidden: [],
   ...overrides,
 });
 
@@ -101,6 +102,12 @@ describe('paletteGroups', () => {
 
     expect(group(groups, 'entities')?.items[0]?.command)
       .toEqual({ kind: 'navigate', to: '/w/home/inventory/core/host?open=constructor' });
+  });
+
+  it('leaves out the groups the user hid in Settings, entities included (13)', () => {
+    const groups = paletteGroups(context({ q: 'router', entities: { state: 'done', hits: [] }, hidden: ['group:entities', 'group:pages'] }));
+
+    expect(groups.map(({ id }) => id)).toEqual(['workspaces', 'actions']);
   });
 
   it('says the entities are being searched, or that the search failed, in the entities group alone (4)', () => {

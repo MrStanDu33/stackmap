@@ -116,6 +116,38 @@ test.describe('settings', () => {
     await context.close();
   });
 
+  test('Settings has a Command palette section, every group checked; one unchecked is saved, and the palette neither lists nor searches it (13)', async ({ page, browser }) => {
+    const { page: own, context } = await ownAccount(page, browser);
+    await own.goto('/settings');
+    await hydrated(own);
+    const section = own.getByRole('group', { name: 'Command palette' });
+    for (const name of ['Entities', 'Pages', 'Workspaces', 'Actions']) {
+      await expect(section.getByRole('checkbox', { name })).toBeChecked();
+    }
+
+    const saved = own.waitForResponse((response) => response.url().endsWith('/api/account/preferences') && response.ok());
+    await section.getByRole('checkbox', { name: 'Entities' }).click();
+    await saved;
+    await own.reload();
+    await hydrated(own);
+    await expect(own.getByRole('group', { name: 'Command palette' }).getByRole('checkbox', { name: 'Entities' })).not.toBeChecked();
+
+    const searches: string[] = [];
+    own.on('request', (request) => {
+      if (request.url().includes('/search?')) {
+        searches.push(request.url());
+      }
+    });
+    await own.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    const dialog = own.getByRole('dialog', { name: 'Search' });
+    await expect(dialog.getByRole('combobox', { name: 'Search' })).toBeFocused();
+    await own.keyboard.type('Settings');
+    await expect(dialog.getByRole('group', { name: 'Pages' })).toBeVisible();
+    await expect(dialog.getByRole('group', { name: 'Entities' })).toHaveCount(0);
+    expect(searches).toEqual([]);
+    await context.close();
+  });
+
   test('/settings and /settings/password have no axe violation', async ({ page, browser }) => {
     await page.goto('/settings');
     await hydrated(page);

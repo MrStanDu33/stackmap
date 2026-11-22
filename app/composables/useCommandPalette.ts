@@ -45,6 +45,7 @@ export function useCommandPalette() {
     entities: entities.value,
     query: Object.fromEntries(Object.entries(route.query).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
     drawn: drawn.value,
+    hidden: [],
   }));
 
   // The palette's opener goes with the page it leaves: the new page's main content takes the focus once shown.
