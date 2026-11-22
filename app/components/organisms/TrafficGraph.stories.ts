@@ -139,10 +139,10 @@ export const ZoomedIn: Story = {
       const outer = pane.getBoundingClientRect();
       void expect(inner.left >= outer.left && inner.right <= outer.right && inner.top >= outer.top
         && inner.bottom <= outer.bottom).toBe(true);
-    }, { timeout: 2000 });
+    });
     // Brought into view by panning the graph: a browser scroll of the clipped canvas would shift it under the pointer.
     const flow = canvasElement.querySelector<HTMLElement>('.vue-flow');
-    await waitFor(() => expect([flow?.scrollLeft, flow?.scrollTop]).toEqual([0, 0]), { timeout: 2000 });
+    await waitFor(() => expect([flow?.scrollLeft, flow?.scrollTop]).toEqual([0, 0]));
   },
 };
 

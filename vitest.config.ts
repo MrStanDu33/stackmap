@@ -22,15 +22,17 @@ const storybookProjects = THEMES.flatMap((theme) => CONTRASTS.flatMap((contrast)
     },
     test: {
       name: `storybook:${theme}-${contrast}-${locale}`,
-      // A file's first story also pays for its first render and axe run in a fresh page.
-      testTimeout: 30_000,
-      // The eight projects run at once, and Vitest opens up to (CPUs - 1) pages for each: 24 on CI's 4 vCPUs, where
-      // first stories queued for the CPU past the timeout. One page per project is also the fastest run locally.
-      maxWorkers: 1,
+      // Only stops a hung story: a story passes or fails on the code, never on how busy the machine is. Waits are
+      // guarded the same way, in .storybook/preview.ts.
+      testTimeout: 120_000,
+      // The eight projects run at once, and Vitest opens up to (CPUs - 1) pages for each: 24 on CI's 4 vCPUs. One page
+      // per project is also the fastest run locally; the flake hunt sets 0 to overload the runner on purpose.
+      maxWorkers: Number(process.env.STORY_PAGES_PER_PROJECT ?? 1) || undefined,
       browser: {
         enabled: true,
         headless: true,
-        provider: playwright(),
+        // Transitions end at once (a11y.css), so no story checks an element mid-animation.
+        provider: playwright({ contextOptions: { reducedMotion: 'reduce' } }),
         instances: [{ browser: 'chromium' }],
       },
     },

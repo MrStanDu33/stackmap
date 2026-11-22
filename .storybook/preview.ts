@@ -3,6 +3,7 @@ import { icons as lucide } from '@iconify-json/lucide';
 import UApp from '@nuxt/ui/components/App.vue';
 import ui from '@nuxt/ui/vue-plugin';
 import { setup } from '@storybook/vue3-vite';
+import { configure } from 'storybook/test';
 import { h } from 'vue';
 
 import '../app/assets/css/main.css';
@@ -13,6 +14,10 @@ import type { Locale } from './nuxt-shims';
 import type { Decorator, Preview } from '@storybook/vue3-vite';
 
 type Theme = 'midnight' | 'light';
+
+// A wait lasts until the UI is ready, however busy the machine: this only stops a story whose UI never comes. Stories
+// set no timeout of their own (tests/unit/architecture/story-tests.test.ts).
+configure({ asyncUtilTimeout: 10_000 });
 
 // Icons come from the bundled Lucide collection, as in the app: stories never call the Iconify API.
 addCollection(lucide);
