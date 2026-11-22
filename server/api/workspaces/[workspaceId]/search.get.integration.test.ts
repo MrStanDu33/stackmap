@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import handler from './search.get';
 import { DIALECTS } from '../../../../tests/support/databases';
 import { useEntityApi } from '../../../../tests/support/entity-api';
+import { createPortForwards } from '../../../../tests/support/nat';
 import { serveRoute } from '../../../../tests/support/requests';
 
 import type { Dialect } from '../../../../tests/support/databases';
@@ -45,6 +46,42 @@ describe.each(DIALECTS)('GET /api/workspaces/:workspaceId/search on %s', (dialec
 
       expect(status, query).toBe(400);
       expect(json).toMatchObject({ code: 'validation_failed' });
+    }
+  });
+
+  it('given extension=nat&entity=port-forward, answers only those entities (18)', async () => {
+    await createPortForwards(workspaces.a.repos);
+    await signInAs('viewer');
+
+    const { status, json } = await get(path('q=203.0.113.10&extension=nat&entity=port-forward'));
+
+    expect(status).toBe(200);
+    expect(json).toMatchObject({
+      items: [{ extension: 'nat', entity: 'port-forward' }, { extension: 'nat', entity: 'port-forward' }],
+      truncated: false,
+    });
+  });
+
+  it('given an unknown extension or entity, answers 200 with no items (18)', async () => {
+    await createPortForwards(workspaces.a.repos);
+    await signInAs('viewer');
+
+    for (const query of ['extension=unknown', 'entity=unknown', 'extension=nat&entity=host']) {
+      const { status, json } = await get(path(`q=203.0.113.10&${query}`));
+
+      expect(status, query).toBe(200);
+      expect(json, query).toEqual({ items: [], truncated: false });
+    }
+  });
+
+  it('answers 400 to an extension or entity that is not a kebab id (18)', async () => {
+    await signInAs('viewer');
+
+    for (const query of ['extension=', 'extension=Nat', 'entity=port_forward', `entity=${'a'.repeat(101)}`, 'extension=nat&extension=core']) {
+      const { status, json } = await get(path(`q=router&${query}`));
+
+      expect(status, query).toBe(400);
+      expect(json, query).toMatchObject({ code: 'validation_failed' });
     }
   });
 

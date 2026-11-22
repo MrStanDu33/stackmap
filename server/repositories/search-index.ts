@@ -105,7 +105,7 @@ export async function pruneSearchIndex(
 export async function searchEntities(
   { db, repos, workspaceId }: { db: Kysely<Database>; repos: WorkspaceRepositories; workspaceId: string },
   definitions: readonly RegisteredRepository[],
-  { q, limit }: { q: string; limit: number },
+  { q, limit }: { q: string; limit: number; extension?: string; entity?: string },
 ): Promise<{ items: SearchHit[]; truncated: boolean }> {
   const patterns = searchPatterns(q);
   if (patterns.length === 0) {
