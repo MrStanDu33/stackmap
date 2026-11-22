@@ -93,6 +93,16 @@ describe('paletteGroups', () => {
       .toEqual({ kind: 'navigate', to: `/w/home/inventory/core/host?open=${HOST_ID}` });
   });
 
+  it('never takes an inherited property for something the page draws (review)', () => {
+    const groups = paletteGroups(context({
+      q: 'router',
+      entities: { state: 'done', hits: [{ extension: 'core', entity: 'host', id: 'constructor', title: 'Odd', matched: 'name' }] },
+    }));
+
+    expect(group(groups, 'entities')?.items[0]?.command)
+      .toEqual({ kind: 'navigate', to: '/w/home/inventory/core/host?open=constructor' });
+  });
+
   it('says the entities are being searched, or that the search failed, in the entities group alone (4)', () => {
     expect(group(paletteGroups(context({ q: 'router', entities: { state: 'loading', hits: [] } })), 'entities'))
       .toMatchObject({ items: [], message: t('palette.searching') });

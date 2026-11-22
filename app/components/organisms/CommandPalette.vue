@@ -12,7 +12,12 @@ const props = defineProps<{
   /** Results are being fetched. */
   loading?: boolean;
 }>();
-const emit = defineEmits<{ 'update:open': [open: boolean]; select: [item: PaletteItem, group: PaletteGroup] }>();
+const emit = defineEmits<{
+  'update:open': [open: boolean];
+  select: [item: PaletteItem, group: PaletteGroup];
+  /** It has gone, its closing animation over: the page is no longer hidden from screen readers. */
+  closed: [];
+}>();
 const searchTerm = defineModel<string>('searchTerm', { default: '' });
 
 const { t } = useI18n();

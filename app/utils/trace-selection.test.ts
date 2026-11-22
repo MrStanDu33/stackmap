@@ -50,4 +50,11 @@ describe('traceDrawn', () => {
     expect(drawn[listeners.website]).toBe(`listener:${listeners.website}`);
     expect(drawn.client).toBeUndefined();
   });
+
+  it('maps a hop whose id is an inherited property\'s name too (review)', () => {
+    const [first] = DEMO_TRACE.steps;
+    const trace = { ...DEMO_TRACE, steps: [{ ...first, hops: [{ ...first?.hops[0], id: 'toString' }] }] } as typeof DEMO_TRACE;
+
+    expect(Object.hasOwn(traceDrawn(trace), 'toString')).toBe(true);
+  });
 });

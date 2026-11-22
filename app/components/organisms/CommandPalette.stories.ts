@@ -300,3 +300,20 @@ export const ForeignPart: Story = {
     await expect(option).toHaveAccessibleName(/^Switch language to Français/);
   },
 };
+
+/** Once it has gone, it says so: what was chosen on the page then happens where screen readers hear it (review). */
+export const AfterLeave: Story = {
+  args: { onClosed: fn() },
+  render: (args) => ({
+    components: { CommandPalette },
+    setup: () => ({ args, open: ref(true) }),
+    template: '<CommandPalette v-bind="args" v-model:open="open" />',
+  }),
+  play: async ({ args }) => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Escape}');
+
+    await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(args.onClosed).toHaveBeenCalledOnce());
+  },
+};
