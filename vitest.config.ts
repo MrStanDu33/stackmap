@@ -31,7 +31,8 @@ const storybookProjects = THEMES.flatMap((theme) => CONTRASTS.flatMap((contrast)
       browser: {
         enabled: true,
         headless: true,
-        // Transitions end at once (a11y.css), so no story checks an element mid-animation.
+        // Nothing animates (a11y.css), so no story checks an element mid-animation. The e2e tests keep the default
+        // motion, with axe.
         provider: playwright({ contextOptions: { reducedMotion: 'reduce' } }),
         instances: [{ browser: 'chromium' }],
       },
