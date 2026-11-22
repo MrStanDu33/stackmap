@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { entityId } from '@stackmap/extension-sdk/entities';
 import { FetchError } from 'ofetch';
 
 import type { Problem } from '#shared/contracts/errors';
@@ -176,6 +177,8 @@ const openPanel = (mode: 'new' | 'edit' | 'view', entity?: EntityRow) => {
   panel.key += 1;
 };
 
+// What a link could not open, shown and said until dismissed.
+const linkNotice = ref('');
 // Opened from a link or the palette: ?new=1 opens the create form (for editors), ?open=<id> that entity's form, read
 // only for viewers. Fetched on its own: the entity may be past the loaded page of the table.
 const clearOpened = async () => {
@@ -188,16 +191,28 @@ watch([type, form, base, linked], async ([current, loaded, url, [open, isNew]]) 
   if (!current || !loaded || !url || panel.open) {
     return;
   }
+  linkNotice.value = '';
   if (isNew === '1' && canEdit.value) {
     openPanel('new');
+    afterClose = () => table.value?.focusNew();
+  } else if (isNew === '1') {
+    await clearOpened();
+    linkNotice.value = t('inventory.newForbidden');
   } else if (typeof open === 'string') {
+    // Checked first: anything but an id (".", "..") would reach another endpoint.
+    if (!entityId().safeParse(open).success) {
+      await clearOpened();
+      linkNotice.value = t('inventory.openNotFound');
+      return;
+    }
     try {
       const entity = await $fetch<EntityRow>(`${url}/${current.key}/${encodeURIComponent(open)}`);
       openPanel(canEdit.value ? 'edit' : 'view', entity);
-    } catch {
-      // Said once the URL has changed: a change of the table's query empties its live region.
+      // Nothing opened it: its row takes the focus when it closes (New, or the search, if not shown).
+      afterClose = () => table.value?.focusRow(entity.id);
+    } catch (failure) {
       await clearOpened();
-      announce(t('inventory.openNotFound'));
+      linkNotice.value = t(failure instanceof FetchError && failure.status === 404 ? 'inventory.openNotFound' : 'inventory.openFailed');
     }
   } else {
     await clearOpened();
@@ -349,6 +364,17 @@ const remove = async () => {
       :not-found="notFound"
       :back-to="`/w/${slug}/inventory`"
     >
+      <div role="status">
+        <UAlert
+          v-if="linkNotice"
+          color="neutral"
+          variant="subtle"
+          icon="i-lucide-info"
+          :title="linkNotice"
+          close
+          @update:open="linkNotice = ''"
+        />
+      </div>
       <div
         v-if="extensionsError && installed.length === 0"
         role="alert"
