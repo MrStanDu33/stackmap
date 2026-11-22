@@ -34,7 +34,10 @@ export function traceDrawn(trace: Trace): Record<string, string> {
   const drawn: Record<string, string> = {};
   for (const step of trace.steps) {
     for (const { id } of step.hops) {
-      drawn[id] ??= `step:${step.id}`;
+      // Own keys only: an id named like an inherited property is still mapped.
+      if (!Object.hasOwn(drawn, id)) {
+        drawn[id] = `step:${step.id}`;
+      }
     }
   }
   for (const node of trace.nodes) {

@@ -62,8 +62,8 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
           description: typeOf(extension, entity)?.name ?? t('palette.unknownType'),
           icon: typeOf(extension, entity)?.icon ?? 'i-lucide-box',
           // Selected where the page draws it; opened in the inventory otherwise.
-          command: navigate(drawn[id]
-            ? `${path}?${new URLSearchParams({ ...query, selected: drawn[id] }).toString()}`
+          command: navigate(Object.hasOwn(drawn, id)
+            ? `${path}?${new URLSearchParams({ ...query, selected: drawn[id] ?? '' }).toString()}`
             : `${base}/inventory/${extension}/${entity}?open=${encodeURIComponent(id)}`),
         }))
       : [],
