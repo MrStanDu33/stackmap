@@ -32,6 +32,7 @@ useHead({
     <CommandPalette
       v-model:open="palette.open.value"
       v-model:search-term="palette.searchTerm.value"
+      v-model:filter="palette.filter.value"
       :groups="palette.groups.value"
       :loading="palette.loading.value"
       @select="palette.choose"

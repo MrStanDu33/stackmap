@@ -369,15 +369,16 @@ test.describe('command palette filters', () => {
   });
 
   test('with a Pages chip, only pages are listed and no entity is searched (16)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('pages');
+    await dialog.getByRole('option', { name: /^Filter by Page/ }).click();
+    // Counted from the chip on: the word typed before it was searched as any word is.
     const searches: string[] = [];
     page.on('request', (request) => {
       if (request.url().includes('/search?')) {
         searches.push(request.url());
       }
     });
-    const dialog = await open(page, '/w/demo/graph');
-    await page.keyboard.type('pages');
-    await dialog.getByRole('option', { name: /^Filter by Page/ }).click();
     await page.keyboard.type('trace');
 
     await expect(group(dialog, 'Pages').getByRole('option', { name: /^Trace/ })).toBeVisible();

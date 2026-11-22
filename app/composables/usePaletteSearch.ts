@@ -11,13 +11,14 @@ const LIMIT = 20;
 export function usePaletteSearch(
   workspaceId: () => string | undefined,
   q: () => string,
-  _only: () => { extension?: string; entity?: string } = () => ({}),
+  only: () => { extension?: string; entity?: string } = () => ({}),
 ): Ref<PaletteEntities> {
   const entities = ref<PaletteEntities>({ state: 'idle', hits: [] });
   let timer: ReturnType<typeof setTimeout> | undefined;
   let pending: AbortController | undefined;
 
-  watch([workspaceId, () => q().trim()], ([id, words]) => {
+  // The filter is compared by value: a new object with the same ids searches nothing again.
+  watch([workspaceId, () => q().trim(), () => JSON.stringify(only())], ([id, words]) => {
     clearTimeout(timer);
     // Only the last request counts: an earlier one answering late would show stale results.
     pending?.abort();
@@ -30,7 +31,7 @@ export function usePaletteSearch(
       const request = new AbortController();
       pending = request;
       $fetch<{ items: SearchHit[] }>(`/api/workspaces/${id}/search`, {
-        query: { q: words, limit: LIMIT },
+        query: { q: words, limit: LIMIT, ...only() },
         signal: request.signal,
       }).then(({ items }) => {
         entities.value = { state: 'done', hits: items };

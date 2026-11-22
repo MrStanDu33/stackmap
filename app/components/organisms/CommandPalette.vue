@@ -94,6 +94,16 @@ onBeforeUnmount(() => {
 });
 const activeId = computed(() => options.value[active.value]?.id);
 
+const chipId = `${baseId}-chip`;
+// The chip goes and its word comes back to the field, which keeps the focus.
+const removeFilter = () => {
+  if (props.filter) {
+    searchTerm.value = props.filter.word;
+    emit('update:filter', null);
+    field.value?.inputRef?.focus();
+  }
+};
+
 const choose = (index: number) => {
   const option = options.value[index];
   if (option) {
@@ -111,6 +121,11 @@ const move = (step: number) => {
 const onKeydown = (event: KeyboardEvent) => {
   // An input method composing text (Chinese, Japanese…) uses the arrows and Enter itself.
   if (event.isComposing) {
+    return;
+  }
+  if (event.key === 'Backspace' && searchTerm.value === '' && props.filter) {
+    event.preventDefault();
+    removeFilter();
     return;
   }
   const keys: Record<string, (() => void) | undefined> = {
@@ -138,26 +153,56 @@ const onKeydown = (event: KeyboardEvent) => {
   >
     <template #body>
       <div class="flex flex-col">
-        <UInput
-          ref="field"
-          v-model="searchTerm"
-          variant="none"
-          size="lg"
-          icon="i-lucide-search"
-          :loading="loading"
-          :placeholder="t('palette.placeholder')"
-          :ui="{
-            root: 'w-full border-b border-default',
-            base: 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
-          }"
-          role="combobox"
-          aria-autocomplete="list"
-          :aria-label="t('palette.title')"
-          :aria-expanded="count > 0 ? 'true' : 'false'"
-          :aria-controls="listId"
-          :aria-activedescendant="activeId"
-          @keydown="onKeydown"
-        />
+        <div class="flex items-center border-b border-default">
+          <!-- The chip comes before the words, in the same field: one combobox, described by the filter it applies. -->
+          <span
+            v-if="filter"
+            class="ms-2 flex shrink-0 items-center gap-1 rounded-md bg-elevated ps-2 text-sm font-medium"
+          >
+            <UIcon
+              v-if="filter.icon"
+              :name="filter.icon"
+              :data-icon="filter.icon"
+              class="size-4 shrink-0"
+              :class="filter.color ? COLORS[filter.color] : 'text-muted'"
+              aria-hidden="true"
+            />
+            <span
+              :id="chipId"
+              class="sr-only"
+            >{{ t('palette.filters.chip', { name: filter.name }) }}</span>
+            <span aria-hidden="true">{{ filter.name }}</span>
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :aria-label="t('palette.filters.remove', { name: filter.name })"
+              @click="removeFilter"
+            />
+          </span>
+          <UInput
+            ref="field"
+            v-model="searchTerm"
+            variant="none"
+            size="lg"
+            :icon="filter ? undefined : 'i-lucide-search'"
+            :loading="loading"
+            :placeholder="t('palette.placeholder')"
+            :ui="{
+              root: 'w-full',
+              base: 'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
+            }"
+            role="combobox"
+            aria-autocomplete="list"
+            :aria-label="t('palette.title')"
+            :aria-describedby="filter ? chipId : undefined"
+            :aria-expanded="count > 0 ? 'true' : 'false'"
+            :aria-controls="listId"
+            :aria-activedescendant="activeId"
+            @keydown="onKeydown"
+          />
+        </div>
         <!-- Only with results: an empty listbox has nothing to choose; the field then says it is collapsed. -->
         <div
           v-if="count > 0"
