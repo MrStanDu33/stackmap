@@ -35,8 +35,8 @@ const labels = (groups: ReturnType<typeof paletteGroups>, id: string) =>
   group(groups, id)?.items.map(({ label }) => label);
 
 describe('paletteGroups', () => {
-  it('given an empty search, lists pages, workspaces and actions, and no entities (3)', () => {
-    expect(paletteGroups(context()).map(({ id }) => id)).toEqual(['pages', 'workspaces', 'actions']);
+  it('given an empty search, lists the filters, then pages, workspaces and actions, and no entities (3, 19)', () => {
+    expect(paletteGroups(context()).map(({ id }) => id)).toEqual(['filters', 'pages', 'workspaces', 'actions']);
   });
 
   it('given a search, lists every group, entities first, the others left to the palette to match on their words (3)', () => {

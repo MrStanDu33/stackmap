@@ -35,36 +35,44 @@ export const entitiesHidden = (hidden: readonly string[], extension: string, ent
   hidden.includes('group:entities') || hidden.includes(`extension:${extension}`)
   || (entity !== undefined && hidden.includes(`type:${extension}/${entity}`));
 
+/** Every filter the user can choose, with the names that call it up when typed in full. */
+function candidates({ t, extensions, types, hidden }: PaletteFilterContext) {
+  const groups = (Object.keys(PALETTE_GROUP_STYLES) as (keyof typeof PALETTE_GROUP_STYLES)[])
+    .filter((group) => !hidden.includes(`group:${group}`))
+    .map((group) => ({
+      option: {
+        filter: { kind: 'group', group }, name: t(`palette.groupName.${group}`), word: '', ...PALETTE_GROUP_STYLES[group],
+      } satisfies PaletteFilterOption,
+      names: [t(`palette.groupName.${group}`), t(`palette.groups.${group}`)],
+    }));
+  const color = PALETTE_GROUP_STYLES.entities.color;
+  const byExtension = extensions.filter(({ id }) => !entitiesHidden(hidden, id)).map(({ id, name, icon }) => ({
+    option: { filter: { kind: 'extension', extension: id }, name, word: '', ...(icon ? { icon } : {}), color } satisfies PaletteFilterOption,
+    names: [id, name],
+  }));
+  const byType = types.filter(({ extension, entity }) => !entitiesHidden(hidden, extension, entity))
+    .map(({ extension, entity, name, plural, icon }) => ({
+      option: {
+        filter: { kind: 'type', extension, entity }, name, word: '', ...(icon ? { icon } : {}), color,
+      } satisfies PaletteFilterOption,
+      names: [name, plural],
+    }));
+  return [...groups, ...byExtension, ...byType];
+}
+
 /** Every filter the user can choose: groups, extensions, then entity types, none hidden or turned off. */
-export function availableFilters(_context: PaletteFilterContext): PaletteFilterOption[] {
-  return [];
+export function availableFilters(context: PaletteFilterContext): PaletteFilterOption[] {
+  return candidates(context).map(({ option }) => option);
 }
 
 /** The filters what is typed names in full: groups, extensions and entity types, in the current language. */
 export function paletteFilters(context: PaletteFilterContext): PaletteFilterOption[] {
-  const { q, t, extensions, types, hidden, filter } = context;
-  const typed = normalize(q);
-  if (filter || !typed) {
+  const typed = normalize(context.q);
+  if (context.filter || !typed) {
     return [];
   }
-  const names = (...candidates: string[]) => candidates.some((candidate) => normalize(candidate) === typed);
-  const word = q.trim();
-  const groups = (Object.keys(PALETTE_GROUP_STYLES) as (keyof typeof PALETTE_GROUP_STYLES)[])
-    .filter((group) => !hidden.includes(`group:${group}`)
-      && names(t(`palette.groupName.${group}`), t(`palette.groups.${group}`)))
-    .map((group): PaletteFilterOption => ({
-      filter: { kind: 'group', group }, name: t(`palette.groupName.${group}`), word, ...PALETTE_GROUP_STYLES[group],
-    }));
-  const color = PALETTE_GROUP_STYLES.entities.color;
-  const byExtension = extensions
-    .filter(({ id, name }) => !entitiesHidden(hidden, id) && names(id, name))
-    .map(({ id, name, icon }): PaletteFilterOption => ({
-      filter: { kind: 'extension', extension: id }, name, word, ...(icon ? { icon } : {}), color,
-    }));
-  const byType = types
-    .filter(({ extension, entity, name, plural }) => !entitiesHidden(hidden, extension, entity) && names(name, plural))
-    .map(({ extension, entity, name, icon }): PaletteFilterOption => ({
-      filter: { kind: 'type', extension, entity }, name, word, ...(icon ? { icon } : {}), color,
-    }));
-  return [...groups, ...byExtension, ...byType];
+  const word = context.q.trim();
+  return candidates(context)
+    .filter(({ names }) => names.some((name) => normalize(name) === typed))
+    .map(({ option }) => ({ ...option, word }));
 }

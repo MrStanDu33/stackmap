@@ -1,6 +1,6 @@
-import { entitiesHidden, PALETTE_GROUP_STYLES, paletteFilters } from './palette-filters';
+import { availableFilters, entitiesHidden, PALETTE_GROUP_STYLES, paletteFilters } from './palette-filters';
 
-import type { PaletteFilter, PaletteFilterOption, PaletteGroup } from './palette';
+import type { PaletteFilter, PaletteFilterOption, PaletteGroup, PaletteItem } from './palette';
 import type { PaletteExtension } from './palette-filters';
 import type { Display } from './preferences-sync';
 import type { WorkspaceRole } from '../../shared/contracts/contract';
@@ -57,6 +57,23 @@ const filterKey = (filter: PaletteFilter) => {
   }
   return filter.kind === 'extension' ? filter.extension : `${filter.extension}/${filter.entity}`;
 };
+
+/** The Filters group: Filter by <name> for each option, after what comes first (Search “<word>”). */
+const offerGroup = (t: PaletteContext['t'], options: readonly PaletteFilterOption[], ...first: PaletteItem[]): PaletteGroup => ({
+  id: 'filters',
+  label: t('palette.filters.title'),
+  icon: 'i-lucide-filter',
+  searched: true,
+  items: [
+    ...first,
+    ...options.map((option) => ({
+      id: `filter/${option.filter.kind}/${filterKey(option.filter)}`,
+      label: t('palette.filters.by', { name: option.name }),
+      ...(option.icon ? { icon: option.icon } : {}),
+      command: { kind: 'filter' as const, option },
+    })),
+  ],
+});
 
 /** The palette's groups for what is typed: entities, pages, workspaces and actions. */
 export function paletteGroups(context: PaletteContext): PaletteGroup[] {
@@ -185,23 +202,15 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
     const kept = filter.filter.kind === 'group' ? filter.filter.group : 'entities';
     return listed.filter(({ id }) => id === kept);
   }
-  // A word that names filters offers them first, unless the user chose to search it as typed.
+  // Nothing typed: every filter, to start from one. A word that names filters offers them first, unless the user
+  // chose to search it as typed.
   const word = q.trim();
-  const offers = word === keptWord ? [] : paletteFilters({ q, t, extensions, types, hidden, filter });
-  const filters: PaletteGroup = {
-    id: 'filters',
-    label: t('palette.filters.title'),
-    icon: 'i-lucide-filter',
-    searched: true,
-    items: [
-      { id: 'keep-word', label: t('palette.filters.search', { word }), icon: 'i-lucide-search', command: { kind: 'keepWord', word } },
-      ...offers.map((option) => ({
-        id: `filter/${option.filter.kind}/${filterKey(option.filter)}`,
-        label: t('palette.filters.by', { name: option.name }),
-        ...(option.icon ? { icon: option.icon } : {}),
-        command: { kind: 'filter' as const, option },
-      })),
-    ],
-  };
-  return [...(offers.length > 0 ? [filters] : []), ...listed];
+  const filterContext = { q, t, extensions, types, hidden, filter };
+  if (!typed) {
+    const all = availableFilters(filterContext);
+    return [...(all.length > 0 ? [offerGroup(t, all)] : []), ...listed];
+  }
+  const offers = word === keptWord ? [] : paletteFilters(filterContext);
+  const keep = { id: 'keep-word', label: t('palette.filters.search', { word }), icon: 'i-lucide-search', command: { kind: 'keepWord' as const, word } };
+  return [...(offers.length > 0 ? [offerGroup(t, offers, keep)] : []), ...listed];
 }
