@@ -152,6 +152,16 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
     ],
   };
 
+  // Everything hidden: the palette says why it shows nothing, and where to change it.
+  if (['entities', 'pages', 'workspaces', 'actions'].every((id) => hidden.includes(`group:${id}`))) {
+    return [{
+      id: 'hidden',
+      label: t('settings.title'),
+      icon: 'i-lucide-eye-off',
+      message: t('palette.allHidden'),
+      items: [page('settings', t('palette.openSettings'), '/settings', 'i-lucide-settings')],
+    }];
+  }
   return [...(typed ? [found] : []), pages, ...(others.items.length > 0 ? [others] : []), actions]
     .filter(({ id }) => !hidden.includes(`group:${id}`));
 }

@@ -39,7 +39,7 @@ test.describe('settings', () => {
     await own.getByRole('main').getByRole('radio', { name: 'Light' }).check();
 
     await expect(own.locator('html')).toHaveClass(/light/);
-    await expect(own.getByRole('region', { name: 'Display and landing page' })).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display, landing page and search' })).toContainText('Saved');
     const session = await (await own.request.get(`${DEMO_URL}/api/session`)).json() as { user: { preferences: { theme: string } } };
     expect(session.user.preferences.theme).toBe('light');
     await context.close();
@@ -68,7 +68,7 @@ test.describe('settings', () => {
     await hydrated(own);
 
     await own.getByRole('radio', { name: 'Trace' }).check();
-    await expect(own.getByRole('region', { name: 'Display and landing page' })).toContainText('Saved');
+    await expect(own.getByRole('region', { name: 'Display, landing page and search' })).toContainText('Saved');
     await own.goto('/');
 
     await expect(own).toHaveURL(/\/trace/);
@@ -171,19 +171,20 @@ test.describe('settings', () => {
     await context.close();
   });
 
-  test('quick changes are saved in order: the last one wins (review)', async ({ page, browser }) => {
+  test('quick changes are saved in order: the last one wins, in the account and in the palette (review)', async ({ page, browser }) => {
     const { page: own, context } = await ownAccount(page, browser);
     await own.goto('/settings');
     await hydrated(own);
     const search = own.getByRole('group', { name: 'Search' });
-    // The first save is slow on its way: sent alone, the second would reach the server first.
+    // The first answer is slow to come back: sent together, the older answer would be the last one applied.
     let first = true;
     await own.route('**/api/account/preferences', async (route) => {
+      const response = await route.fetch();
       if (first) {
         first = false;
         await new Promise((resolve) => setTimeout(resolve, 800));
       }
-      await route.continue();
+      await route.fulfill({ response });
     });
 
     await search.getByRole('checkbox', { name: 'Entities' }).click();
@@ -192,6 +193,12 @@ test.describe('settings', () => {
       const session = await (await own.request.get(`${DEMO_URL}/api/session`)).json() as { user: { preferences: { palette: { hidden: string[] } } } };
       return session.user.preferences.palette.hidden;
     }, { timeout: 5000 }).toEqual(['group:entities', 'group:pages']);
+    await own.waitForTimeout(1200);
+
+    await own.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
+    const dialog = own.getByRole('dialog', { name: 'Search' });
+    await expect(dialog.getByRole('group', { name: 'Actions' })).toBeVisible();
+    await expect(dialog.getByRole('group', { name: 'Pages' })).toHaveCount(0);
     await context.close();
   });
 

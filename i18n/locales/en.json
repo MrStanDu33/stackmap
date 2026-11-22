@@ -362,7 +362,7 @@
   },
   "settings": {
     "title": "Settings",
-    "display": "Display and landing page",
+    "display": "Display, landing page and search",
     "displayHint": "These settings are saved to your account and follow you to any browser you sign in from.",
     "landingPage": "Landing page",
     "landingPageHint": "The page Stackmap opens on.",
@@ -393,8 +393,8 @@
       "confirm": "Show the confirmation"
     },
     "palette": {
-      "title": "Command palette",
-      "hint": "Choose what the palette (Ctrl+K or ⌘K) lists and searches."
+      "title": "Search",
+      "hint": "Choose what Search ({shortcut}) lists and looks through."
     }
   },
   "inventory": {
@@ -599,6 +599,8 @@
       "language": "Switch language to {value}",
       "trace": "Trace {hostname}"
     },
-    "unknownType": "Other type"
+    "unknownType": "Other type",
+    "allHidden": "Every group is hidden in Settings.",
+    "openSettings": "Open Settings"
   }
 }

@@ -106,7 +106,7 @@ const languages = APP_LOCALES.map(({ code, name }) => ({ label: name, value: cod
     </UFormField>
     <!-- Shown here, announced once by the page's shell (AppShell): the sidebar and /settings may both show this. -->
     <p
-      v-if="saveStatus"
+      v-if="status && saveStatus"
       class="text-sm"
       :class="saveStatus === 'error' ? 'text-error' : 'text-muted'"
     >

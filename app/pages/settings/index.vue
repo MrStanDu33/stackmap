@@ -16,11 +16,24 @@ const landingPage = ref<Preferences['landingPage']>(session.value?.user.preferen
 watch(landingPage, (page) => {
   void preferences.save({ landingPage: page });
 });
-// What the command palette hides, saved as soon as it changes.
-const paletteHidden = ref<string[]>([...session.value?.user.preferences.palette.hidden ?? []]);
+// What the command palette hides, saved as soon as it changes, one save at a time so that the last choice wins.
+const savedHidden = () => [...session.value?.user.preferences.palette.hidden ?? []];
+const paletteHidden = ref<string[]>(savedHidden());
+let saving = Promise.resolve();
 watch(paletteHidden, (hidden) => {
-  void preferences.save({ palette: { hidden } });
+  saving = saving.then(async () => {
+    // Put back (below) to what the account has: nothing to save.
+    if (JSON.stringify(hidden) === JSON.stringify(savedHidden())) {
+      return;
+    }
+    await preferences.save({ palette: { hidden } });
+    // Not saved: the checkboxes show what the account has, not a choice that did not stick.
+    if (preferences.status.value === 'error' && hidden === paletteHidden.value) {
+      paletteHidden.value = savedHidden();
+    }
+  });
 });
+const saveStatus = preferences.status;
 
 const changing = ref(false);
 const passwordError = ref<'wrong_password' | 'throttled' | 'network' | null>(null);
@@ -68,9 +81,20 @@ const changePassword = async (change: { currentPassword: string; newPassword: st
       <p class="text-sm text-muted">
         {{ t('settings.displayHint') }}
       </p>
-      <DisplayPreferences :landmark="false" />
+      <DisplayPreferences
+        :landmark="false"
+        :status="false"
+      />
       <LandingPageSelect v-model="landingPage" />
       <PalettePreferences v-model:hidden="paletteHidden" />
+      <!-- After every setting of the section, where the eye is; announced once by the shell (AppShell). -->
+      <p
+        v-if="saveStatus"
+        class="text-sm"
+        :class="saveStatus === 'error' ? 'text-error' : 'text-muted'"
+      >
+        {{ t(saveStatus === 'error' ? 'settings.saveError' : 'settings.saved') }}
+      </p>
     </section>
 
     <PasswordForm

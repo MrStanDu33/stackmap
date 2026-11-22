@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { isMac, paletteShortcutLabel } from '../../utils/palette-shortcut';
+
 import { PALETTE_GROUPS } from '#shared/contracts/preferences';
 
 /** What the command palette lists and searches: a checkbox per group, all checked until one is hidden. */
@@ -7,10 +9,17 @@ const emit = defineEmits<{ 'update:hidden': [hidden: string[]] }>();
 
 const { t } = useI18n();
 const hintId = useId();
+// This computer's shortcut, as the sidebar shows it: known once mounted, so the server renders the same text.
+const mac = ref(false);
+onMounted(() => {
+  mac.value = isMac();
+});
 const toggle = (group: string, shown: boolean | 'indeterminate') => {
   const key = `group:${group}`;
   // Keys it does not show (extensions, types) are kept as they were.
-  emit('update:hidden', shown === true ? props.hidden.filter((other) => other !== key) : [...props.hidden, key]);
+  emit('update:hidden', shown === true
+    ? props.hidden.filter((other) => other !== key)
+    : [...new Set([...props.hidden, key])]);
 };
 </script>
 
@@ -26,7 +35,7 @@ const toggle = (group: string, shown: boolean | 'indeterminate') => {
       :id="hintId"
       class="text-sm text-muted"
     >
-      {{ t('settings.palette.hint') }}
+      {{ t('settings.palette.hint', { shortcut: paletteShortcutLabel(mac) }) }}
     </p>
     <UCheckbox
       v-for="group in PALETTE_GROUPS"
