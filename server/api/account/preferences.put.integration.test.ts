@@ -51,7 +51,7 @@ describe.each(DIALECTS)('PUT /api/account/preferences on %s', (dialect: Dialect)
     ['something else', { hidden: ['nonsense'] }, 'body.palette.hidden.0'],
     ['a key over 100 characters', { hidden: [`extension:${'a'.repeat(91)}`] }, 'body.palette.hidden.0'],
     ['more than 200 keys', { hidden: Array.from({ length: 201 }, (_, index) => `extension:e${String(index)}`) }, 'body.palette.hidden'],
-    ['an unknown field', { shown: [] }, 'body.palette'],
+    ['an unknown field', { hidden: [], shown: [] }, 'body.palette'],
   ])('given %s in palette, answers 400 on it (13)', async (_case, palette, path) => {
     const cookie = await accounts.signedIn();
 

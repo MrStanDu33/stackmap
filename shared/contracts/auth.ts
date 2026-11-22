@@ -12,7 +12,7 @@ const admin = {
   email: 'ada@homelab.example',
   role: 'admin',
   mustChangePassword: false,
-  preferences: { theme: 'dark', contrast: null, locale: 'fr', landingPage: 'graph' },
+  preferences: { theme: 'dark', contrast: null, locale: 'fr', landingPage: 'graph', palette: { hidden: [] } },
 };
 const session = { user: admin };
 

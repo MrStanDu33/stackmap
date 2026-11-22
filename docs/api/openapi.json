@@ -318,7 +318,10 @@
                           "theme": "dark",
                           "contrast": null,
                           "locale": "fr",
-                          "landingPage": "graph"
+                          "landingPage": "graph",
+                          "palette": {
+                            "hidden": []
+                          }
                         }
                       }
                     }
@@ -450,7 +453,10 @@
                           "theme": "dark",
                           "contrast": null,
                           "locale": "fr",
-                          "landingPage": "graph"
+                          "landingPage": "graph",
+                          "palette": {
+                            "hidden": []
+                          }
                         }
                       }
                     }
@@ -537,7 +543,10 @@
                           "theme": "dark",
                           "contrast": null,
                           "locale": "fr",
-                          "landingPage": "graph"
+                          "landingPage": "graph",
+                          "palette": {
+                            "hidden": []
+                          }
                         }
                       }
                     }
@@ -2863,6 +2872,42 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "palette": {
+                    "type": "object",
+                    "properties": {
+                      "hidden": {
+                        "maxItems": 200,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "maxLength": 100,
+                          "pattern": "^(?:group:(?:entities|pages|workspaces|actions)|extension:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|type:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$",
+                          "description": "A group (`group:<id>`), an extension (`extension:<id>`) or an entity type (`type:<extension>/<entity>`)",
+                          "examples": [
+                            "group:pages"
+                          ]
+                        },
+                        "description": "What the palette neither lists nor searches",
+                        "examples": [
+                          [
+                            "group:pages"
+                          ]
+                        ]
+                      }
+                    },
+                    "required": [
+                      "hidden"
+                    ],
+                    "additionalProperties": false,
+                    "description": "What the command palette shows",
+                    "examples": [
+                      {
+                        "hidden": [
+                          "group:pages"
+                        ]
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false,
@@ -2886,7 +2931,10 @@
                       "theme": "light",
                       "contrast": null,
                       "locale": "fr",
-                      "landingPage": "graph"
+                      "landingPage": "graph",
+                      "palette": {
+                        "hidden": []
+                      }
                     }
                   }
                 }
@@ -21184,7 +21232,10 @@
                 "theme": "dark",
                 "contrast": null,
                 "locale": "fr",
-                "landingPage": "graph"
+                "landingPage": "graph",
+                "palette": {
+                  "hidden": []
+                }
               }
             }
           }
@@ -21264,22 +21315,62 @@
             "examples": [
               "graph"
             ]
+          },
+          "palette": {
+            "type": "object",
+            "properties": {
+              "hidden": {
+                "maxItems": 200,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 100,
+                  "pattern": "^(?:group:(?:entities|pages|workspaces|actions)|extension:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|type:[a-z][a-z0-9]*(?:-[a-z0-9]+)*\\/[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$",
+                  "description": "A group (`group:<id>`), an extension (`extension:<id>`) or an entity type (`type:<extension>/<entity>`)",
+                  "examples": [
+                    "group:pages"
+                  ]
+                },
+                "description": "What the palette neither lists nor searches",
+                "examples": [
+                  [
+                    "group:pages"
+                  ]
+                ]
+              }
+            },
+            "required": [
+              "hidden"
+            ],
+            "additionalProperties": false,
+            "description": "What the command palette shows",
+            "examples": [
+              {
+                "hidden": [
+                  "group:pages"
+                ]
+              }
+            ]
           }
         },
         "required": [
           "theme",
           "contrast",
           "locale",
-          "landingPage"
+          "landingPage",
+          "palette"
         ],
         "additionalProperties": false,
-        "description": "A person's display preferences and landing page",
+        "description": "A person's display preferences, landing page and command palette",
         "examples": [
           {
             "theme": "dark",
             "contrast": null,
             "locale": "fr",
-            "landingPage": "graph"
+            "landingPage": "graph",
+            "palette": {
+              "hidden": []
+            }
           }
         ]
       },

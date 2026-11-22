@@ -57,6 +57,6 @@ describe.each(DIALECTS)('GET /api/session on %s', (dialect: Dialect) => {
 
     const { json } = await accounts.call('GET', '/api/session', { cookie });
 
-    expect((json as Session).user.preferences).toEqual({ theme: 'light', contrast: null, locale: null, landingPage: 'trace' });
+    expect((json as Session).user.preferences).toEqual({ theme: 'light', contrast: null, locale: null, landingPage: 'trace', palette: { hidden: [] } });
   });
 });

@@ -110,6 +110,8 @@ export interface UserPreferenceTable {
   contrast: string | null;
   locale: string | null;
   landingPage: string | null;
+  /** JSON array of the palette's hidden keys; null hides nothing. */
+  paletteHidden: string | null;
   updatedAt: string;
 }
 

@@ -16,7 +16,7 @@ const KEBAB = '[a-z][a-z0-9]*(?:-[a-z0-9]+)*';
 const PALETTE_KEY = new RegExp(`^(?:group:(?:${PALETTE_GROUPS.join('|')})|extension:${KEBAB}|type:${KEBAB}/${KEBAB})$`);
 export const MAX_PALETTE_HIDDEN = 200;
 
-export const PalettePreferences = z.object({
+export const PalettePreferences = z.strictObject({
   hidden: z.array(z.string().max(100).regex(PALETTE_KEY).meta({
     description: 'A group (`group:<id>`), an extension (`extension:<id>`) or an entity type (`type:<extension>/<entity>`)',
     examples: ['group:pages'],
