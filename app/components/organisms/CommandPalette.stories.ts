@@ -245,7 +245,8 @@ export const SearchedGroup: Story = {
     await userEvent.type(field(), '203.0.113');
 
     await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
-    await expect(within(dialog()).getByText('Search failed')).toBeVisible();
+    // The shown message, not the status: until typing settles, the status says the message alone, word for word.
+    await expect(within(dialog()).getByText('Search failed', { ignore: 'script, style, [role="status"]' })).toBeVisible();
   },
 };
 
