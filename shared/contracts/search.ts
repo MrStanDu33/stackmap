@@ -50,6 +50,12 @@ export const searchWorkspace = defineContract({
     q: line(100).trim().min(1).meta({ description: 'The words to find, at most 100 characters', examples: ['router'] }),
     limit: z.coerce.number().int().min(1).max(MAX_SEARCH_LIMIT).default(20)
       .meta({ description: 'The most results to give', examples: [20] }),
+    // Unknown ids find nothing rather than being refused: the answer does not say what is installed.
+    extension: kebabId().optional()
+      .meta({ description: 'Search only this extension\'s entities; one that does not exist finds nothing', examples: ['nat'] }),
+    entity: kebabId().optional()
+      .meta({ description: 'Search only entities of this type, in every extension unless `extension` is given; one that '
+        + 'does not exist finds nothing', examples: ['host'] }),
   }),
   responses: {
     200: {

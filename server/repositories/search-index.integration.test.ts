@@ -130,8 +130,11 @@ describe.each(DIALECTS)('search index on %s', (dialect: Dialect) => {
 describe.each(DIALECTS)('searchEntities on %s', (dialect: Dialect) => {
   const workspaces = useTestWorkspaces(dialect);
   const db = () => workspaces.db as unknown as Kysely<Database>;
-  const search = (q: string, limit = 20, { repos, workspace } = workspaces.a) =>
-    searchEntities({ db: db(), repos, workspaceId: workspace.id }, definitions, { q, limit });
+  type Only = { extension?: string; entity?: string };
+  const search = (q: string, limit = 20, { repos, workspace } = workspaces.a, only: Only = {}) =>
+    searchEntities({ db: db(), repos, workspaceId: workspace.id }, definitions, { q, limit, ...only });
+  const types = async (only: Only) =>
+    (await search('203.0.113.10', 20, workspaces.a, only)).items.map(({ extension, entity }) => `${extension}/${entity}`);
   const titles = async (q: string, limit?: number) => (await search(q, limit)).items.map(({ title }) => title);
 
   it('given "router", finds every entity whose text contains it, saying which field matched (9)', async () => {
@@ -192,6 +195,44 @@ describe.each(DIALECTS)('searchEntities on %s', (dialect: Dialect) => {
     await db().deleteFrom('core_host' as never).where('id' as never, '=', router.id as never).execute();
 
     expect((await search('203.0.113.10')).items).toEqual([]);
+  });
+
+  it('given extension "nat", finds only that extension\'s entities (18)', async () => {
+    await createPortForwards(workspaces.a.repos);
+
+    expect(await types({})).toEqual(expect.arrayContaining(['core/host', 'nat/port-forward']));
+    expect(await types({ extension: 'nat' })).toEqual(['nat/port-forward', 'nat/port-forward']);
+  });
+
+  it('given entity "host", finds only entities of that type; given both, only that extension\'s type (18)', async () => {
+    await createPortForwards(workspaces.a.repos);
+
+    expect(await types({ entity: 'host' })).toEqual(['core/host']);
+    expect(await types({ extension: 'core', entity: 'host' })).toEqual(['core/host']);
+    expect(await types({ extension: 'nat', entity: 'port-forward' })).toEqual(['nat/port-forward', 'nat/port-forward']);
+  });
+
+  it('given an extension or type that does not exist, or a type of another extension, finds nothing (18)', async () => {
+    await createPortForwards(workspaces.a.repos);
+
+    expect(await types({ extension: 'unknown' })).toEqual([]);
+    expect(await types({ entity: 'unknown' })).toEqual([]);
+    expect(await types({ extension: 'nat', entity: 'host' })).toEqual([]);
+  });
+
+  it('given a filter naming an extension turned off in the workspace, finds nothing, as for one that does not exist (review)', async () => {
+    await createPortForwards(workspaces.a.repos);
+    await setExtensionsEnabled(db(), workspaces.a.workspace.id, ['nat'], false, null);
+
+    expect(await types({ extension: 'nat' })).toEqual([]);
+    expect(await types({ extension: 'nat', entity: 'port-forward' })).toEqual([]);
+  });
+
+  it('given a filter, never returns another workspace\'s entities (review)', async () => {
+    await createPortForwards(workspaces.b.repos);
+
+    expect(await types({ extension: 'nat' })).toEqual([]);
+    expect(await types({ entity: 'host' })).toEqual([]);
   });
 
   it('never returns another workspace\'s entities (15)', async () => {

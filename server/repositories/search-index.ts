@@ -105,7 +105,7 @@ export async function pruneSearchIndex(
 export async function searchEntities(
   { db, repos, workspaceId }: { db: Kysely<Database>; repos: WorkspaceRepositories; workspaceId: string },
   definitions: readonly RegisteredRepository[],
-  { q, limit }: { q: string; limit: number },
+  { q, limit, extension, entity }: { q: string; limit: number; extension?: string; entity?: string },
 ): Promise<{ items: SearchHit[]; truncated: boolean }> {
   const patterns = searchPatterns(q);
   if (patterns.length === 0) {
@@ -116,6 +116,12 @@ export async function searchEntities(
     .where('workspaceId', '=', workspaceId);
   if (disabled.length > 0) {
     query = query.where('extension', 'not in', disabled);
+  }
+  if (extension) {
+    query = query.where('extension', '=', extension);
+  }
+  if (entity) {
+    query = query.where('entity', '=', entity);
   }
   for (const pattern of patterns) {
     // The same escape on both databases: a backslash.
