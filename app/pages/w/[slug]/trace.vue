@@ -225,8 +225,12 @@ watch(trace, (loaded) => {
   });
 });
 // The selection is kept in the URL so a step can be linked; replaced, so Back leaves the page.
+// The values this page wrote to the URL and has not seen arrive: a click then Escape writes two, and the first,
+// arriving after the second was asked for, is not a new selection to make.
+const written: (string | undefined)[] = [];
 const writeSelected = (value: string | undefined) => {
   if (route.query.selected !== value) {
+    written.push(value);
     void router.replace({ query: { ...route.query, selected: value } });
   }
 };
@@ -241,6 +245,11 @@ watch(index, (loaded) => {
 });
 // Selected through the URL on the page itself, as the palette does.
 watch(() => route.query.selected, (raw) => {
+  const own = written.indexOf(typeof raw === 'string' ? raw : undefined);
+  if (own >= 0) {
+    written.splice(0, own + 1);
+    return;
+  }
   if (index.value && raw !== selectedParam(selection.value)) {
     const next = parseSelected(raw, index.value);
     // As a click does: the focus goes back where it was (the palette gave it back to its opener) when it closes.

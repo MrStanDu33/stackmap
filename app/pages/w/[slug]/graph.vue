@@ -140,6 +140,15 @@ watch(traffic, (loadedTraffic) => {
 const selectedParam = (selected: Selection | null) => (selected ? `${selected.type}:${selected.id}` : undefined);
 // Selected from a link as the traffic arrives: said after its summary, not in place of it.
 let linked = false;
+// The values this page wrote to the URL and has not seen arrive: a click then Escape writes two, and the first,
+// arriving after the second was asked for, is not a new selection to make.
+const written: (string | undefined)[] = [];
+const writeSelected = (value: string | undefined) => {
+  if (route.query.selected !== value) {
+    written.push(value);
+    void router.replace({ query: { ...route.query, selected: value } });
+  }
+};
 const fromUrl = (arrived: boolean) => {
   if (traffic.value && route.query.selected !== selectedParam(selection.value)) {
     const next = parseTrafficSelected(route.query.selected, traffic.value);
@@ -150,20 +159,23 @@ const fromUrl = (arrived: boolean) => {
     }
     linked = arrived && next !== null;
     selection.value = next;
-    if (route.query.selected !== selectedParam(selection.value)) {
-      void router.replace({ query: { ...route.query, selected: selectedParam(selection.value) } });
-    }
+    writeSelected(selectedParam(selection.value));
   }
 };
 watch(traffic, () => {
   fromUrl(true);
 });
-watch(() => route.query.selected, () => {
+watch(() => route.query.selected, (raw) => {
+  const own = written.indexOf(typeof raw === 'string' ? raw : undefined);
+  if (own >= 0) {
+    written.splice(0, own + 1);
+    return;
+  }
   fromUrl(false);
 });
 watch(selection, (selected) => {
-  if (traffic.value && route.query.selected !== selectedParam(selected)) {
-    void router.replace({ query: { ...route.query, selected: selectedParam(selected) } });
+  if (traffic.value) {
+    writeSelected(selectedParam(selected));
   }
 });
 // What the palette can select here, until the page is left.
