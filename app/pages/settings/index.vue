@@ -16,6 +16,11 @@ const landingPage = ref<Preferences['landingPage']>(session.value?.user.preferen
 watch(landingPage, (page) => {
   void preferences.save({ landingPage: page });
 });
+// What the command palette hides, saved as soon as it changes.
+const paletteHidden = ref<string[]>([...session.value?.user.preferences.palette.hidden ?? []]);
+watch(paletteHidden, (hidden) => {
+  void preferences.save({ palette: { hidden } });
+});
 
 const changing = ref(false);
 const passwordError = ref<'wrong_password' | 'throttled' | 'network' | null>(null);
@@ -65,6 +70,7 @@ const changePassword = async (change: { currentPassword: string; newPassword: st
       </p>
       <DisplayPreferences :landmark="false" />
       <LandingPageSelect v-model="landingPage" />
+      <PalettePreferences v-model:hidden="paletteHidden" />
     </section>
 
     <PasswordForm

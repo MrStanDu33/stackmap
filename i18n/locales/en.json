@@ -391,6 +391,10 @@
       "current": "Show the current password",
       "next": "Show the new password",
       "confirm": "Show the confirmation"
+    },
+    "palette": {
+      "title": "Command palette",
+      "hint": "Choose what the palette (Ctrl+K or ⌘K) lists and searches."
     }
   },
   "inventory": {

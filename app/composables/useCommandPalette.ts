@@ -16,7 +16,6 @@ export function useCommandPalette() {
   const searchTerm = ref('');
   const route = useRoute();
   const { t } = useI18n();
-  const { signOut } = useAccount();
   const preferences = usePreferences();
   const { data } = useNuxtData<{ workspaces: MemberWorkspace[] }>('workspaces');
   const installed = useState<InstalledExtension[]>('extensions', () => []);
@@ -25,7 +24,13 @@ export function useCommandPalette() {
 
   const workspaces = computed(() => data.value?.workspaces ?? []);
   const workspace = computed(() => workspaces.value.find(({ slug }) => slug === route.params.slug) ?? null);
-  const entities = usePaletteSearch(() => workspace.value?.id, () => searchTerm.value);
+  // What the user hid in Settings: a hidden group is neither listed nor, for entities, searched.
+  const { session, signOut } = useAccount();
+  const hidden = computed(() => session.value?.user.preferences.palette.hidden ?? []);
+  const entities = usePaletteSearch(
+    () => workspace.value?.id,
+    () => (hidden.value.includes('group:entities') ? '' : searchTerm.value),
+  );
   const types = computed(() => (workspace.value ? inventoryTypes(installed.value) : []).map((type) => ({
     extension: type.extension,
     entity: type.entity,
@@ -45,7 +50,7 @@ export function useCommandPalette() {
     entities: entities.value,
     query: Object.fromEntries(Object.entries(route.query).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
     drawn: drawn.value,
-    hidden: [],
+    hidden: hidden.value,
   }));
 
   // The palette's opener goes with the page it leaves: the new page's main content takes the focus once shown.
