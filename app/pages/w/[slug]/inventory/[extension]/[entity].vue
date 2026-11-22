@@ -176,6 +176,40 @@ const openPanel = (mode: 'new' | 'edit' | 'view', entity?: EntityRow) => {
   panel.key += 1;
 };
 
+// Opened from a link or the palette: ?new=1 opens the create form (for editors), ?open=<id> that entity's form, read
+// only for viewers. Fetched on its own: the entity may be past the loaded page of the table.
+const clearOpened = async () => {
+  if (route.query.open !== undefined || route.query.new !== undefined) {
+    await router.replace({ query: { ...route.query, open: undefined, new: undefined } });
+  }
+};
+const linked = () => [route.query.open, route.query.new] as const;
+watch([type, form, base, linked], async ([current, loaded, url, [open, isNew]]) => {
+  if (!current || !loaded || !url || panel.open) {
+    return;
+  }
+  if (isNew === '1' && canEdit.value) {
+    openPanel('new');
+  } else if (typeof open === 'string') {
+    try {
+      const entity = await $fetch<EntityRow>(`${url}/${current.key}/${encodeURIComponent(open)}`);
+      openPanel(canEdit.value ? 'edit' : 'view', entity);
+    } catch {
+      // Said once the URL has changed: a change of the table's query empties its live region.
+      await clearOpened();
+      announce(t('inventory.openNotFound'));
+    }
+  } else {
+    await clearOpened();
+  }
+}, { immediate: true });
+// Gone from the URL once the form closes: a reload does not open it again.
+watch(() => panel.open, (isOpen) => {
+  if (!isOpen) {
+    void clearOpened();
+  }
+});
+
 const problemOf = (failure: unknown): Problem | undefined =>
   (failure instanceof FetchError ? failure.data as Problem | undefined : undefined);
 

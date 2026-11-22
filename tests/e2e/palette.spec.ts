@@ -226,7 +226,7 @@ test.describe('command palette, opening an entity', () => {
     await page.goto('/w/demo/inventory/core/host?open=0199d6a0-0000-7000-8000-999999999999');
     await hydrated(page);
 
-    await expect(page.getByRole('status').filter({ hasText: 'This host was not found.' })).toHaveCount(1);
+    await expect(page.getByRole('status').filter({ hasText: 'This entity was not found.' })).toHaveCount(1);
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page).not.toHaveURL(/open=/);
   });

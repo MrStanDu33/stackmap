@@ -469,7 +469,8 @@
     "no": "Non",
     "extensionsFailed": "Les extensions n’ont pas pu être chargées.",
     "typeDisabled": "L’extension de ce type est désactivée dans cet espace de travail.",
-    "manageExtensions": "Gérer les extensions"
+    "manageExtensions": "Gérer les extensions",
+    "openNotFound": "Cette entité est introuvable."
   },
   "issues": {
     "invalid_type": "Valeur attendue : {expected}",

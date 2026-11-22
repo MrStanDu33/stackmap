@@ -469,7 +469,8 @@
     "no": "No",
     "extensionsFailed": "The extensions could not be loaded.",
     "typeDisabled": "This type's extension is turned off in this workspace.",
-    "manageExtensions": "Manage extensions"
+    "manageExtensions": "Manage extensions",
+    "openNotFound": "This entity was not found."
   },
   "issues": {
     "invalid_type": "Expected {expected}",
