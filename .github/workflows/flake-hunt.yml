@@ -1,0 +1,22 @@
+name: Flake hunt
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hunt:
+    name: Flake hunt
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: develop
+      - uses: ./.github/actions/setup
+      - run: pnpm exec playwright install --with-deps chromium
+      # The stories 5× shuffled, at Vitest's default pages per project and never retried; each failure names its replay.
+      - run: pnpm test:stories:hunt
