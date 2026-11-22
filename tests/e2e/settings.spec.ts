@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-import { DEMO_URL, OWN_PASSWORD, ownAccount, signInTo } from './support/accounts';
+import { acceptInvitation, DEMO_URL, OWN_PASSWORD, ownAccount, signInTo } from './support/accounts';
 import { hydrated } from './support/hydration';
 
 import type { Page } from '@playwright/test';
@@ -222,7 +222,12 @@ test.describe('settings', () => {
   });
 
   test('Search lists every extension and its entity types under Entities, each checked; NAT unchecked is saved, not offered as a filter, and its entities are not found (17)', async ({ page, browser }) => {
-    const { page: own, context } = await ownAccount(page, browser);
+    const { page: own, context, email } = await ownAccount(page, browser);
+    // A member of the demo workspace, so that the palette searches its entities.
+    const { workspaces } = await (await page.request.get(`${DEMO_URL}/api/workspaces`)).json() as { workspaces: { id: string; slug: string }[] };
+    const demo = workspaces.find(({ slug }) => slug === 'demo')?.id ?? '';
+    const invited = await page.request.post(`${DEMO_URL}/api/workspaces/${demo}/invitations`, { data: { email, role: 'viewer' } });
+    expect(await acceptInvitation(own, (await invited.json() as { url: string }).url)).toBe(200);
     await own.goto('/settings');
     await hydrated(own);
     const entities = own.getByRole('group', { name: 'Search' }).getByRole('group', { name: 'Entities' });
@@ -243,8 +248,7 @@ test.describe('settings', () => {
     const dialog = own.getByRole('dialog', { name: 'Search' });
     await own.keyboard.type('nat');
     await expect(dialog.getByRole('option', { name: /^Filter by/ })).toHaveCount(0);
-    await own.keyboard.press('Control+a');
-    await own.keyboard.type('203.0.113.10');
+    await dialog.getByRole('combobox', { name: 'Search' }).fill('203.0.113.10');
     const found = dialog.getByRole('group', { name: 'Entities' });
     await expect(found.getByRole('option', { name: /^Edge router/ })).toBeVisible();
     await expect(found.getByRole('option', { name: /Port forward/ })).toHaveCount(0);

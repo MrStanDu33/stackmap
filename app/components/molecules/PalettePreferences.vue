@@ -18,9 +18,10 @@ const mac = ref(false);
 onMounted(() => {
   mac.value = isMac();
 });
-const toggle = (group: string, shown: boolean | 'indeterminate') => {
-  const key = `group:${group}`;
-  // Keys it does not show (extensions, types) are kept as they were.
+const offId = useId();
+const entitiesOff = computed(() => props.hidden.includes('group:entities'));
+const toggle = (key: string, shown: boolean | 'indeterminate') => {
+  // Keys it does not show are kept as they were.
   emit('update:hidden', shown === true
     ? props.hidden.filter((other) => other !== key)
     : [...new Set([...props.hidden, key])]);
@@ -41,12 +42,52 @@ const toggle = (group: string, shown: boolean | 'indeterminate') => {
     >
       {{ t('settings.palette.hint', { shortcut: paletteShortcutLabel(mac) }) }}
     </p>
-    <UCheckbox
+    <template
       v-for="group in PALETTE_GROUPS"
       :key="group"
-      :model-value="!hidden.includes(`group:${group}`)"
-      :label="t(`palette.groups.${group}`)"
-      @update:model-value="toggle(group, $event)"
-    />
+    >
+      <UCheckbox
+        :model-value="!hidden.includes(`group:${group}`)"
+        :label="t(`palette.groups.${group}`)"
+        @update:model-value="toggle(`group:${group}`, $event)"
+      />
+      <!-- What Entities searches: each extension, and each of its types under it. -->
+      <fieldset
+        v-if="group === 'entities' && extensions?.length"
+        class="ms-6 flex flex-col gap-2"
+        :aria-describedby="entitiesOff ? offId : undefined"
+      >
+        <legend class="sr-only">
+          {{ t('palette.groups.entities') }}
+        </legend>
+        <p
+          v-if="entitiesOff"
+          :id="offId"
+          class="text-sm text-muted"
+        >
+          {{ t('settings.palette.entitiesOff') }}
+        </p>
+        <template
+          v-for="extension in extensions"
+          :key="extension.id"
+        >
+          <UCheckbox
+            :model-value="!hidden.includes(`extension:${extension.id}`)"
+            :label="t(extension.name)"
+            :disabled="entitiesOff"
+            @update:model-value="toggle(`extension:${extension.id}`, $event)"
+          />
+          <UCheckbox
+            v-for="entity in extension.entities"
+            :key="entity.id"
+            class="ms-6"
+            :model-value="!hidden.includes(`type:${extension.id}/${entity.id}`)"
+            :label="t(entity.label)"
+            :disabled="entitiesOff || hidden.includes(`extension:${extension.id}`)"
+            @update:model-value="toggle(`type:${extension.id}/${entity.id}`, $event)"
+          />
+        </template>
+      </fieldset>
+    </template>
   </fieldset>
 </template>
