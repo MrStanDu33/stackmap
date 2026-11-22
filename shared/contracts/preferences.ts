@@ -23,6 +23,12 @@ export const PalettePreferences = z.strictObject({
   })).max(MAX_PALETTE_HIDDEN).meta({ description: 'What the palette neither lists nor searches', examples: [['group:pages']] }),
 }).meta({ description: 'What the command palette shows', examples: [{ hidden: ['group:pages'] }] });
 
+/** A change of what the palette shows: each key once, so that what is stored stays as Settings shows it. */
+export const PaletteChange = z.strictObject({
+  hidden: PalettePreferences.shape.hidden.refine((keys) => new Set(keys).size === keys.length, { message: 'Each key is listed once' })
+    .meta({ description: 'What the palette neither lists nor searches, each key once', examples: [['group:pages']] }),
+}).meta({ description: 'What the command palette shows', examples: [{ hidden: ['group:pages'] }] });
+
 const chosen = <const T extends readonly [string, ...string[]]>(values: T, description: string) =>
   z.enum(values).nullable().meta({ description: `${description}, or null until chosen`, examples: [values[0]] });
 

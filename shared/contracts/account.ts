@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { password, problem, tooMany, MAX_PASSWORD } from './auth';
 import { defineContract } from './contract';
 import { text } from './formats';
-import { CONTRASTS, LANDING_PAGES, LOCALES, PalettePreferences, Preferences, THEMES } from './preferences';
+import { CONTRASTS, LANDING_PAGES, LOCALES, PaletteChange, Preferences, THEMES } from './preferences';
 
 const choice = <const T extends readonly [string, ...string[]]>(values: T, description: string) =>
   z.enum(values).nullable().optional().meta({ description: `${description}; null forgets the choice`, examples: [values[0]] });
@@ -21,7 +21,7 @@ export const updatePreferences = defineContract({
     contrast: choice(CONTRASTS, 'The contrast'),
     locale: choice(LOCALES, 'The interface language'),
     landingPage: choice(LANDING_PAGES, 'The page `/` opens'),
-    palette: PalettePreferences.optional(),
+    palette: PaletteChange.optional(),
   }).meta({ description: 'The preferences to change' }),
   responses: {
     200: {

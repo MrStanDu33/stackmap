@@ -1,4 +1,4 @@
-import { NO_PREFERENCES, PalettePreferences } from '../../shared/contracts/preferences';
+import { MAX_PALETTE_HIDDEN, NO_PREFERENCES, PalettePreferences } from '../../shared/contracts/preferences';
 import { fromJson, toJson } from '../database/serialize';
 
 import type { Preferences } from '../../shared/contracts/preferences';
@@ -9,15 +9,30 @@ const CHOICES = ['theme', 'contrast', 'locale', 'landingPage'] as const;
 const COLUMNS = [...CHOICES, 'paletteHidden'] as const;
 type Row = Record<(typeof COLUMNS)[number], string | null>;
 
-// The database checks each choice against its values (0007_user_settings), so a stored value is one of them; the
-// palette's keys are checked when read, as JSON has no such constraint.
+const KEY = PalettePreferences.shape.hidden.element;
+
+/**
+ * The palette's stored keys, filtered rather than checked: one no longer valid (an older dump, a contract tightened
+ * since) is dropped, never thrown, as every request of the account reads its preferences, signing in among them.
+ */
+const hiddenOf = (stored: string | null): string[] => {
+  let value: unknown;
+  try {
+    value = stored === null ? [] : fromJson(stored, 'userPreference.paletteHidden');
+  } catch {
+    return [];
+  }
+  const keys = Array.isArray(value) ? value.filter((key): key is string => KEY.safeParse(key).success) : [];
+  return [...new Set(keys)].slice(0, MAX_PALETTE_HIDDEN);
+};
+
+// The database checks each choice against its values (0007_user_settings), so a stored value is one of them.
 const toPreferences = (row?: Row): Preferences => {
   if (!row) {
     return NO_PREFERENCES;
   }
   const { paletteHidden, ...choices } = row;
-  const hidden = paletteHidden === null ? [] : fromJson(paletteHidden, 'userPreference.paletteHidden');
-  return { ...NO_PREFERENCES, ...choices, palette: PalettePreferences.parse({ hidden }) } as Preferences;
+  return { ...NO_PREFERENCES, ...choices, palette: { hidden: hiddenOf(paletteHidden) } } as Preferences;
 };
 
 /** A person's preferences; every choice null, nothing hidden, until chosen. They follow the account. */

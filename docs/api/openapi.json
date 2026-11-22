@@ -2888,7 +2888,7 @@
                             "group:pages"
                           ]
                         },
-                        "description": "What the palette neither lists nor searches",
+                        "description": "What the palette neither lists nor searches, each key once",
                         "examples": [
                           [
                             "group:pages"
