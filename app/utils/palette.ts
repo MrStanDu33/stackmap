@@ -39,6 +39,8 @@ export interface PaletteItem {
   /** A part of the label in another language, such as a language's own name: read in that language's voice. */
   foreign?: { text: string; lang: string };
   command?: PaletteCommand;
+  /** The id of the item to make active once this one is chosen and the list changes (Back: the entry it left). */
+  returnTo?: string;
 }
 
 /** The semantic colors groups use, so that each is spotted at a glance (and named in text too). */

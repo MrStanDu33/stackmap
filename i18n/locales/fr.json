@@ -395,7 +395,9 @@
     "palette": {
       "title": "Recherche",
       "hint": "Choisissez ce que la recherche ({shortcut}) affiche et parcourt.",
-      "entitiesOff": "Cochez Entités pour les choisir."
+      "entitiesOff": "Cochez Entités pour les choisir.",
+      "extensionOff": "Cochez {name} pour choisir ses types.",
+      "entitiesLegend": "Recherché dans Entités"
     }
   },
   "inventory": {
@@ -613,11 +615,13 @@
       "title": "Filtres",
       "search": "Rechercher « {word} »",
       "by": "Filtrer par {name}",
-      "chip": "Filtre : {name}",
+      "chip": "Filtre : {name}. Retour arrière le retire.",
       "remove": "Retirer le filtre {name}",
-      "extensions": "Filtres des extensions…",
+      "extensions": "Afficher les filtres des extensions",
       "extensionsTitle": "Filtres des extensions",
-      "back": "Revenir à tous les filtres"
+      "back": "Revenir à tous les filtres",
+      "added": "Filtre {name} ajouté.",
+      "removed": "Filtre {name} retiré."
     }
   }
 }

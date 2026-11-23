@@ -350,7 +350,7 @@ test.describe('command palette filters', () => {
     await expect(dialog.getByText('Host', { exact: true })).toBeVisible();
     await expect(field).toHaveValue('');
     await expect(field).toBeFocused();
-    await expect(field).toHaveAccessibleDescription('Filter: Host');
+    await expect(field).toHaveAccessibleDescription('Filter: Host. Backspace removes it.');
   });
 
   test('with a Host chip, typing searches only hosts (entity=host), and lists no pages, workspaces or actions (16)', async ({ page }) => {
@@ -409,30 +409,30 @@ test.describe('command palette filters', () => {
     await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Page/ }).click();
 
     const field = dialog.getByRole('combobox', { name: 'Search' });
-    await expect(field).toHaveAccessibleDescription('Filter: Page');
+    await expect(field).toHaveAccessibleDescription('Filter: Page. Backspace removes it.');
     await expect(field).toBeFocused();
     await expect(group(dialog, 'Filters')).toHaveCount(0);
   });
 
-  test('Extension filters… lists the extensions\' and types\' filters, the focus in the field; Back to all filters goes back; closing goes back too (20)', async ({ page }) => {
+  test('Show extension filters lists the extensions\' and types\' filters, the focus in the field; Back to all filters goes back; closing goes back too (20)', async ({ page }) => {
     const dialog = await open(page, '/w/demo/graph');
     const field = dialog.getByRole('combobox', { name: 'Search' });
     await expect(group(dialog, 'Filters').getByRole('option', { name: /^Filter by Host/ })).toHaveCount(0);
 
-    await group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ }).click();
+    await group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ }).click();
     await expect(field).toBeFocused();
     await expect(dialog.getByRole('group')).toHaveCount(1);
     await expect(dialog.getByRole('option').first()).toHaveText(/^Back to all filters/);
     await expect(group(dialog, 'Extension filters').getByRole('option', { name: /^Filter by Host/ })).toBeVisible();
 
     await group(dialog, 'Extension filters').getByRole('option', { name: /^Back to all filters/ }).click();
-    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ })).toBeVisible();
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ })).toBeVisible();
     await expect(group(dialog, 'Pages')).toBeVisible();
 
-    await group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ }).click();
+    await group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ }).click();
     await page.keyboard.press('Escape');
     await page.keyboard.press(SHORTCUT);
-    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Extension filters…/ })).toBeVisible();
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ })).toBeVisible();
   });
 
   test('typing "port" offers Filter by Port forward, then the less exact Proxy route, before the results; choosing one shows its chip (14)', async ({ page }) => {
@@ -444,7 +444,7 @@ test.describe('command palette filters', () => {
     await expect(dialog.getByRole('group').first()).toHaveAccessibleName('Filters');
     await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Port forward/ }).click();
 
-    await expect(dialog.getByRole('combobox', { name: 'Search' })).toHaveAccessibleDescription('Filter: Port forward');
+    await expect(dialog.getByRole('combobox', { name: 'Search' })).toHaveAccessibleDescription('Filter: Port forward. Backspace removes it.');
   });
 
   /** The characters an option shows bold, in order. */
@@ -470,13 +470,13 @@ test.describe('command palette filters', () => {
     expect(await bold(option)).toBe('Sgo');
   });
 
-  test('typing "edgrt" finds Edge router among the entities, with E, d, g, r and t bold (21, 22)', async ({ page }) => {
+  test('typing "edgrt" finds Edge router among the entities, with nothing bold: the server matched it (21, 22, review)', async ({ page }) => {
     const dialog = await open(page, '/w/demo/graph');
     await page.keyboard.type('edgrt');
 
     const option = group(dialog, 'Entities').getByRole('option', { name: /^Edge router/ });
     await expect(option).toBeVisible();
-    expect(await bold(option)).toBe('Edgrt');
+    expect(await bold(option)).toBe('');
   });
 
   test('the palette with a chip has no axe violation (15)', async ({ page }) => {

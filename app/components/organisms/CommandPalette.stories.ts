@@ -470,7 +470,7 @@ export const MatchedName: Story = {
   },
 };
 
-/** An entity's title is marked when it matched; found by an address, it is not (22). */
+/** Entities the server found are not marked: it may have matched an address, not their titles (22, review). */
 export const SearchedTitles: Story = {
   args: {
     groups: [{
@@ -485,7 +485,113 @@ export const SearchedTitles: Story = {
     await waitFor(() => expect(field()).toHaveFocus());
     await userEvent.type(field(), 'edgrt');
 
-    await expect(bold(optionNamed(/^Edge router/))).toBe('Edgrt');
+    await expect(bold(optionNamed(/^Edge router/))).toBe('');
     await expect(bold(optionNamed(/^Web server/))).toBe('');
+  },
+};
+
+/** A filter offered through another of its names (a plural) marks the letters its name holds (22, review). */
+export const AliasMatch: Story = {
+  args: {
+    groups: [{
+      id: 'filters', label: 'Filters', searched: true, items: [{ id: 'filter/group/entities', label: 'Filter by Entity', match: 'Entity' }],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'entities');
+
+    await expect(bold(optionNamed(/^Filter by Entity/))).toBe('Entit');
+  },
+};
+
+const status = () => within(dialog()).getByRole('status');
+/** The palette with a test button, outside the dialog, that changes what the app gives it. */
+const changing = (change: string) => (args: Record<string, unknown>) => ({
+  components: { CommandPalette },
+  setup: () => {
+    const searchTerm = ref('');
+    const filter = ref<PaletteFilterOption | null>(null);
+    const groups = ref(GROUPS);
+    const host = () => {
+      filter.value = HOST_FILTER;
+    };
+    const browse = () => {
+      groups.value = [{ id: 'filters', label: 'Extension filters', searched: true, items: [
+        { id: 'all-filters', label: 'Back to all filters' }, { id: 'filter/type/core/host', label: 'Filter by Host' },
+      ] }];
+    };
+    return { args, searchTerm, filter, groups, change: change === 'host' ? host : browse };
+  },
+  template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" v-model:filter="filter" :groups="groups" />'
+    + '<button data-testid="change" @click="change">Change</button>',
+});
+
+/** A chip chosen is said, with the results it leaves (review). */
+export const ChipAnnounced: Story = {
+  render: changing('host'),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await fireEvent.click(within(document.body).getByTestId('change'));
+
+    await waitFor(() => expect(status()).toHaveTextContent(
+      `${t('palette.filters.added', { name: 'Host' })} ${t('palette.results', { count: 3 }, 3)}`,
+    ));
+  },
+};
+
+/** A chip removed is said, with the results its word finds (review). */
+export const ChipRemovedAnnounced: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip(),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Backspace}');
+
+    await waitFor(() => expect(status()).toHaveTextContent(
+      `${t('palette.filters.removed', { name: 'Host' })} ${t('palette.results', { count: 0 }, 0)}`,
+    ));
+  },
+};
+
+/** With nothing typed, a list that changes (the extension filters, and back) says its results (review). */
+export const ListChangeAnnounced: Story = {
+  render: changing('browse'),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await expect(status()).toHaveTextContent('');
+    await fireEvent.click(within(document.body).getByTestId('change'));
+
+    await waitFor(() => expect(status()).toHaveTextContent(t('palette.results', { count: 2 }, 2)));
+  },
+};
+
+/** Back makes the entry it left the active option again, not the first (review). */
+export const BackReturns: Story = {
+  render: (args) => ({
+    components: { CommandPalette },
+    setup: () => {
+      const main: PaletteGroup[] = [{ id: 'filters', label: 'Filters', searched: true, items: [
+        { id: 'filter/group/pages', label: 'Filter by Page' },
+        { id: 'extension-filters', label: 'Show extension filters' },
+      ] }];
+      const groups = ref<PaletteGroup[]>([{ id: 'filters', label: 'Extension filters', searched: true, items: [
+        { id: 'all-filters', label: 'Back to all filters', returnTo: 'extension-filters' },
+        { id: 'filter/type/core/host', label: 'Filter by Host' },
+      ] }]);
+      const select = () => {
+        groups.value = main;
+      };
+      return { args, groups, select };
+    },
+    template: '<CommandPalette v-bind="args" :groups="groups" @select="select" />',
+  }),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Enter}');
+
+    const entry = await waitFor(() => optionNamed(/^Show extension filters/));
+    await waitFor(() => expect(field()).toHaveAttribute('aria-activedescendant', entry.id));
   },
 };

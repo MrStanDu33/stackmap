@@ -55,6 +55,8 @@ describe('paletteGroups', () => {
     expect(group(groups, 'entities')?.items).toEqual([{
       id: `core/host/${HOST_ID}`,
       label: 'Edge router',
+      // Matched by the server, maybe by an address: nothing in its title is marked (review).
+      match: '',
       description: 'Host',
       icon: 'i-lucide-layers',
       command: { kind: 'navigate', to: `/w/home/inventory/core/host?open=${HOST_ID}` },
@@ -295,22 +297,22 @@ describe('paletteGroups', () => {
       expect(labels(paletteGroups(context({ extensions, hidden })), 'filters')).toEqual(['Filter by Action']);
     });
 
-    it('given nothing typed, lists the groups\' filters then one Extension filters… entry, and no extension or type filter (20)', () => {
+    it('given nothing typed, lists the groups\' filters then one Show extension filters entry, and no extension or type filter (20)', () => {
       const groups = paletteGroups(context({ extensions }));
 
       expect(labels(groups, 'filters')).toEqual([
-        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action', 'Extension filters…',
+        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action', 'Show extension filters',
       ]);
       expect(group(groups, 'filters')?.items[4]).toEqual({
-        id: 'extension-filters', label: 'Extension filters…', icon: 'i-lucide-puzzle', command: { kind: 'browseFilters', extensions: true },
+        id: 'extension-filters', label: 'Show extension filters', icon: 'i-lucide-puzzle', command: { kind: 'browseFilters', extensions: true },
       });
     });
 
-    it('given no extension or type to filter by, lists no Extension filters… entry (20)', () => {
+    it('given no extension or type to filter by, lists no Show extension filters entry (20)', () => {
       expect(labels(paletteGroups(context({ extensions: [], types: [] })), 'filters')).toEqual([
         'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action',
       ]);
-      expect(labels(paletteGroups(context({ extensions, hidden: ['group:entities'] })), 'filters')).not.toContain('Extension filters…');
+      expect(labels(paletteGroups(context({ extensions, hidden: ['group:entities'] })), 'filters')).not.toContain('Show extension filters');
     });
 
     it('browsing the extension filters, lists only an Extension filters group: Back to all filters, then each extension and type (20)', () => {
@@ -323,6 +325,8 @@ describe('paletteGroups', () => {
       ]);
       expect(groups[0]?.items[0]).toEqual({
         id: 'all-filters', label: 'Back to all filters', icon: 'i-lucide-arrow-left', command: { kind: 'browseFilters', extensions: false },
+        // Back makes the entry it left the active option again (review).
+        returnTo: 'extension-filters',
       });
       expect(groups[0]?.items[3]).toEqual({
         id: 'filter/type/core/host', label: 'Filter by Host', match: 'Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: { ...hostFilter, word: '' } },

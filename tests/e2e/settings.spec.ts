@@ -230,7 +230,7 @@ test.describe('settings', () => {
     expect(await acceptInvitation(own, (await invited.json() as { url: string }).url)).toBe(200);
     await own.goto('/settings');
     await hydrated(own);
-    const entities = own.getByRole('group', { name: 'Search' }).getByRole('group', { name: 'Entities' });
+    const entities = own.getByRole('group', { name: 'Search' }).getByRole('group', { name: 'Searched in Entities' });
     for (const name of ['Core', 'Host', 'Router and NAT', 'Port forward', 'Reverse proxy']) {
       await expect(entities.getByRole('checkbox', { name, exact: true })).toBeChecked();
     }
@@ -240,7 +240,7 @@ test.describe('settings', () => {
     await saved;
     await own.reload();
     await hydrated(own);
-    await expect(own.getByRole('group', { name: 'Entities' }).getByRole('checkbox', { name: 'Router and NAT' })).not.toBeChecked();
+    await expect(own.getByRole('group', { name: 'Searched in Entities' }).getByRole('checkbox', { name: 'Router and NAT' })).not.toBeChecked();
 
     await own.goto('/w/demo/graph');
     await hydrated(own);

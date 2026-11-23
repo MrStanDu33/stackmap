@@ -86,7 +86,7 @@ export const ExtensionsAndTypes: Story = {
       await expect(checkbox(canvasElement, key)).toBeEnabled();
     }
     // Under Entities, in a group named for it: a screen reader hears where they belong.
-    const entities = within(group(canvasElement)).getByRole('group', { name: t('palette.groups.entities') });
+    const entities = within(group(canvasElement)).getByRole('group', { name: t('settings.palette.entitiesLegend') });
     await expect(within(entities).getAllByRole('checkbox')).toHaveLength(4);
   },
 };
@@ -109,6 +109,10 @@ export const HideAnExtension: Story = {
   play: async ({ canvasElement, args }) => {
     await expect(checkbox(canvasElement, 'extensions.nat.name')).not.toBeChecked();
     await expect(checkbox(canvasElement, 'extensions.nat.entities.port-forward')).toBeDisabled();
+    // Disabled, it says why (review).
+    await expect(checkbox(canvasElement, 'extensions.nat.entities.port-forward'))
+      .toHaveAccessibleDescription(t('settings.palette.extensionOff', { name: t('extensions.nat.name') }));
+    await expect(checkbox(canvasElement, 'extensions.core.entities.host')).not.toHaveAccessibleDescription();
 
     await userEvent.click(checkbox(canvasElement, 'extensions.nat.name'));
     await expect(args['onUpdate:hidden']).toHaveBeenLastCalledWith([]);
@@ -126,5 +130,7 @@ export const EntitiesHidden: Story = {
       await expect(checkbox(canvasElement, key)).toBeDisabled();
     }
     await expect(within(group(canvasElement)).getByText(t('settings.palette.entitiesOff'))).toBeVisible();
+    // Said on the Entities checkbox too, where the user is: the disabled ones cannot be reached with Tab (review).
+    await expect(checkbox(canvasElement, 'palette.groups.entities')).toHaveAccessibleDescription(t('settings.palette.entitiesOff'));
   },
 };
