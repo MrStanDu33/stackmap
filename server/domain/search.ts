@@ -31,6 +31,19 @@ export function searchPatterns(query: string): string[] {
 export const MAX_SEARCH_LETTERS = 32;
 
 /** The LIKE pattern finding a query's letters in that order (`%e%d%g%e%`), escaped with a backslash; null for none. */
-export function letterPattern(_query: string): string | null {
-  return null;
+export function letterPattern(query: string): string | null {
+  const letters = Array.from(normalize(query).replace(/ /g, '')).slice(0, MAX_SEARCH_LETTERS);
+  return letters.length > 0 ? `%${letters.map((letter) => letter.replace(/[\\%_]/g, '\\$&')).join('%')}%` : null;
+}
+
+/** Whether a normalized text holds a query's letters in that order, as `letterPattern` finds them. */
+export function holdsLetters(text: string, query: string): boolean {
+  const letters = Array.from(normalize(query).replace(/ /g, '')).slice(0, MAX_SEARCH_LETTERS);
+  let found = 0;
+  for (const character of text) {
+    if (character === letters[found]) {
+      found += 1;
+    }
+  }
+  return letters.length > 0 && found === letters.length;
 }
