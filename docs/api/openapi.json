@@ -24139,7 +24139,7 @@
             "items": {
               "$ref": "#/components/schemas/SearchHit"
             },
-            "description": "Title prefix first, then by title"
+            "description": "Those holding every word first, then titles starting with `q`, then by title"
           },
           "truncated": {
             "type": "boolean",

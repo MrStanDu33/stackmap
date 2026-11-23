@@ -61,7 +61,7 @@ export const searchWorkspace = defineContract({
     200: {
       description: 'The entities found, possibly none',
       schema: z.object({
-        items: z.array(SearchHit).max(MAX_SEARCH_LIMIT).meta({ description: 'Title prefix first, then by title' }),
+        items: z.array(SearchHit).max(MAX_SEARCH_LIMIT).meta({ description: 'Those holding every word first, then titles starting with `q`, then by title' }),
         truncated: z.boolean().meta({ description: 'Whether more entities matched than `limit`', examples: [false] }),
       }).meta({ id: 'SearchResults', description: 'Search results', examples: [{ items: [router], truncated: false }] }),
       examples: {
