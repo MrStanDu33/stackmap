@@ -120,7 +120,7 @@ test.describe('settings', () => {
     const { page: own, context } = await ownAccount(page, browser);
     await own.goto('/settings');
     await hydrated(own);
-    const section = own.getByRole('group', { name: 'Search' });
+    const section = own.getByRole('group', { name: 'Search', exact: true });
     for (const name of ['Entities', 'Pages', 'Workspaces', 'Actions']) {
       await expect(section.getByRole('checkbox', { name })).toBeChecked();
     }
@@ -130,7 +130,7 @@ test.describe('settings', () => {
     await saved;
     await own.reload();
     await hydrated(own);
-    await expect(own.getByRole('group', { name: 'Search' }).getByRole('checkbox', { name: 'Entities' })).not.toBeChecked();
+    await expect(own.getByRole('group', { name: 'Search', exact: true }).getByRole('checkbox', { name: 'Entities' })).not.toBeChecked();
 
     const searches: string[] = [];
     own.on('request', (request) => {
@@ -153,7 +153,7 @@ test.describe('settings', () => {
     await own.goto('/settings');
     await hydrated(own);
     const section = own.getByRole('region', { name: 'Display, landing page and search' });
-    const search = section.getByRole('group', { name: 'Search' });
+    const search = section.getByRole('group', { name: 'Search', exact: true });
     await expect(search).toBeVisible();
 
     await own.route('**/api/account/preferences', (route) => route.fulfill({ status: 500 }));
@@ -175,7 +175,7 @@ test.describe('settings', () => {
     const { page: own, context } = await ownAccount(page, browser);
     await own.goto('/settings');
     await hydrated(own);
-    const search = own.getByRole('group', { name: 'Search' });
+    const search = own.getByRole('group', { name: 'Search', exact: true });
     // The first answer is slow to come back: sent together, the older answer would be the last one applied.
     let first = true;
     await own.route('**/api/account/preferences', async (route) => {
@@ -206,7 +206,7 @@ test.describe('settings', () => {
     const { page: own, context } = await ownAccount(page, browser);
     await own.goto('/settings');
     await hydrated(own);
-    const entities = own.getByRole('group', { name: 'Search' }).getByRole('checkbox', { name: 'Entities' });
+    const entities = own.getByRole('group', { name: 'Search', exact: true }).getByRole('checkbox', { name: 'Entities' });
     // From the landing page's radios, with the keyboard: focus-visible applies.
     await own.getByRole('radio', { name: 'Trace' }).focus();
     const focused = () => entities.evaluate((box) => box === document.activeElement);
@@ -230,7 +230,7 @@ test.describe('settings', () => {
     expect(await acceptInvitation(own, (await invited.json() as { url: string }).url)).toBe(200);
     await own.goto('/settings');
     await hydrated(own);
-    const entities = own.getByRole('group', { name: 'Search' }).getByRole('group', { name: 'Searched in Entities' });
+    const entities = own.getByRole('group', { name: 'Search', exact: true }).getByRole('group', { name: 'Searched in Entities' });
     for (const name of ['Core', 'Host', 'Router and NAT', 'Port forward', 'Reverse proxy']) {
       await expect(entities.getByRole('checkbox', { name, exact: true })).toBeChecked();
     }
@@ -260,7 +260,7 @@ test.describe('settings', () => {
     await own.request.put(`${DEMO_URL}/api/account/preferences`, { data: { palette: { hidden: ['group:entities'] } } });
     await own.goto('/settings');
     await hydrated(own);
-    const search = own.getByRole('group', { name: 'Search' });
+    const search = own.getByRole('group', { name: 'Search', exact: true });
 
     await expect(search.getByRole('checkbox', { name: 'Router and NAT' })).toBeDisabled();
     await expect(search.getByRole('checkbox', { name: 'Host', exact: true })).toBeDisabled();

@@ -61,5 +61,24 @@ function match(text: string, typed: string): { rank: number; marks: number[] } |
  */
 export const matchRank = (text: string, typed: string): number | undefined => match(text, typed)?.rank;
 
-/** The indices in a text of the characters that matched what is typed, as `matchRank` matched them. */
-export const matchMarks = (text: string, typed: string): number[] => match(text, typed)?.marks ?? [];
+/**
+ * The indices in a text of the characters that matched what is typed, as `matchRank` matched them. Partial, a text
+ * that does not match marks the typed letters it holds in order, skipping the others: a name matched through another.
+ */
+export function matchMarks(text: string, typed: string, { partial = false } = {}): number[] {
+  const marks = match(text, typed)?.marks;
+  if (marks || !partial) {
+    return marks ?? [];
+  }
+  const { normalized, from } = mapped(text);
+  const found: number[] = [];
+  let position = 0;
+  for (const letter of normalize(typed).replace(/\s+/g, '')) {
+    const at = normalized.indexOf(letter, position);
+    if (at >= 0) {
+      found.push(from[at] ?? 0);
+      position = at + 1;
+    }
+  }
+  return found;
+}

@@ -20,6 +20,8 @@ onMounted(() => {
 });
 const offId = useId();
 const entitiesOff = computed(() => props.hidden.includes('group:entities'));
+// An extension unchecked while Entities is on: its types cannot be changed, and say so.
+const extensionOff = (id: string) => !entitiesOff.value && props.hidden.includes(`extension:${id}`);
 const toggle = (key: string, shown: boolean | 'indeterminate') => {
   // Keys it does not show are kept as they were.
   emit('update:hidden', shown === true
@@ -46,9 +48,11 @@ const toggle = (key: string, shown: boolean | 'indeterminate') => {
       v-for="group in PALETTE_GROUPS"
       :key="group"
     >
+      <!-- Entities says why the extensions under it cannot be changed: disabled, they are skipped by Tab. -->
       <UCheckbox
         :model-value="!hidden.includes(`group:${group}`)"
         :label="t(`palette.groups.${group}`)"
+        :aria-describedby="group === 'entities' && entitiesOff && extensions?.length ? offId : undefined"
         @update:model-value="toggle(`group:${group}`, $event)"
       />
       <!-- What Entities searches: each extension, and each of its types under it. -->
@@ -58,7 +62,7 @@ const toggle = (key: string, shown: boolean | 'indeterminate') => {
         :aria-describedby="entitiesOff ? offId : undefined"
       >
         <legend class="sr-only">
-          {{ t('palette.groups.entities') }}
+          {{ t('settings.palette.entitiesLegend') }}
         </legend>
         <p
           v-if="entitiesOff"
@@ -77,13 +81,21 @@ const toggle = (key: string, shown: boolean | 'indeterminate') => {
             :disabled="entitiesOff"
             @update:model-value="toggle(`extension:${extension.id}`, $event)"
           />
+          <p
+            v-if="extensionOff(extension.id)"
+            :id="`${offId}-${extension.id}`"
+            class="ms-6 text-sm text-muted"
+          >
+            {{ t('settings.palette.extensionOff', { name: t(extension.name) }) }}
+          </p>
           <UCheckbox
             v-for="entity in extension.entities"
             :key="entity.id"
             class="ms-6"
             :model-value="!hidden.includes(`type:${extension.id}/${entity.id}`)"
             :label="t(entity.label)"
-            :disabled="entitiesOff || hidden.includes(`extension:${extension.id}`)"
+            :disabled="entitiesOff || extensionOff(extension.id)"
+            :aria-describedby="extensionOff(extension.id) ? `${offId}-${extension.id}` : undefined"
             @update:model-value="toggle(`type:${extension.id}/${entity.id}`, $event)"
           />
         </template>

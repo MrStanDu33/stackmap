@@ -100,6 +100,8 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
           .map(({ extension, entity, id, title }) => ({
             id: `${extension}/${entity}/${id}`,
             label: title,
+            // Matched by the server, maybe by an address: nothing in its title is marked.
+            match: '',
             description: typeOf(extension, entity)?.name ?? t('palette.unknownType'),
             icon: typeOf(extension, entity)?.icon ?? 'i-lucide-box',
             // Selected where the page draws it; opened in the inventory otherwise.
@@ -217,6 +219,7 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
       const back = {
         id: 'all-filters', label: t('palette.filters.back'), icon: 'i-lucide-arrow-left',
         command: { kind: 'browseFilters' as const, extensions: false },
+        returnTo: 'extension-filters',
       };
       return [{ ...offerGroup(t, byExtension, back), label: t('palette.filters.extensionsTitle'), icon: 'i-lucide-puzzle' }];
     }

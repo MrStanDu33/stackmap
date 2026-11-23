@@ -63,11 +63,14 @@ const message = computed(() => shown.value.find((group) => group.message));
  * The label in runs: the characters that matched what is typed are bold, and a part in another language (a language's
  * own name) is read in its voice.
  */
-const segments = (item: PaletteItem) => {
-  const text = item.match ?? item.label;
-  // Only the part matched (a filter's name), wherever the translation puts it in the label.
+const segments = (item: PaletteItem, group: PaletteGroup) => {
+  // What the server found is not marked: it may have matched an address, not the title.
+  const text = item.match ?? (group.searched ? '' : item.label);
+  // Only the part matched (a filter's name), wherever the translation puts it in the label; a filter offered through
+  // another of its names (a plural) marks the letters its name holds.
   const offset = text ? item.label.lastIndexOf(text) : -1;
-  const marked = new Set(offset >= 0 ? matchMarks(text, searchTerm.value).map((index) => index + offset) : []);
+  const found = offset >= 0 ? matchMarks(text, searchTerm.value, { partial: item.match !== undefined }) : [];
+  const marked = new Set(found.map((index) => index + offset));
   const foreignAt = item.foreign ? item.label.indexOf(item.foreign.text) : -1;
   const langAt = (index: number) => (item.foreign && foreignAt >= 0 && index >= foreignAt
     && index < foreignAt + item.foreign.text.length
@@ -89,8 +92,12 @@ const segments = (item: PaletteItem) => {
 const count = computed(() => options.value.length);
 const active = ref(0);
 // A new search starts from the first result; an index past the list is never pointed at.
+// The option a choice asked to come back to (Back: the entry it left), once the list it changes arrives.
+let returning: string | undefined;
 watch(options, () => {
-  active.value = 0;
+  const back = returning ? options.value.findIndex(({ item }) => item.id === returning) : -1;
+  returning = undefined;
+  active.value = Math.max(back, 0);
 });
 const field = useTemplateRef<{ inputRef?: HTMLInputElement | null }>('field');
 // Nuxt UI types no focus handler on a dialog's content: it is passed through to the element.
@@ -100,19 +107,40 @@ const content: Record<string, unknown> = {
     field.value?.inputRef?.focus();
   },
 };
-// Said once typing settles, and nothing before anything is typed.
+// Said once typing settles, and nothing before anything is typed: then the results, after a chip that came or went,
+// or a list that changed (the extension filters, and back).
 const announced = ref('');
 let settle: ReturnType<typeof setTimeout> | undefined;
-watch([searchTerm, count, () => props.loading, () => message.value?.message], () => {
-  clearTimeout(settle);
-  const typed = searchTerm.value.trim() !== '';
-  settle = setTimeout(() => {
-    announced.value = props.loading
-      ? t('palette.searching')
-      : [typed ? t('palette.results', { count: count.value }, count.value) : '', message.value?.message ?? '']
-          .filter(Boolean).join(' ');
-  }, 250);
-}, { immediate: true });
+let change = '';
+let listChanged = false;
+// What the last change saw: a chip that came or went, and the groups listed.
+let chipBefore = props.filter?.name;
+const groupsShown = () => props.groups.map(({ id, label }) => `${id}:${label}`).join('|');
+let listBefore = groupsShown();
+watch(
+  [searchTerm, count, () => props.loading, () => message.value?.message, () => props.filter?.name, groupsShown],
+  () => {
+    const chip = props.filter?.name;
+    if (chip !== chipBefore) {
+      change = chip ? t('palette.filters.added', { name: chip }) : t('palette.filters.removed', { name: chipBefore });
+      chipBefore = chip;
+    }
+    const list = groupsShown();
+    listChanged ||= list !== listBefore;
+    listBefore = list;
+    clearTimeout(settle);
+    settle = setTimeout(() => {
+      const results = searchTerm.value.trim() !== '' || props.filter || listChanged || change !== '';
+      announced.value = props.loading
+        ? t('palette.searching')
+        : [change, results ? t('palette.results', { count: count.value }, count.value) : '', message.value?.message ?? '']
+            .filter(Boolean).join(' ');
+      change = '';
+      listChanged = false;
+    }, 250);
+  },
+  { immediate: true },
+);
 onBeforeUnmount(() => {
   clearTimeout(settle);
 });
@@ -131,6 +159,7 @@ const removeFilter = () => {
 const choose = (index: number) => {
   const option = options.value[index];
   if (option) {
+    returning = option.item.returnTo;
     const group = props.groups.find(({ id }) => id === option.group.id) ?? option.group;
     emit('select', option.item, group);
   }
@@ -282,7 +311,7 @@ const onKeydown = (event: KeyboardEvent) => {
               <!-- Named by its label, then its group for screen readers: the visible text starts its name. -->
               <!-- Plain runs are text, not elements: spaces at an element's edge drop out of the accessible name. -->
               <span class="grow truncate"><template
-                v-for="(segment, index) in segments(option.item)"
+                v-for="(segment, index) in segments(option.item, group)"
                 :key="index"
               ><span
                 v-if="segment.bold || segment.lang"
