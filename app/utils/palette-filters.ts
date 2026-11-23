@@ -65,7 +65,33 @@ export function availableFilters(context: PaletteFilterContext): PaletteFilterOp
   return candidates(context).map(({ option }) => option);
 }
 
-/** The filters what is typed names in full: groups, extensions and entity types, in the current language. */
+/**
+ * How closely a name matches what is typed (normalized): 0 its whole name, 1 the starts of its words, 2 inside a word,
+ * 3 its letters in that order; undefined when it does not match.
+ */
+export function matchRank(name: string, typed: string): number | undefined {
+  const normalized = normalize(name);
+  if (normalized === typed) {
+    return 0;
+  }
+  const words = normalized.split(/\s+/);
+  if (typed.split(/\s+/).every((start) => words.some((word) => word.startsWith(start)))) {
+    return 1;
+  }
+  if (normalized.includes(typed)) {
+    return 2;
+  }
+  const letters = typed.replace(/\s+/g, '');
+  let found = 0;
+  for (const letter of normalized) {
+    if (letter === letters[found]) {
+      found += 1;
+    }
+  }
+  return found === letters.length ? 3 : undefined;
+}
+
+/** The filters what is typed matches, as results are matched while typing: the most exact first. */
 export function paletteFilters(context: PaletteFilterContext): PaletteFilterOption[] {
   const typed = normalize(context.q);
   if (context.filter || !typed) {
@@ -73,6 +99,12 @@ export function paletteFilters(context: PaletteFilterContext): PaletteFilterOpti
   }
   const word = context.q.trim();
   return candidates(context)
-    .filter(({ names }) => names.some((name) => normalize(name) === typed))
-    .map(({ option }) => ({ ...option, word }));
+    .map(({ option, names }) => ({
+      option: { ...option, word },
+      rank: Math.min(...names.map((name) => matchRank(name, typed) ?? Infinity)),
+    }))
+    .filter(({ rank }) => rank !== Infinity)
+    // A stable sort: equal matches keep the groups', extensions' and types' order.
+    .sort((one, other) => one.rank - other.rank)
+    .map(({ option }) => option);
 }

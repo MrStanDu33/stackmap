@@ -204,7 +204,8 @@ describe('paletteGroups', () => {
   });
 
   it('gives each group its icon and color: entities primary, pages info, workspaces secondary, actions warning (8)', () => {
-    const groups = paletteGroups(context({ q: 'a', entities: { state: 'done', hits: [] } }));
+    // Words that name no filter: only the four groups.
+    const groups = paletteGroups(context({ q: 'zz', entities: { state: 'done', hits: [] } }));
 
     expect(groups.map(({ id, label, color, icon }) => ({ id, label, color, icon }))).toEqual([
       { id: 'entities', label: t('palette.groups.entities'), color: 'primary', icon: 'i-lucide-box' },

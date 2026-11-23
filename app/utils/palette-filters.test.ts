@@ -124,7 +124,8 @@ describe('paletteFilters', () => {
   it('finds what is typed inside a word: "ort" and "orward" offer Port forward (14)', () => {
     const forward = { kind: 'type', extension: 'nat', entity: 'port-forward' };
 
-    expect(offered('ort')).toEqual([forward]);
+    // Router and NAT holds o…r…t too, in order: a less exact match, after.
+    expect(offered('ort')).toEqual([forward, { kind: 'extension', extension: 'nat' }]);
     expect(offered('orward')).toEqual([forward]);
     expect(offered('hos')).toEqual([{ kind: 'type', extension: 'core', entity: 'host' }]);
   });
