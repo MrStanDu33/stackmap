@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { matchMarks, matchRank } from '../../utils/palette-match';
+
 import type { PaletteColor, PaletteFilterOption, PaletteGroup, PaletteItem } from '../../utils/palette';
 
 /**
@@ -33,18 +35,20 @@ const COLORS: Record<PaletteColor, string> = {
   primary: 'text-primary', info: 'text-info', secondary: 'text-secondary', warning: 'text-warning',
 };
 const colorOf = (group: PaletteGroup) => (group.color ? COLORS[group.color] : 'text-muted');
-const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-// Filtered here: the count said is the count shown.
+// Filtered here: the count said is the count shown. Each group lists its most exact match first.
 const shown = computed(() => {
-  const words = normalize(searchTerm.value).split(/\s+/).filter(Boolean);
+  const typed = searchTerm.value.trim() !== '';
   return props.groups
     .map((group) => ({
       ...group,
-      // A group matched on the server shows what it found: its titles may not hold the words (an address did).
-      items: group.searched
+      // A group matched on the server shows what it found, in its order: its titles may not hold the words.
+      items: group.searched || !typed
         ? group.items
-        : group.items.filter(({ label, description }) =>
-            words.every((word) => normalize(`${label} ${description ?? ''}`).includes(word))),
+        : group.items
+            .map((item) => ({ item, rank: matchRank(item.match ?? item.label, searchTerm.value) }))
+            .filter((ranked): ranked is { item: PaletteItem; rank: number } => ranked.rank !== undefined)
+            .sort((one, other) => one.rank - other.rank)
+            .map(({ item }) => item),
     }))
     .filter(({ items, message }) => items.length > 0 || message !== undefined);
 });
@@ -55,12 +59,32 @@ const options = computed(() => shown.value.flatMap((group) => group.items.map((i
 // Only groups with options in the listbox; a group's message (searching, failed) is shown once, outside it.
 const listed = computed(() => shown.value.filter(({ items }) => items.length > 0));
 const message = computed(() => shown.value.find((group) => group.message));
-/** The label around its part in another language, if any. */
-const parts = ({ label, foreign }: PaletteItem) => {
-  const at = foreign ? label.indexOf(foreign.text) : -1;
-  return foreign && at >= 0
-    ? { before: label.slice(0, at), foreign, after: label.slice(at + foreign.text.length) }
-    : { before: label, foreign: undefined, after: '' };
+/**
+ * The label in runs: the characters that matched what is typed are bold, and a part in another language (a language's
+ * own name) is read in its voice.
+ */
+const segments = (item: PaletteItem) => {
+  const text = item.match ?? item.label;
+  // Only the part matched (a filter's name), wherever the translation puts it in the label.
+  const offset = text ? item.label.lastIndexOf(text) : -1;
+  const marked = new Set(offset >= 0 ? matchMarks(text, searchTerm.value).map((index) => index + offset) : []);
+  const foreignAt = item.foreign ? item.label.indexOf(item.foreign.text) : -1;
+  const langAt = (index: number) => (item.foreign && foreignAt >= 0 && index >= foreignAt
+    && index < foreignAt + item.foreign.text.length
+    ? item.foreign.lang
+    : undefined);
+  const runs: { text: string; bold: boolean; lang?: string }[] = [];
+  Array.from(item.label).forEach((character, index) => {
+    const bold = marked.has(index);
+    const lang = langAt(index);
+    const last = runs.at(-1);
+    if (last && last.bold === bold && last.lang === lang) {
+      last.text += character;
+    } else {
+      runs.push({ text: character, bold, ...(lang ? { lang } : {}) });
+    }
+  });
+  return runs;
 };
 const count = computed(() => options.value.length);
 const active = ref(0);
@@ -256,14 +280,18 @@ const onKeydown = (event: KeyboardEvent) => {
                 aria-hidden="true"
               />
               <!-- Named by its label, then its group for screen readers: the visible text starts its name. -->
-              <span class="grow truncate">
-                {{ parts(option.item).before }}<span
-                  v-if="parts(option.item).foreign"
-                  :lang="parts(option.item).foreign?.lang"
-                >{{ parts(option.item).foreign?.text }}</span>{{ parts(option.item).after }}<span
-                  class="sr-only"
-                >{{ t('palette.inGroup', { group: group.label }) }}</span>
-              </span>
+              <!-- Plain runs are text, not elements: spaces at an element's edge drop out of the accessible name. -->
+              <span class="grow truncate"><template
+                v-for="(segment, index) in segments(option.item)"
+                :key="index"
+              ><span
+                v-if="segment.bold || segment.lang"
+                :lang="segment.lang"
+                :data-match="segment.bold ? '' : undefined"
+                :class="segment.bold ? 'font-bold' : undefined"
+              >{{ segment.text }}</span><template v-else>{{ segment.text }}</template></template><span
+                class="sr-only"
+              >{{ t('palette.inGroup', { group: group.label }) }}</span></span>
               <!-- Read as the option's description (aria-describedby), not again as part of its name. -->
               <span
                 v-if="option.item.description"

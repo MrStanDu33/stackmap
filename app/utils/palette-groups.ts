@@ -71,6 +71,7 @@ const offerGroup = (t: PaletteContext['t'], options: readonly PaletteFilterOptio
     ...options.map((option) => ({
       id: `filter/${option.filter.kind}/${filterKey(option.filter)}`,
       label: t('palette.filters.by', { name: option.name }),
+      match: option.name,
       ...(option.icon ? { icon: option.icon } : {}),
       command: { kind: 'filter' as const, option },
     })),
@@ -229,6 +230,9 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
     return [...(filters.items.length > 0 ? [filters] : []), ...listed];
   }
   const offers = word === keptWord ? [] : paletteFilters(filterContext);
-  const keep = { id: 'keep-word', label: t('palette.filters.search', { word }), icon: 'i-lucide-search', command: { kind: 'keepWord' as const, word } };
+  const keep = {
+    id: 'keep-word', label: t('palette.filters.search', { word }), match: '', icon: 'i-lucide-search',
+    command: { kind: 'keepWord' as const, word },
+  };
   return [...(offers.length > 0 ? [offerGroup(t, offers, keep)] : []), ...listed];
 }

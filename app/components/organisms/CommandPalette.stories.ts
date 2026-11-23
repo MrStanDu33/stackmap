@@ -397,7 +397,7 @@ const bold = (option: HTMLElement) => [...option.querySelectorAll<HTMLElement>('
   .filter((element) => Number(getComputedStyle(element).fontWeight) >= 600)
   .map(({ textContent }) => textContent).join('');
 
-/** Letters typed in order find results too: "sgo" lists Sign out, "trc" lists Trace (21). */
+/** Letters typed in order find results too: "sgo" lists Sign out, "trce" lists Trace (21). */
 export const FuzzyResults: Story = {
   render: typing,
   play: async () => {
@@ -407,7 +407,8 @@ export const FuzzyResults: Story = {
     await expect(within(list()).getByRole('option')).toHaveAccessibleName(/^Sign out/);
 
     await userEvent.clear(field());
-    await userEvent.type(field(), 'trc');
+    // Not "trc": Traffic holds t…r…c too.
+    await userEvent.type(field(), 'trce');
     await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
     await expect(within(list()).getByRole('option')).toHaveAccessibleName(/^Trace/);
   },
