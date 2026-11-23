@@ -447,6 +447,38 @@ test.describe('command palette filters', () => {
     await expect(dialog.getByRole('combobox', { name: 'Search' })).toHaveAccessibleDescription('Filter: Port forward');
   });
 
+  /** The characters an option shows bold, in order. */
+  const bold = (option: ReturnType<Page['getByRole']>) => option.evaluate((element) => [...element.querySelectorAll('[data-match]')]
+    .filter((match) => Number(getComputedStyle(match).fontWeight) >= 600)
+    .map(({ textContent }) => textContent).join(''));
+
+  test('typing "ofw" shows Filter by Port forward with o, f and w bold (22)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('ofw');
+
+    const option = group(dialog, 'Filters').getByRole('option', { name: /^Filter by Port forward/ });
+    await expect(option).toBeVisible();
+    expect(await bold(option)).toBe('ofw');
+  });
+
+  test('typing "sgo" lists the Sign out action with S, g and o bold (21, 22)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('sgo');
+
+    const option = group(dialog, 'Actions').getByRole('option', { name: /^Sign out/ });
+    await expect(option).toBeVisible();
+    expect(await bold(option)).toBe('Sgo');
+  });
+
+  test('typing "edgrt" finds Edge router among the entities, with E, d, g, r and t bold (21, 22)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('edgrt');
+
+    const option = group(dialog, 'Entities').getByRole('option', { name: /^Edge router/ });
+    await expect(option).toBeVisible();
+    expect(await bold(option)).toBe('Edgrt');
+  });
+
   test('the palette with a chip has no axe violation (15)', async ({ page }) => {
     await withHostChip(page);
     await page.keyboard.type('edge');

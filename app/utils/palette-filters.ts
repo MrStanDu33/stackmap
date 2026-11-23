@@ -1,3 +1,5 @@
+import { matchRank, normalize } from './palette-match';
+
 import type { PaletteColor, PaletteFilterOption } from './palette';
 import type { PaletteType } from './palette-groups';
 
@@ -27,8 +29,6 @@ export const PALETTE_GROUP_STYLES = {
   workspaces: { icon: 'i-lucide-folder', color: 'secondary' },
   actions: { icon: 'i-lucide-zap', color: 'warning' },
 } as const satisfies Record<string, { icon: string; color: PaletteColor }>;
-
-const normalize = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase();
 
 /** Whether a type, or an extension's entities, are hidden in Settings: by itself, its extension, or Entities. */
 export const entitiesHidden = (hidden: readonly string[], extension: string, entity?: string) =>
@@ -63,32 +63,6 @@ function candidates({ t, extensions, types, hidden }: PaletteFilterContext) {
 /** Every filter the user can choose: groups, extensions, then entity types, none hidden or turned off. */
 export function availableFilters(context: PaletteFilterContext): PaletteFilterOption[] {
   return candidates(context).map(({ option }) => option);
-}
-
-/**
- * How closely a name matches what is typed (normalized): 0 its whole name, 1 the starts of its words, 2 inside a word,
- * 3 its letters in that order; undefined when it does not match.
- */
-export function matchRank(name: string, typed: string): number | undefined {
-  const normalized = normalize(name);
-  if (normalized === typed) {
-    return 0;
-  }
-  const words = normalized.split(/\s+/);
-  if (typed.split(/\s+/).every((start) => words.some((word) => word.startsWith(start)))) {
-    return 1;
-  }
-  if (normalized.includes(typed)) {
-    return 2;
-  }
-  const letters = typed.replace(/\s+/g, '');
-  let found = 0;
-  for (const letter of normalized) {
-    if (letter === letters[found]) {
-      found += 1;
-    }
-  }
-  return found === letters.length ? 3 : undefined;
 }
 
 /** The filters what is typed matches, as results are matched while typing: the most exact first. */

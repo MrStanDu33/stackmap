@@ -228,8 +228,10 @@ describe('paletteGroups', () => {
 
       expect(groups[0]).toMatchObject({ id: 'filters', label: 'Filters', searched: true });
       expect(groups[0]?.items).toEqual([
-        { id: 'keep-word', label: 'Search “host”', icon: 'i-lucide-search', command: { kind: 'keepWord', word: 'host' } },
-        { id: 'filter/type/core/host', label: 'Filter by Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: hostFilter } },
+        { id: 'keep-word', label: 'Search “host”', match: '', icon: 'i-lucide-search', command: { kind: 'keepWord', word: 'host' } },
+        {
+          id: 'filter/type/core/host', label: 'Filter by Host', match: 'Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: hostFilter },
+        },
       ]);
       expect(groups.map(({ id }) => id)).toEqual(['filters', 'entities', 'pages', 'workspaces', 'actions']);
     });
@@ -281,7 +283,7 @@ describe('paletteGroups', () => {
       expect(groups.map(({ id }) => id)).toEqual(['filters', 'pages', 'workspaces', 'actions']);
       expect(groups[0]).toMatchObject({ label: 'Filters', searched: true });
       expect(group(groups, 'filters')?.items[1]).toEqual({
-        id: 'filter/group/pages', label: 'Filter by Page', icon: 'i-lucide-file-text',
+        id: 'filter/group/pages', label: 'Filter by Page', match: 'Page', icon: 'i-lucide-file-text',
         command: { kind: 'filter', option: { filter: { kind: 'group', group: 'pages' }, name: 'Page', word: '', icon: 'i-lucide-file-text', color: 'info' } },
       });
     });
@@ -323,7 +325,7 @@ describe('paletteGroups', () => {
         id: 'all-filters', label: 'Back to all filters', icon: 'i-lucide-arrow-left', command: { kind: 'browseFilters', extensions: false },
       });
       expect(groups[0]?.items[3]).toEqual({
-        id: 'filter/type/core/host', label: 'Filter by Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: { ...hostFilter, word: '' } },
+        id: 'filter/type/core/host', label: 'Filter by Host', match: 'Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: { ...hostFilter, word: '' } },
       });
     });
 
@@ -332,6 +334,21 @@ describe('paletteGroups', () => {
 
       expect(groups.map(({ id }) => id)).toEqual(['filters', 'entities', 'pages', 'workspaces', 'actions']);
       expect(labels(groups, 'filters')).toEqual(['Search “host”', 'Filter by Host']);
+    });
+
+    it('gives each Filter by option its filter\'s name to match, and Search “<words>” nothing to match (22)', () => {
+      const french = createTestI18n('fr').global;
+      const groups = paletteGroups(context({
+        q: 'hôte',
+        t: (key, params = {}) => french.t(key, params),
+        extensions,
+        types: [{ extension: 'core', entity: 'host', name: 'Hôte', plural: 'Hôtes' }],
+      }));
+
+      expect(group(groups, 'filters')?.items.map(({ label, match }) => ({ label, match }))).toEqual([
+        { label: 'Rechercher «\u00a0hôte\u00a0»', match: '' },
+        { label: 'Filtrer par Hôte', match: 'Hôte' },
+      ]);
     });
   });
 });

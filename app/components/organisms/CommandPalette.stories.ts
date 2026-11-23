@@ -384,3 +384,107 @@ export const ChipRemove: Story = {
     await waitFor(() => expect(field()).toHaveFocus());
   },
 };
+
+/** The palette with a search term the story types, as the app keeps it. */
+const typing = (args: Record<string, unknown>) => ({
+  components: { CommandPalette },
+  setup: () => ({ args, searchTerm: ref('') }),
+  template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" />',
+});
+const optionNamed = (name: RegExp) => within(list()).getByRole('option', { name });
+/** The characters shown bold in an option, in order: each bold run, joined. */
+const bold = (option: HTMLElement) => [...option.querySelectorAll<HTMLElement>('[data-match]')]
+  .filter((element) => Number(getComputedStyle(element).fontWeight) >= 600)
+  .map(({ textContent }) => textContent).join('');
+
+/** Letters typed in order find results too: "sgo" lists Sign out, "trc" lists Trace (21). */
+export const FuzzyResults: Story = {
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'sgo');
+    await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
+    await expect(within(list()).getByRole('option')).toHaveAccessibleName(/^Sign out/);
+
+    await userEvent.clear(field());
+    await userEvent.type(field(), 'trc');
+    await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
+    await expect(within(list()).getByRole('option')).toHaveAccessibleName(/^Trace/);
+  },
+};
+
+/** Each group lists its most exact match first: typing "trace", Trace, then Trace routes, then Retrace (21). */
+export const RankedResults: Story = {
+  args: {
+    groups: [{
+      id: 'pages',
+      label: 'Pages',
+      items: [{ id: 'retrace', label: 'Retrace' }, { id: 'routes', label: 'Trace routes' }, { id: 'trace', label: 'Trace' }],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'trace');
+
+    await waitFor(() => expect(within(list()).getAllByRole('option').map((option) => option.textContent.trim()))
+      .toEqual([expect.stringMatching(/^Trace,/), expect.stringMatching(/^Trace routes/), expect.stringMatching(/^Retrace/)]));
+  },
+};
+
+/** The characters that matched are bold, and the option keeps its accessible name (22). */
+export const MatchedCharacters: Story = {
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'sgo');
+
+    const option = await waitFor(() => optionNamed(/^Sign out/));
+    await expect(bold(option)).toBe('Sgo');
+    const group = t('palette.inGroup', { group: 'Actions' }).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await expect(option).toHaveAccessibleName(new RegExp(`^Sign out ?${group}$`));
+  },
+};
+
+/** An option with a text to match is marked there only, never in the rest of its label (22). */
+export const MatchedName: Story = {
+  args: {
+    groups: [{
+      id: 'filters',
+      label: 'Filters',
+      searched: true,
+      items: [
+        { id: 'keep-word', label: 'Search “fo”', match: '' },
+        { id: 'filter/type/nat/port-forward', label: 'Filter by Port forward', match: 'Port forward' },
+      ],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'ofw');
+
+    await expect(bold(optionNamed(/^Filter by Port forward/))).toBe('ofw');
+    await expect(bold(optionNamed(/^Search/))).toBe('');
+  },
+};
+
+/** An entity's title is marked when it matched; found by an address, it is not (22). */
+export const SearchedTitles: Story = {
+  args: {
+    groups: [{
+      id: 'entities',
+      label: 'Entities',
+      searched: true,
+      items: [{ id: 'router', label: 'Edge router', description: 'Host' }, { id: 'web', label: 'Web server', description: 'Host' }],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'edgrt');
+
+    await expect(bold(optionNamed(/^Edge router/))).toBe('Edgrt');
+    await expect(bold(optionNamed(/^Web server/))).toBe('');
+  },
+};

@@ -34,6 +34,8 @@ export interface PaletteItem {
   /** A second line, such as an entity's type. */
   description?: string;
   icon?: string;
+  /** The part of the label matched against what is typed (a filter's name), or '' for none; else the label. */
+  match?: string;
   /** A part of the label in another language, such as a language's own name: read in that language's voice. */
   foreign?: { text: string; lang: string };
   command?: PaletteCommand;

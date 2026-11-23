@@ -26,3 +26,11 @@ export function searchPatterns(query: string): string[] {
     .slice(0, MAX_SEARCH_WORDS)
     .map((word) => `%${word.replace(/[\\%_]/g, '\\$&')}%`);
 }
+
+/** The most letters of a query matched in order: each is a wildcard the database tries along the text. */
+export const MAX_SEARCH_LETTERS = 32;
+
+/** The LIKE pattern finding a query's letters in that order (`%e%d%g%e%`), escaped with a backslash; null for none. */
+export function letterPattern(_query: string): string | null {
+  return null;
+}
