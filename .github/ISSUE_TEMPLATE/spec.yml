@@ -1,0 +1,72 @@
+name: Spec (maintainers)
+description: The approved specification of a feature or fix, before any code. Suggestions go in a feature request.
+labels: [spec]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use fictional data only: documentation and private IP ranges, `.example` names. Never real hosts, domains or
+        addresses. Each acceptance criterion becomes a test name; pull requests say `Closes #…` or `Part of #…`.
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      description: A fix needs only the goal, the criteria and the edge cases.
+      options:
+        - Feature
+        - Fix
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One or two sentences. For a fix, the bug and the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      description: Numbered, in Given / When / Then.
+      placeholder: |
+        1. Given …, when …, then …
+    validations:
+      required: true
+  - type: textarea
+    id: contracts
+    attributes:
+      label: Data and API contracts
+      description: Entities and fields, routes, roles allowed, errors (Problem Details codes).
+  - type: textarea
+    id: ui
+    attributes:
+      label: UI states
+      description: Default, loading, empty, error, and each role's view.
+  - type: textarea
+    id: accessibility
+    attributes:
+      label: Accessibility
+      description: Keyboard path, labels, announcements, the accessible equivalent of any visual (RGAA 4.1, WCAG 2.2 AA).
+  - type: textarea
+    id: translations
+    attributes:
+      label: Translations
+      description: New strings in English and French.
+  - type: textarea
+    id: edge-cases
+    attributes:
+      label: Edge and error cases
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+  - type: textarea
+    id: slices
+    attributes:
+      label: Slices and pull requests
+      description: The smallest shippable parts, in build order, one pull request each.
+      placeholder: |
+        - [ ] …
