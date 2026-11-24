@@ -408,8 +408,8 @@ setting will turn that API off.
   component has stories, run as tests in Chromium in every theme, contrast mode and locale. Storybook uses the plain
   Vue + Vite framework with small Nuxt shims, because the Nuxt Storybook framework does not support Nuxt 4.6 yet.
 - Design tokens live in `app/assets/css/tokens.css`: the nebula and midnight palettes and the semantic Nuxt UI tokens
-  for the midnight (default), light and strict themes. `shared/design/contrast.ts` defines the contrast requirements,
-  checked by tests.
+  for the midnight (default) and light themes, each in standard and strict contrast. `shared/design/contrast.ts`
+  defines the contrast requirements, checked by tests.
 - Every string is in English and French (`@nuxtjs/i18n`, no locale in URLs).
 - Icons are Lucide (`i-lucide-…`), bundled with the app (`@iconify-json/lucide`): the Iconify API is never called, so
   the app works offline and tells no third party where it runs.

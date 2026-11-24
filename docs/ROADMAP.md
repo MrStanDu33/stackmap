@@ -42,7 +42,7 @@ each; then the remaining built-in extensions), then phases 7 to 9.
 
 Built-in extensions in v1: reverse proxy, TLS certificates, VPN, router/NAT, containers, SSO/auth providers, template
 packs (Nginx Proxy Manager, Traefik, Caddy), locale packs. Template packs need phase 8's plans. The light theme is
-part of the core, next to midnight and strict; themes from extensions come with custom extensions (Later).
+part of the core, next to midnight; themes from extensions come with custom extensions (Later).
 
 ## Team-ready
 
