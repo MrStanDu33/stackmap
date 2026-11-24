@@ -6,9 +6,12 @@ can agree on the approach.
 By contributing, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md) and, on your first pull request, sign the
 [Contributor License Agreement](docs/CLA.md) (the CLA bot explains how).
 
+This file covers setup, pull requests and releases. The conventions (commands, workflow, code rules, Git rules) live
+in one place, [AGENTS.md](AGENTS.md), written for people and AI agents alike; read it before your first change.
+
 ## Setup
 
-Requirements: Node.js 24 (`nvm use` reads `.nvmrc`), Corepack, Git, and Docker for the Postgres tests.
+Requirements: Node.js 24 (`nvm use` reads `.nvmrc`), Corepack, Git, and Docker for the Postgres and smoke tests.
 
 ```sh
 nvm use
@@ -23,30 +26,20 @@ pnpm dev                                # http://localhost:3000
 To run the app in Docker instead, with hot reload on your checkout: `docker compose -f compose.dev.yaml up`.
 `docker compose up -d` runs the production build of your checkout.
 
-Behind a TLS-inspecting proxy, downloads made by Node (such as `playwright install`) may fail with
-`SELF_SIGNED_CERT_IN_CHAIN`. Prefix the command with `NODE_OPTIONS=--use-system-ca` to trust your system certificates.
+Things that trip people up:
 
-## Commands
+- **Postgres tests**: `pnpm db:test:up` starts Postgres on port 55432; run the integration tests with
+  `TEST_POSTGRES_URL=postgres://stackmap:stackmap@localhost:55432/stackmap_test`. Without it they run on SQLite only.
+- **Smoke tests** (`pnpm test:smoke`) reuse a local image and bind port 3000: build it first
+  (`docker build -t stackmap:local .`) and stop the `compose.dev.yaml` container while they run.
+- **A global pnpm that cannot switch** to the version in `packageManager`: run `corepack pnpm …`, or put Corepack's
+  shims first on your `PATH` (`corepack enable`), since the Git hooks call plain `pnpm`.
+- **Behind a TLS-inspecting proxy**, downloads made by Node (such as `playwright install`) may fail with
+  `SELF_SIGNED_CERT_IN_CHAIN`. Prefix the command with `NODE_OPTIONS=--use-system-ca` to trust your system
+  certificates.
 
-| Command                | What it does                                                         |
-| ---------------------- | -------------------------------------------------------------------- |
-| `pnpm dev`             | Start the app with hot reload                                        |
-| `pnpm build`           | Build the production server into `.output/`                         |
-| `pnpm lint`            | ESLint (`pnpm lint:fix` to fix)                                      |
-| `pnpm lint:css`        | Stylelint                                                            |
-| `pnpm typecheck`       | Type-check the whole project                                        |
-| `pnpm test`            | Every test: scripts, unit, integration and stories (every theme, locale) |
-| `pnpm test:unit`       | Node-side unit tests (fast); `-u` updates `docs/api/openapi.json`     |
-| `pnpm test:integration` | Tests against real databases: SQLite, and Postgres when configured |
-| `pnpm db:test:up`      | Start the Postgres used by the integration tests (port 55432)       |
-| `pnpm test:stories`    | Stories as tests in Chromium                                         |
-| `pnpm test:coverage`   | Unit and integration tests with coverage thresholds                  |
-| `pnpm test:e2e`        | End-to-end tests with axe against the built app (`pnpm build` first) |
-| `pnpm test:smoke`      | Docker image smoke tests (needs Docker and a built `stackmap:local`) |
-| `pnpm test:mutation`   | Mutation testing of the domain logic (slow, runs nightly in CI)     |
-| `pnpm storybook`       | Storybook on http://localhost:6006                                   |
-| `pnpm check:stories`   | Fail if a component has no story                                     |
-| `pnpm commit`          | Write a commit message interactively with gitmoji                    |
+The commands are listed in [AGENTS.md](AGENTS.md#commands). `pnpm commit` writes a commit message interactively with
+gitmoji.
 
 ### Debugging extensions
 
@@ -54,68 +47,21 @@ Behind a TLS-inspecting proxy, downloads made by Node (such as `playwright insta
 - In the browser console: `localStorage.setItem('stackmap:debug', 'extensions')`, then reload.
 - `GET /api/extensions/diagnostics`: each extension's state and errors, its code and hooks, and translation coverage.
 
-## How we work: tests first
+## How we work
 
-Tests are the specification. A feature starts with **test names that state its acceptance criteria**, reviewed before
-any code is written. Then:
-
-1. turn them into failing tests and run them to see them fail;
-2. write the minimum code to make them pass;
-3. refactor with the tests passing.
-
-In a pull request this shows as a `🧪 Add failing tests for …` commit before the implementation commit. Never weaken,
-skip or delete a test to make it pass without explaining why in the pull request.
-
-| Layer       | Tool                           | Where                                             |
-| ----------- | ------------------------------ | ------------------------------------------------- |
-| Unit        | Vitest                         | `*.test.ts` next to the code, `tests/unit/`       |
-| Component   | Storybook stories, run by Vitest in Chromium | `*.stories.ts` next to each component |
-| End to end  | Playwright + axe, on the built app | `tests/e2e/`                                  |
-
-Domain code needs at least 90% coverage, the rest 80%. A nightly mutation run checks that the tests actually catch
-bugs.
-
-### Components
-
-Components follow atomic design in `app/components/{atoms,molecules,organisms,templates}/`. Every component has a
-`<Name>.stories.ts` next to it, covering its variants and states (loading, empty, error). Stories run as tests in both
-themes, both contrast modes and both locales, and fail on any axe violation. Components use Nuxt APIs only through
-auto-imports: stories render them with plain Vue and the small shims in `.storybook/nuxt-shims.ts`, not a full
-Nuxt app.
-
-### Accessibility and translations
-
-Stackmap targets RGAA 4.1 / WCAG 2.1 AA, with a strict mode. Use the semantic color utilities (`text-muted`,
-`bg-elevated`…), never palette shades, and put every string in `i18n/locales/en.json` and `fr.json`. See the
-**Foundations** pages in Storybook.
-
-## Branches and commits
-
-- `main` holds released code and `develop` is the integration branch.
-- Work on `feature-<slug>`, `fix-<slug>` or `chore-<slug>` (tooling, dependencies, CI, docs), branched from `develop`.
-  Slugs are lowercase kebab-case with an optional issue number, e.g. `feature-42-graph-filters`.
-- Open pull requests into `develop`. They are squash-merged, so **the pull request title becomes the commit**.
-
-Commit messages and pull request titles use `<gitmoji> <Title>`:
-
-- a gitmoji from [gitmoji.dev](https://gitmoji.dev) as a Unicode emoji (✨, not `:sparkles:`);
-- a title in the imperative mood that completes "If applied, this commit would…", starting with a capital letter,
-  without a trailing period;
-- a header shorter than 80 characters, and an optional body after a blank line.
-
-```text
-✨ Add exposure filter to the graph view
-🐛 Fix trace skipping NAT hops
-♿️ Improve keyboard focus in the detail panel
-```
-
-Git hooks check this on every commit and push, and CI checks it again on every pull request. `pnpm commit` helps you
-write the message. Commits must be signed to be merged into `develop` or `main`.
+Tests are the specification: a feature starts with test names that state its acceptance criteria, reviewed before any
+code, then failing tests, then the code. Approved specs are tracked as Spec issues. The full workflow, the definition
+of done and the code rules are in [AGENTS.md](AGENTS.md); the testing layers are described in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#testing).
 
 ## Pull requests
 
-Fill in the template checklist. CI must pass: lint, typecheck, unit tests with coverage, story tests, build and
-conventions.
+- Branch from `develop` (`feature-<slug>`, `fix-<slug>`, `chore-<slug>`) and open the pull request into `develop`. It
+  is squash-merged, so its title becomes the commit and follows the commit convention in AGENTS.md.
+- Keep it small: one shippable part of a feature, linked to its issue with `Closes #…` or `Part of #…`.
+- Fill in the template checklist. Commits must be signed.
+- CI must pass: lint and typecheck, unit tests, integration tests with coverage, story tests, build, end-to-end tests,
+  CodeQL, dependency review and conventions. Merges are also blocked by CodeQL errors and high-severity alerts.
 
 ### AI-assisted contributions
 
@@ -125,8 +71,6 @@ AI coding assistants are welcome. You remain responsible for every line you subm
 - tick the "AI assistance" box in the template;
 - the same tests, checks and review apply;
 - never paste secrets or private infrastructure data into a prompt.
-
-Agents should read [AGENTS.md](AGENTS.md).
 
 ## Releases (maintainers)
 
