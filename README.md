@@ -6,13 +6,15 @@
 **Self-hosted documentation for your infrastructure.** Servers, apps, DNS, ports, reverse proxies, VPNs and auth layers,
 shown as interactive graphs. Trace a request hop by hop: DNS → edge → reverse proxy → app → database and APIs.
 
-> **Status: early development.** Nothing is usable yet. Follow the [roadmap](docs/ROADMAP.md) for progress.
+> **Status: early development, not released yet.** Accounts, workspaces, the inventory, the traffic graph and traces
+> work; extensions, the complete graph, edit mode and plans are in progress. Follow the [roadmap](docs/ROADMAP.md).
 
 ## Why
 
-Homelabs and small self-hosted setups grow one container at a time. After a while, nobody remembers which domain
-reaches which app, through which proxy, on which port, or whether it sits behind a VPN or an SSO. Stackmap keeps that
-knowledge in one place and draws it.
+Network equipment and hardware have their inventory tools, but the software layer lives in wiki pages and people's
+memory: which domain reaches which app, through which proxy, on which port, behind which VPN or SSO. It goes stale.
+Stackmap is the source of truth for that layer, for infrastructure teams and for self-hosted setups that grow one
+container at a time, and it draws it. See [the product](docs/PRODUCT.md).
 
 ## Planned features (v1)
 
