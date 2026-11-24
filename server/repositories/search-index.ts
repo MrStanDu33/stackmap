@@ -5,7 +5,7 @@ import { sql } from 'kysely';
 import { inTransaction } from './entity-repository';
 import { createWorkspaceRepositories } from './index';
 import { disabledExtensions } from './workspace-extensions';
-import { normalizeSearchText, searchPatterns } from '../domain/search';
+import { holdsLetters, letterPattern, normalizeSearchText, searchPatterns } from '../domain/search';
 
 import type { WorkspaceRepositories } from './index';
 import type { Database } from '../database/types/schema';
@@ -123,16 +123,23 @@ export async function searchEntities(
   if (entity) {
     query = query.where('entity', '=', entity);
   }
-  for (const pattern of patterns) {
-    // The same escape on both databases: a backslash.
-    query = query.where(sql<boolean>`${sql.ref('text')} like ${pattern} escape '\\'`);
-  }
-  const rows = await query.limit(MAX_MATCHES).execute();
+  // The same escape on both databases: a backslash.
+  const like = (pattern: string) => sql<boolean>`${sql.ref('text')} like ${pattern} escape '\\'`;
+  // Every word, in any order; or else the letters in the order typed.
+  const everyWord = sql<boolean>`(${sql.join(patterns.map(like), sql` and `)})`;
+  const letters = letterPattern(q);
+  query = query.where(letters ? sql<boolean>`(${everyWord} or ${like(letters)})` : everyWord);
+  // Those holding every word first, so that the cap never leaves them out for letter matches.
+  const rows = await query.orderBy(sql`case when ${everyWord} then 0 else 1 end`).limit(MAX_MATCHES).execute();
   const words = normalizeSearchText([q]).split(' ');
   const prefix = normalizeSearchText([q]);
   // Normalized once per row, not in each comparison.
-  const starts = new Map(rows.map(({ title }) => [title, normalizeSearchText([title]).startsWith(prefix)]));
-  rows.sort((one, other) => Number(starts.get(other.title)) - Number(starts.get(one.title))
+  const ranks = new Map(rows.map((row) => [row, {
+    words: Number(words.every((word) => row.text.includes(word))),
+    starts: Number(normalizeSearchText([row.title]).startsWith(prefix)),
+  }]));
+  const rank = (row: (typeof rows)[number]) => ranks.get(row) ?? { words: 0, starts: 0 };
+  rows.sort((one, other) => rank(other).words - rank(one).words || rank(other).starts - rank(one).starts
     || one.title.localeCompare(other.title, 'en'));
 
   const items: SearchHit[] = [];
@@ -156,12 +163,13 @@ export async function searchEntities(
     const texts = fields.map((field) => normalizeSearchText([valueOf(entity, field)]));
     const index = texts.findIndex((text) => words.every((word) => text.includes(word)));
     const any = texts.findIndex((text) => words.some((word) => text.includes(word)));
+    const ordered = texts.findIndex((text) => holdsLetters(text, q));
     items.push({
       extension: row.extension,
       entity: row.entity,
       id: row.entityId,
       title: row.title,
-      matched: fields[index >= 0 ? index : Math.max(any, 0)] ?? 'tags',
+      matched: fields[[index, any, ordered].find((found) => found >= 0) ?? 0] ?? 'tags',
     });
   }
   return { items, truncated: false };

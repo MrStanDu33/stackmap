@@ -1,6 +1,6 @@
-import type { InstalledExtension } from '#shared/contracts/extensions';
 import type { MemberWorkspace } from '#shared/contracts/workspaces';
-import type { PaletteItem } from '~/utils/palette';
+import type { InstalledExtension } from '~/extensions/inventory';
+import type { PaletteFilterOption, PaletteItem } from '~/utils/palette';
 
 import { NO_PREFERENCES } from '#shared/contracts/preferences';
 import { usePaletteSearch } from '~/composables/usePaletteSearch';
@@ -27,9 +27,31 @@ export function useCommandPalette() {
   // What the user hid in Settings: a hidden group is neither listed nor, for entities, searched.
   const { session, signOut } = useAccount();
   const hidden = computed(() => session.value?.user.preferences.palette.hidden ?? []);
+  // The chip chosen, and a word the user chose to search as typed rather than as a filter; both go when it closes.
+  const filter = ref<PaletteFilterOption | null>(null);
+  const keptWord = ref<string>();
+  // Listing the extensions' and types' filters in place of the rest, from the Extension filters entry.
+  const browsingExtensions = ref(false);
+  watch(open, (opened) => {
+    if (!opened) {
+      filter.value = null;
+      keptWord.value = undefined;
+      browsingExtensions.value = false;
+    }
+  });
   const entities = usePaletteSearch(
     () => workspace.value?.id,
-    () => (hidden.value.includes('group:entities') ? '' : searchTerm.value),
+    () => {
+      const other = filter.value?.filter.kind === 'group' && filter.value.filter.group !== 'entities';
+      return hidden.value.includes('group:entities') || other ? '' : searchTerm.value;
+    },
+    () => {
+      const kept = filter.value?.filter;
+      if (kept?.kind === 'type') {
+        return { extension: kept.extension, entity: kept.entity };
+      }
+      return kept?.kind === 'extension' ? { extension: kept.extension } : {};
+    },
   );
   const types = computed(() => (workspace.value ? inventoryTypes(installed.value) : []).map((type) => ({
     extension: type.extension,
@@ -38,6 +60,10 @@ export function useCommandPalette() {
     plural: t(type.plural),
     icon: installed.value.find(({ id }) => id === type.extension)?.icon,
   })));
+  // The extensions a chip can keep: those running and on in the workspace.
+  const extensions = computed(() => (workspace.value ? installed.value : [])
+    .filter(({ state, enabled }) => state === 'active' && enabled !== false)
+    .map(({ id, name, icon }) => ({ id, name: t(name), ...(icon ? { icon } : {}) })));
 
   const groups = computed(() => paletteGroups({
     q: searchTerm.value,
@@ -51,6 +77,10 @@ export function useCommandPalette() {
     query: Object.fromEntries(Object.entries(route.query).filter((entry): entry is [string, string] => typeof entry[1] === 'string')),
     drawn: drawn.value,
     hidden: hidden.value,
+    extensions: extensions.value,
+    filter: filter.value,
+    keptWord: keptWord.value,
+    browsingExtensions: browsingExtensions.value,
   }));
 
   // The palette's opener goes with the page it leaves: the new page's main content takes the focus once shown.
@@ -91,6 +121,21 @@ export function useCommandPalette() {
   const reselected = useState('palette.reselected', () => 0);
 
   const choose = async ({ command, label }: PaletteItem) => {
+    // Answers to a filter offer keep the palette open, the focus in its field.
+    if (command?.kind === 'filter') {
+      filter.value = command.option;
+      searchTerm.value = '';
+      browsingExtensions.value = false;
+      return;
+    }
+    if (command?.kind === 'browseFilters') {
+      browsingExtensions.value = command.extensions;
+      return;
+    }
+    if (command?.kind === 'keepWord') {
+      keptWord.value = command.word;
+      return;
+    }
     searchTerm.value = '';
     if (command?.kind === 'navigate') {
       // Another page's main content takes the focus; on the same page, the shell gives it back to the opener.
@@ -123,5 +168,5 @@ export function useCommandPalette() {
     }
   };
 
-  return { open, searchTerm, groups, loading: computed(() => entities.value.state === 'loading'), choose, closed };
+  return { open, searchTerm, filter, groups, loading: computed(() => entities.value.state === 'loading'), choose, closed };
 }

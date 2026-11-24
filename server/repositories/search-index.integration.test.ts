@@ -235,6 +235,28 @@ describe.each(DIALECTS)('searchEntities on %s', (dialect: Dialect) => {
     expect(await types({ entity: 'host' })).toEqual([]);
   });
 
+  it('given letters in order, such as "edgrt", finds entities whose text holds them in that order (palette 21)', async () => {
+    await createHost(workspaces.a.repos, { name: 'Edge router' });
+    await createHost(workspaces.a.repos, { name: 'Web server' });
+
+    expect((await search('edgrt')).items).toEqual([expect.objectContaining({ title: 'Edge router', matched: 'name' })]);
+  });
+
+  it('given letters out of order, such as "tgde", finds nothing (palette 21)', async () => {
+    await createHost(workspaces.a.repos, { name: 'Edge router' });
+
+    expect(await titles('tgde')).toEqual([]);
+  });
+
+  it('lists the entities holding every word before those holding only the letters in order, even with a limit of one (palette 21)', async () => {
+    // By title alone, Router would come first.
+    await createHost(workspaces.a.repos, { name: 'Router' });
+    await createHost(workspaces.a.repos, { name: 'Rter box' });
+
+    expect(await titles('rter')).toEqual(['Rter box', 'Router']);
+    expect(await search('rter', 1)).toMatchObject({ truncated: true, items: [{ title: 'Rter box' }] });
+  });
+
   it('never returns another workspace\'s entities (15)', async () => {
     await createHost(workspaces.b.repos, { name: 'Edge router' });
 

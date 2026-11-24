@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MAX_SEARCH_TEXT, normalizeSearchText, searchPatterns } from './search';
+import { letterPattern, MAX_SEARCH_LETTERS, MAX_SEARCH_TEXT, normalizeSearchText, searchPatterns } from './search';
 
 describe('normalizeSearchText', () => {
   it('lowercases, strips accents and collapses whitespace: "Édge  Router" becomes "edge router" (6)', () => {
@@ -34,5 +34,20 @@ describe('searchPatterns', () => {
 
   it('gives no pattern for a query of spaces only', () => {
     expect(searchPatterns('   ')).toEqual([]);
+  });
+});
+
+describe('letterPattern', () => {
+  it('finds the query\'s letters in that order, normalized, spaces left out: "Édge rt" gives %e%d%g%e%r%t% (palette 21)', () => {
+    expect(letterPattern('Édge rt')).toBe('%e%d%g%e%r%t%');
+  });
+
+  it('escapes %, _ and \\ with a backslash, so that LIKE matches them as themselves (palette 21)', () => {
+    expect(letterPattern('5%_\\')).toBe('%5%\\%%\\_%\\\\%');
+  });
+
+  it('keeps at most 32 letters, and gives none for a query of spaces only (palette 21, review)', () => {
+    expect(letterPattern('a'.repeat(40))).toBe(`%${'a%'.repeat(MAX_SEARCH_LETTERS)}`);
+    expect(letterPattern('   ')).toBeNull();
   });
 });

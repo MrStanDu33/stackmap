@@ -35,8 +35,8 @@ const labels = (groups: ReturnType<typeof paletteGroups>, id: string) =>
   group(groups, id)?.items.map(({ label }) => label);
 
 describe('paletteGroups', () => {
-  it('given an empty search, lists pages, workspaces and actions, and no entities (3)', () => {
-    expect(paletteGroups(context()).map(({ id }) => id)).toEqual(['pages', 'workspaces', 'actions']);
+  it('given an empty search, lists the filters, then pages, workspaces and actions, and no entities (3, 19)', () => {
+    expect(paletteGroups(context()).map(({ id }) => id)).toEqual(['filters', 'pages', 'workspaces', 'actions']);
   });
 
   it('given a search, lists every group, entities first, the others left to the palette to match on their words (3)', () => {
@@ -55,6 +55,8 @@ describe('paletteGroups', () => {
     expect(group(groups, 'entities')?.items).toEqual([{
       id: `core/host/${HOST_ID}`,
       label: 'Edge router',
+      // Matched by the server, maybe by an address: nothing in its title is marked (review).
+      match: '',
       description: 'Host',
       icon: 'i-lucide-layers',
       command: { kind: 'navigate', to: `/w/home/inventory/core/host?open=${HOST_ID}` },
@@ -204,7 +206,8 @@ describe('paletteGroups', () => {
   });
 
   it('gives each group its icon and color: entities primary, pages info, workspaces secondary, actions warning (8)', () => {
-    const groups = paletteGroups(context({ q: 'a', entities: { state: 'done', hits: [] } }));
+    // Words that name no filter: only the four groups.
+    const groups = paletteGroups(context({ q: 'zz', entities: { state: 'done', hits: [] } }));
 
     expect(groups.map(({ id, label, color, icon }) => ({ id, label, color, icon }))).toEqual([
       { id: 'entities', label: t('palette.groups.entities'), color: 'primary', icon: 'i-lucide-box' },
@@ -212,5 +215,144 @@ describe('paletteGroups', () => {
       { id: 'workspaces', label: t('palette.groups.workspaces'), color: 'secondary', icon: 'i-lucide-folder' },
       { id: 'actions', label: t('palette.groups.actions'), color: 'warning', icon: 'i-lucide-zap' },
     ]);
+  });
+
+  describe('filters', () => {
+    const extensions = [{ id: 'core', name: 'Core', icon: 'i-lucide-layers' }, { id: 'nat', name: 'Router and NAT', icon: 'i-lucide-arrow-right-left' }];
+    const hostHit = { extension: 'core', entity: 'host', id: HOST_ID, title: 'Edge router', matched: 'name' };
+    const forwardHit = { extension: 'nat', entity: 'port-forward', id: '0199d6a0-0000-7000-8000-000000000003', title: 'Edge router :443', matched: 'name' };
+    const hostFilter = {
+      filter: { kind: 'type' as const, extension: 'core', entity: 'host' }, name: 'Host', word: 'host', icon: 'i-lucide-layers', color: 'primary' as const,
+    };
+
+    it('given a word naming a filter, starts with a group whose first options are Search “<word>” then Filter by <name> (14)', () => {
+      const groups = paletteGroups(context({ q: 'host', extensions, entities: { state: 'done', hits: [] } }));
+
+      expect(groups[0]).toMatchObject({ id: 'filters', label: 'Filters', searched: true });
+      expect(groups[0]?.items).toEqual([
+        { id: 'keep-word', label: 'Search “host”', match: '', icon: 'i-lucide-search', command: { kind: 'keepWord', word: 'host' } },
+        {
+          id: 'filter/type/core/host', label: 'Filter by Host', match: 'Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: hostFilter },
+        },
+      ]);
+      expect(groups.map(({ id }) => id)).toEqual(['filters', 'entities', 'pages', 'workspaces', 'actions']);
+    });
+
+    it('given a hostname that names a filter too, lists Search, Filter by and Trace <hostname> (14, edge case)', () => {
+      const groups = paletteGroups(context({
+        q: 'web.example',
+        extensions,
+        types: [{ extension: 'core', entity: 'web', name: 'Web.example', plural: 'Web.examples' }],
+      }));
+
+      expect(labels(groups, 'filters')).toEqual(['Search “web.example”', 'Filter by Web.example']);
+      expect(labels(groups, 'actions')).toContain('Trace web.example');
+    });
+
+    it('given Search “<word>” chosen, offers no filter for that word again until it changes (14)', () => {
+      expect(group(paletteGroups(context({ q: 'host', extensions, keptWord: 'host' })), 'filters')).toBeUndefined();
+      expect(group(paletteGroups(context({ q: 'hosts', extensions, keptWord: 'host' })), 'filters')).toBeDefined();
+    });
+
+    it('given a group filter, lists only that group (16)', () => {
+      const pages = { filter: { kind: 'group' as const, group: 'pages' as const }, name: 'Page', word: 'page' };
+
+      expect(paletteGroups(context({ q: '', extensions, filter: pages })).map(({ id }) => id)).toEqual(['pages']);
+      expect(paletteGroups(context({ q: 'trace', extensions, filter: pages, entities: { state: 'done', hits: [hostHit] } }))
+        .map(({ id }) => id)).toEqual(['pages']);
+    });
+
+    it('given an extension or type filter, lists only entities, the found ones of that extension or type (16)', () => {
+      const entities = { state: 'done' as const, hits: [hostHit, forwardHit] };
+      const nat = { filter: { kind: 'extension' as const, extension: 'nat' }, name: 'Router and NAT', word: 'nat' };
+
+      const byType = paletteGroups(context({ q: 'edge', extensions, filter: hostFilter, entities }));
+      expect(byType.map(({ id }) => id)).toEqual(['entities']);
+      expect(labels(byType, 'entities')).toEqual(['Edge router']);
+      expect(labels(paletteGroups(context({ q: 'edge', extensions, filter: nat, entities })), 'entities')).toEqual(['Edge router :443']);
+    });
+
+    it('leaves out found entities of an extension or type hidden in Settings (17)', () => {
+      const entities = { state: 'done' as const, hits: [hostHit, forwardHit] };
+
+      expect(labels(paletteGroups(context({ q: 'edge', entities, hidden: ['extension:nat'] })), 'entities')).toEqual(['Edge router']);
+      expect(labels(paletteGroups(context({ q: 'edge', entities, hidden: ['type:core/host'] })), 'entities')).toEqual(['Edge router :443']);
+    });
+
+    it('given nothing typed and no chip, starts with a Filters group listing Filter by <name> for each available filter (19, 20)', () => {
+      const groups = paletteGroups(context({ extensions }));
+
+      expect(groups.map(({ id }) => id)).toEqual(['filters', 'pages', 'workspaces', 'actions']);
+      expect(groups[0]).toMatchObject({ label: 'Filters', searched: true });
+      expect(group(groups, 'filters')?.items[1]).toEqual({
+        id: 'filter/group/pages', label: 'Filter by Page', match: 'Page', icon: 'i-lucide-file-text',
+        command: { kind: 'filter', option: { filter: { kind: 'group', group: 'pages' }, name: 'Page', word: '', icon: 'i-lucide-file-text', color: 'info' } },
+      });
+    });
+
+    it('given nothing typed with a chip, lists no Filters group; with groups hidden, offers only the others (19)', () => {
+      expect(group(paletteGroups(context({ extensions, filter: hostFilter })), 'filters')).toBeUndefined();
+      const hidden = ['group:entities', 'group:pages', 'group:workspaces'];
+      expect(paletteGroups(context({ extensions, hidden })).map(({ id }) => id)).toEqual(['filters', 'actions']);
+      expect(labels(paletteGroups(context({ extensions, hidden })), 'filters')).toEqual(['Filter by Action']);
+    });
+
+    it('given nothing typed, lists the groups\' filters then one Show extension filters entry, and no extension or type filter (20)', () => {
+      const groups = paletteGroups(context({ extensions }));
+
+      expect(labels(groups, 'filters')).toEqual([
+        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action', 'Show extension filters',
+      ]);
+      expect(group(groups, 'filters')?.items[4]).toEqual({
+        id: 'extension-filters', label: 'Show extension filters', icon: 'i-lucide-puzzle', command: { kind: 'browseFilters', extensions: true },
+      });
+    });
+
+    it('given no extension or type to filter by, lists no Show extension filters entry (20)', () => {
+      expect(labels(paletteGroups(context({ extensions: [], types: [] })), 'filters')).toEqual([
+        'Filter by Entity', 'Filter by Page', 'Filter by Workspace', 'Filter by Action',
+      ]);
+      expect(labels(paletteGroups(context({ extensions, hidden: ['group:entities'] })), 'filters')).not.toContain('Show extension filters');
+    });
+
+    it('browsing the extension filters, lists only an Extension filters group: Back to all filters, then each extension and type (20)', () => {
+      const groups = paletteGroups(context({ extensions, browsingExtensions: true }));
+
+      expect(groups).toHaveLength(1);
+      expect(groups[0]).toMatchObject({ id: 'filters', label: 'Extension filters', icon: 'i-lucide-puzzle', searched: true });
+      expect(labels(groups, 'filters')).toEqual([
+        'Back to all filters', 'Filter by Core', 'Filter by Router and NAT', 'Filter by Host', 'Filter by Port forward',
+      ]);
+      expect(groups[0]?.items[0]).toEqual({
+        id: 'all-filters', label: 'Back to all filters', icon: 'i-lucide-arrow-left', command: { kind: 'browseFilters', extensions: false },
+        // Back makes the entry it left the active option again (review).
+        returnTo: 'extension-filters',
+      });
+      expect(groups[0]?.items[3]).toEqual({
+        id: 'filter/type/core/host', label: 'Filter by Host', match: 'Host', icon: 'i-lucide-layers', command: { kind: 'filter', option: { ...hostFilter, word: '' } },
+      });
+    });
+
+    it('browsing the extension filters with something typed, lists the groups for what is typed, as before (20)', () => {
+      const groups = paletteGroups(context({ q: 'host', extensions, browsingExtensions: true, entities: { state: 'done', hits: [] } }));
+
+      expect(groups.map(({ id }) => id)).toEqual(['filters', 'entities', 'pages', 'workspaces', 'actions']);
+      expect(labels(groups, 'filters')).toEqual(['Search “host”', 'Filter by Host']);
+    });
+
+    it('gives each Filter by option its filter\'s name to match, and Search “<words>” nothing to match (22)', () => {
+      const french = createTestI18n('fr').global;
+      const groups = paletteGroups(context({
+        q: 'hôte',
+        t: (key, params = {}) => french.t(key, params),
+        extensions,
+        types: [{ extension: 'core', entity: 'host', name: 'Hôte', plural: 'Hôtes' }],
+      }));
+
+      expect(group(groups, 'filters')?.items.map(({ label, match }) => ({ label, match }))).toEqual([
+        { label: 'Rechercher «\u00a0hôte\u00a0»', match: '' },
+        { label: 'Filtrer par Hôte', match: 'Hôte' },
+      ]);
+    });
   });
 });

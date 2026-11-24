@@ -4,7 +4,7 @@ import { ref } from 'vue';
 import CommandPalette from './CommandPalette.vue';
 import { i18n } from '../../../.storybook/nuxt-shims';
 
-import type { PaletteGroup } from '../../utils/palette';
+import type { PaletteFilterOption, PaletteGroup } from '../../utils/palette';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
 const { t } = i18n.global;
@@ -316,5 +316,282 @@ export const AfterLeave: Story = {
 
     await waitFor(() => expect(within(document.body).queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(args.onClosed).toHaveBeenCalledOnce());
+  },
+};
+
+const HOST_FILTER: PaletteFilterOption = {
+  filter: { kind: 'type', extension: 'core', entity: 'host' }, name: 'Host', word: 'host', icon: 'i-lucide-layers', color: 'primary',
+};
+/** The palette with a chip, its search term and filter kept as the app keeps them. */
+const withChip = (initial = '') => (args: Record<string, unknown>) => ({
+  components: { CommandPalette },
+  setup: () => {
+    const searchTerm = ref(initial);
+    const filter = ref<PaletteFilterOption | null>(HOST_FILTER);
+    const update = (next: PaletteFilterOption | null) => {
+      filter.value = next;
+      (args['onUpdate:filter'] as ((next: PaletteFilterOption | null) => void) | undefined)?.(next);
+    };
+    return { args, searchTerm, filter, update };
+  },
+  template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" :filter="filter" @update:filter="update" />'
+    + '<output data-testid="term">{{ searchTerm }}</output>',
+});
+const chip = () => within(dialog()).getByText('Host');
+const removeChip = () => within(dialog()).getByRole('button', { name: t('palette.filters.remove', { name: 'Host' }) });
+const term = () => within(document.body).getByTestId('term');
+
+/** A chip shows its icon and name in the field, which keeps the focus and says the filter; a button removes it (15). */
+export const WithChip: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip(),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await expect(chip()).toBeVisible();
+    await expect(dialog().querySelector('[data-icon="i-lucide-layers"]')).not.toBeNull();
+    await expect(field()).toHaveAccessibleDescription(t('palette.filters.chip', { name: 'Host' }));
+    await expect(removeChip()).toBeVisible();
+  },
+};
+
+/** Backspace with text deletes text; in the empty field it removes the chip and gives its word back (15). */
+export const ChipBackspace: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip('e'),
+  play: async ({ args }) => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Backspace}');
+    await expect(args['onUpdate:filter']).not.toHaveBeenCalled();
+    await expect(chip()).toBeVisible();
+
+    await userEvent.keyboard('{Backspace}');
+
+    await expect(args['onUpdate:filter']).toHaveBeenCalledWith(null);
+    await expect(term()).toHaveTextContent('host');
+    await expect(field()).toHaveFocus();
+  },
+};
+
+/** The chip's remove button removes it, gives its word back and the focus to the field (15). */
+export const ChipRemove: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip(),
+  play: async ({ args }) => {
+    await userEvent.click(removeChip());
+
+    await expect(args['onUpdate:filter']).toHaveBeenCalledWith(null);
+    await expect(term()).toHaveTextContent('host');
+    await waitFor(() => expect(field()).toHaveFocus());
+  },
+};
+
+/** The palette with a search term the story types, as the app keeps it. */
+const typing = (args: Record<string, unknown>) => ({
+  components: { CommandPalette },
+  setup: () => ({ args, searchTerm: ref('') }),
+  template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" />',
+});
+const optionNamed = (name: RegExp) => within(list()).getByRole('option', { name });
+/** The characters shown bold in an option, in order: each bold run, joined. */
+const bold = (option: HTMLElement) => [...option.querySelectorAll<HTMLElement>('[data-match]')]
+  .filter((element) => Number(getComputedStyle(element).fontWeight) >= 600)
+  .map(({ textContent }) => textContent).join('');
+
+/** Letters typed in order find results too: "sgo" lists Sign out, "trce" lists Trace (21). */
+export const FuzzyResults: Story = {
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'sgo');
+    await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
+    await expect(within(list()).getByRole('option')).toHaveAccessibleName(/^Sign out/);
+
+    await userEvent.clear(field());
+    // Not "trc": Traffic holds t…r…c too.
+    await userEvent.type(field(), 'trce');
+    await waitFor(() => expect(within(list()).getAllByRole('option')).toHaveLength(1));
+    await expect(within(list()).getByRole('option')).toHaveAccessibleName(/^Trace/);
+  },
+};
+
+/** Each group lists its most exact match first: typing "trace", Trace, then Trace routes, then Retrace (21). */
+export const RankedResults: Story = {
+  args: {
+    groups: [{
+      id: 'pages',
+      label: 'Pages',
+      items: [{ id: 'retrace', label: 'Retrace' }, { id: 'routes', label: 'Trace routes' }, { id: 'trace', label: 'Trace' }],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'trace');
+
+    await waitFor(() => expect(within(list()).getAllByRole('option').map((option) => option.textContent.trim()))
+      .toEqual([expect.stringMatching(/^Trace,/), expect.stringMatching(/^Trace routes/), expect.stringMatching(/^Retrace/)]));
+  },
+};
+
+/** The characters that matched are bold, and the option keeps its accessible name (22). */
+export const MatchedCharacters: Story = {
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'sgo');
+
+    const option = await waitFor(() => optionNamed(/^Sign out/));
+    await expect(bold(option)).toBe('Sgo');
+    const group = t('palette.inGroup', { group: 'Actions' }).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await expect(option).toHaveAccessibleName(new RegExp(`^Sign out ?${group}$`));
+  },
+};
+
+/** An option with a text to match is marked there only, never in the rest of its label (22). */
+export const MatchedName: Story = {
+  args: {
+    groups: [{
+      id: 'filters',
+      label: 'Filters',
+      searched: true,
+      items: [
+        { id: 'keep-word', label: 'Search “fo”', match: '' },
+        { id: 'filter/type/nat/port-forward', label: 'Filter by Port forward', match: 'Port forward' },
+      ],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'ofw');
+
+    await expect(bold(optionNamed(/^Filter by Port forward/))).toBe('ofw');
+    await expect(bold(optionNamed(/^Search/))).toBe('');
+  },
+};
+
+/** Entities the server found are not marked: it may have matched an address, not their titles (22, review). */
+export const SearchedTitles: Story = {
+  args: {
+    groups: [{
+      id: 'entities',
+      label: 'Entities',
+      searched: true,
+      items: [{ id: 'router', label: 'Edge router', description: 'Host' }, { id: 'web', label: 'Web server', description: 'Host' }],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'edgrt');
+
+    await expect(bold(optionNamed(/^Edge router/))).toBe('');
+    await expect(bold(optionNamed(/^Web server/))).toBe('');
+  },
+};
+
+/** A filter offered through another of its names (a plural) marks the letters its name holds (22, review). */
+export const AliasMatch: Story = {
+  args: {
+    groups: [{
+      id: 'filters', label: 'Filters', searched: true, items: [{ id: 'filter/group/entities', label: 'Filter by Entity', match: 'Entity' }],
+    }],
+  },
+  render: typing,
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.type(field(), 'entities');
+
+    await expect(bold(optionNamed(/^Filter by Entity/))).toBe('Entit');
+  },
+};
+
+const status = () => within(dialog()).getByRole('status');
+/** The palette with a test button, outside the dialog, that changes what the app gives it. */
+const changing = (change: string) => (args: Record<string, unknown>) => ({
+  components: { CommandPalette },
+  setup: () => {
+    const searchTerm = ref('');
+    const filter = ref<PaletteFilterOption | null>(null);
+    const groups = ref(GROUPS);
+    const host = () => {
+      filter.value = HOST_FILTER;
+    };
+    const browse = () => {
+      groups.value = [{ id: 'filters', label: 'Extension filters', searched: true, items: [
+        { id: 'all-filters', label: 'Back to all filters' }, { id: 'filter/type/core/host', label: 'Filter by Host' },
+      ] }];
+    };
+    return { args, searchTerm, filter, groups, change: change === 'host' ? host : browse };
+  },
+  template: '<CommandPalette v-bind="args" v-model:search-term="searchTerm" v-model:filter="filter" :groups="groups" />'
+    + '<button data-testid="change" @click="change">Change</button>',
+});
+
+/** A chip chosen is said, with the results it leaves (review). */
+export const ChipAnnounced: Story = {
+  render: changing('host'),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await fireEvent.click(within(document.body).getByTestId('change'));
+
+    await waitFor(() => expect(status()).toHaveTextContent(
+      `${t('palette.filters.added', { name: 'Host' })} ${t('palette.results', { count: 3 }, 3)}`,
+    ));
+  },
+};
+
+/** A chip removed is said, with the results its word finds (review). */
+export const ChipRemovedAnnounced: Story = {
+  args: { 'onUpdate:filter': fn() },
+  render: withChip(),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Backspace}');
+
+    await waitFor(() => expect(status()).toHaveTextContent(
+      `${t('palette.filters.removed', { name: 'Host' })} ${t('palette.results', { count: 0 }, 0)}`,
+    ));
+  },
+};
+
+/** With nothing typed, a list that changes (the extension filters, and back) says its results (review). */
+export const ListChangeAnnounced: Story = {
+  render: changing('browse'),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await expect(status()).toHaveTextContent('');
+    await fireEvent.click(within(document.body).getByTestId('change'));
+
+    await waitFor(() => expect(status()).toHaveTextContent(t('palette.results', { count: 2 }, 2)));
+  },
+};
+
+/** Back makes the entry it left the active option again, not the first (review). */
+export const BackReturns: Story = {
+  render: (args) => ({
+    components: { CommandPalette },
+    setup: () => {
+      const main: PaletteGroup[] = [{ id: 'filters', label: 'Filters', searched: true, items: [
+        { id: 'filter/group/pages', label: 'Filter by Page' },
+        { id: 'extension-filters', label: 'Show extension filters' },
+      ] }];
+      const groups = ref<PaletteGroup[]>([{ id: 'filters', label: 'Extension filters', searched: true, items: [
+        { id: 'all-filters', label: 'Back to all filters', returnTo: 'extension-filters' },
+        { id: 'filter/type/core/host', label: 'Filter by Host' },
+      ] }]);
+      const select = () => {
+        groups.value = main;
+      };
+      return { args, groups, select };
+    },
+    template: '<CommandPalette v-bind="args" :groups="groups" @select="select" />',
+  }),
+  play: async () => {
+    await waitFor(() => expect(field()).toHaveFocus());
+    await userEvent.keyboard('{Enter}');
+
+    const entry = await waitFor(() => optionNamed(/^Show extension filters/));
+    await waitFor(() => expect(field()).toHaveAttribute('aria-activedescendant', entry.id));
   },
 };

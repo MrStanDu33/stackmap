@@ -4414,7 +4414,7 @@
       "get": {
         "operationId": "searchWorkspace",
         "summary": "Search a workspace",
-        "description": "The workspace's entities whose search fields (a host's name and addresses, a DNS record's name and value, a route's hostnames…) or tags contain every word of `q`, ignoring case and accents. Titles that start with `q` come first, then the others, each by title. Entities of extensions turned off in the workspace are left out.\n\nRequires the viewer role.",
+        "description": "The workspace's entities whose search fields (a host's name and addresses, a DNS record's name and value, a route's hostnames…) or tags contain every word of `q`, ignoring case and accents, then those holding its letters in that order (the first 32). Those holding every word come first; then titles that start with `q`, then the others, each by title. Entities of extensions turned off in the workspace are left out.\n\nRequires the viewer role.",
         "tags": [
           "Search"
         ],
@@ -24139,7 +24139,7 @@
             "items": {
               "$ref": "#/components/schemas/SearchHit"
             },
-            "description": "Title prefix first, then by title"
+            "description": "Those holding every word first, then titles starting with `q`, then by title"
           },
           "truncated": {
             "type": "boolean",

@@ -1,4 +1,7 @@
-import type { PaletteGroup } from './palette';
+import { availableFilters, entitiesHidden, PALETTE_GROUP_STYLES, paletteFilters } from './palette-filters';
+
+import type { PaletteFilter, PaletteFilterOption, PaletteGroup, PaletteItem } from './palette';
+import type { PaletteExtension } from './palette-filters';
 import type { Display } from './preferences-sync';
 import type { WorkspaceRole } from '../../shared/contracts/contract';
 import type { SearchHit } from '../../shared/contracts/search';
@@ -35,16 +38,50 @@ export interface PaletteContext {
   query: Readonly<Record<string, string>>;
   /** What the current page draws: an entity's id to its `?selected=` value there. */
   drawn: Readonly<Record<string, string>>;
-  /** What the user hid in Settings: `group:<id>` keys. */
+  /** What the user hid in Settings: `group:<id>`, `extension:<id>` and `type:<extension>/<entity>` keys. */
   hidden: readonly string[];
+  /** The extensions on in the workspace, which can be filtered by. */
+  extensions?: readonly PaletteExtension[];
+  /** The chip chosen, if any. */
+  filter?: PaletteFilterOption | null;
+  /** A word the user chose to search as typed: no filter is offered for it. */
+  keptWord?: string;
+  /** Nothing typed: the extensions' and types' filters are listed in place of everything else. */
+  browsingExtensions?: boolean;
 }
 
 // One or more labels, then a top-level label of letters: what a hostname looks like.
 const HOSTNAME = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
+const filterKey = (filter: PaletteFilter) => {
+  if (filter.kind === 'group') {
+    return filter.group;
+  }
+  return filter.kind === 'extension' ? filter.extension : `${filter.extension}/${filter.entity}`;
+};
+
+/** The Filters group: Filter by <name> for each option, after what comes first (Search “<word>”). */
+const offerGroup = (t: PaletteContext['t'], options: readonly PaletteFilterOption[], ...first: PaletteItem[]): PaletteGroup => ({
+  id: 'filters',
+  label: t('palette.filters.title'),
+  icon: 'i-lucide-filter',
+  searched: true,
+  items: [
+    ...first,
+    ...options.map((option) => ({
+      id: `filter/${option.filter.kind}/${filterKey(option.filter)}`,
+      label: t('palette.filters.by', { name: option.name }),
+      match: option.name,
+      ...(option.icon ? { icon: option.icon } : {}),
+      command: { kind: 'filter' as const, option },
+    })),
+  ],
+});
+
 /** The palette's groups for what is typed: entities, pages, workspaces and actions. */
 export function paletteGroups(context: PaletteContext): PaletteGroup[] {
   const { q, t, path, workspace, workspaces, types, display, entities, query, drawn, hidden } = context;
+  const { extensions = [], filter = null, keptWord, browsingExtensions = false } = context;
   const typed = q.trim() !== '';
   const base = workspace ? `/w/${workspace.slug}` : '';
   const navigate = (to: string) => ({ kind: 'navigate' as const, to });
@@ -54,20 +91,24 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
   const found: PaletteGroup = {
     id: 'entities',
     label: t('palette.groups.entities'),
-    icon: 'i-lucide-box',
-    color: 'primary',
+    ...PALETTE_GROUP_STYLES.entities,
     searched: true,
     items: entities.state === 'done'
-      ? entities.hits.map(({ extension, entity, id, title }) => ({
-          id: `${extension}/${entity}/${id}`,
-          label: title,
-          description: typeOf(extension, entity)?.name ?? t('palette.unknownType'),
-          icon: typeOf(extension, entity)?.icon ?? 'i-lucide-box',
-          // Selected where the page draws it; opened in the inventory otherwise.
-          command: navigate(Object.hasOwn(drawn, id)
-            ? `${path}?${new URLSearchParams({ ...query, selected: drawn[id] ?? '' }).toString()}`
-            : `${base}/inventory/${extension}/${entity}?open=${encodeURIComponent(id)}`),
-        }))
+      ? entities.hits.filter(({ extension, entity }) => !entitiesHidden(hidden, extension, entity)
+        && (filter?.filter.kind !== 'extension' || filter.filter.extension === extension)
+        && (filter?.filter.kind !== 'type' || (filter.filter.extension === extension && filter.filter.entity === entity)))
+          .map(({ extension, entity, id, title }) => ({
+            id: `${extension}/${entity}/${id}`,
+            label: title,
+            // Matched by the server, maybe by an address: nothing in its title is marked.
+            match: '',
+            description: typeOf(extension, entity)?.name ?? t('palette.unknownType'),
+            icon: typeOf(extension, entity)?.icon ?? 'i-lucide-box',
+            // Selected where the page draws it; opened in the inventory otherwise.
+            command: navigate(Object.hasOwn(drawn, id)
+              ? `${path}?${new URLSearchParams({ ...query, selected: drawn[id] ?? '' }).toString()}`
+              : `${base}/inventory/${extension}/${entity}?open=${encodeURIComponent(id)}`),
+          }))
       : [],
     ...(entities.state === 'loading' ? { message: t('palette.searching') } : {}),
     ...(entities.state === 'failed' ? { message: t('palette.failed'), failed: true } : {}),
@@ -77,8 +118,7 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
   const pages: PaletteGroup = {
     id: 'pages',
     label: t('palette.groups.pages'),
-    icon: 'i-lucide-file-text',
-    color: 'info',
+    ...PALETTE_GROUP_STYLES.pages,
     items: [
       ...(workspace
         ? [
@@ -102,8 +142,7 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
   const others: PaletteGroup = {
     id: 'workspaces',
     label: t('palette.groups.workspaces'),
-    icon: 'i-lucide-folder',
-    color: 'secondary',
+    ...PALETTE_GROUP_STYLES.workspaces,
     items: workspaces.filter(({ slug }) => slug !== workspace?.slug)
       .map(({ name, slug }) => ({ id: slug, label: name, icon: 'i-lucide-folder', command: navigate(`/w/${slug}${rest}`) })),
   };
@@ -116,8 +155,7 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
   const actions: PaletteGroup = {
     id: 'actions',
     label: t('palette.groups.actions'),
-    icon: 'i-lucide-zap',
-    color: 'warning',
+    ...PALETTE_GROUP_STYLES.actions,
     items: [
       ...(workspace && HOSTNAME.test(hostname)
         ? [{
@@ -162,6 +200,42 @@ export function paletteGroups(context: PaletteContext): PaletteGroup[] {
       items: [page('settings', t('palette.openSettings'), '/settings', 'i-lucide-settings')],
     }];
   }
-  return [...(typed ? [found] : []), pages, ...(others.items.length > 0 ? [others] : []), actions]
+  const listed = [...(typed ? [found] : []), pages, ...(others.items.length > 0 ? [others] : []), actions]
     .filter(({ id }) => !hidden.includes(`group:${id}`));
+  // A chip keeps its group alone, or only entities (of its extension or type).
+  if (filter) {
+    const kept = filter.filter.kind === 'group' ? filter.filter.group : 'entities';
+    return listed.filter(({ id }) => id === kept);
+  }
+  // Nothing typed: every filter, to start from one. A word that names filters offers them first, unless the user
+  // chose to search it as typed.
+  const word = q.trim();
+  const filterContext = { q, t, extensions, types, hidden, filter };
+  if (!typed) {
+    const all = availableFilters(filterContext);
+    // The extensions' and types' filters, which can be many, are one entry until it is chosen.
+    const byExtension = all.filter(({ filter: { kind } }) => kind !== 'group');
+    if (browsingExtensions) {
+      const back = {
+        id: 'all-filters', label: t('palette.filters.back'), icon: 'i-lucide-arrow-left',
+        command: { kind: 'browseFilters' as const, extensions: false },
+        returnTo: 'extension-filters',
+      };
+      return [{ ...offerGroup(t, byExtension, back), label: t('palette.filters.extensionsTitle'), icon: 'i-lucide-puzzle' }];
+    }
+    const filters = offerGroup(t, all.filter(({ filter: { kind } }) => kind === 'group'));
+    if (byExtension.length > 0) {
+      filters.items.push({
+        id: 'extension-filters', label: t('palette.filters.extensions'), icon: 'i-lucide-puzzle',
+        command: { kind: 'browseFilters', extensions: true },
+      });
+    }
+    return [...(filters.items.length > 0 ? [filters] : []), ...listed];
+  }
+  const offers = word === keptWord ? [] : paletteFilters(filterContext);
+  const keep = {
+    id: 'keep-word', label: t('palette.filters.search', { word }), match: '', icon: 'i-lucide-search',
+    command: { kind: 'keepWord' as const, word },
+  };
+  return [...(offers.length > 0 ? [offerGroup(t, offers, keep)] : []), ...listed];
 }

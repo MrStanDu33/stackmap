@@ -394,7 +394,10 @@
     },
     "palette": {
       "title": "Recherche",
-      "hint": "Choisissez ce que la recherche ({shortcut}) affiche et parcourt."
+      "hint": "Choisissez ce que la recherche ({shortcut}) affiche et parcourt.",
+      "entitiesOff": "Cochez Entités pour les choisir.",
+      "extensionOff": "Cochez {name} pour choisir ses types.",
+      "entitiesLegend": "Recherché dans Entités"
     }
   },
   "inventory": {
@@ -590,6 +593,12 @@
       "workspaces": "Espaces de travail",
       "actions": "Actions"
     },
+    "groupName": {
+      "entities": "Entité",
+      "pages": "Page",
+      "workspaces": "Espace de travail",
+      "actions": "Action"
+    },
     "failed": "La recherche a échoué. Réessayez.",
     "actions": {
       "themeLight": "Passer au thème clair",
@@ -601,6 +610,18 @@
     },
     "unknownType": "Autre type",
     "allHidden": "Tous les groupes sont masqués dans les paramètres.",
-    "openSettings": "Ouvrir les paramètres"
+    "openSettings": "Ouvrir les paramètres",
+    "filters": {
+      "title": "Filtres",
+      "search": "Rechercher « {word} »",
+      "by": "Filtrer par {name}",
+      "chip": "Filtre : {name}. Retour arrière le retire.",
+      "remove": "Retirer le filtre {name}",
+      "extensions": "Afficher les filtres des extensions",
+      "extensionsTitle": "Filtres des extensions",
+      "back": "Revenir à tous les filtres",
+      "added": "Filtre {name} ajouté.",
+      "removed": "Filtre {name} retiré."
+    }
   }
 }

@@ -7,6 +7,9 @@ const { t } = useI18n();
 const { session, signOut } = useAccount();
 const { workspaces } = useWorkspaces();
 const preferences = usePreferences();
+// What Search can look through, listed under its Entities checkbox: the instance's extensions, those that run.
+const { extensions } = useExtensions();
+const searchable = computed(() => (extensions.value ?? []).filter(({ state }) => state === 'active'));
 
 useHead({ title: () => [t('settings.title'), t('app.name')].join(' · ') });
 
@@ -86,7 +89,10 @@ const changePassword = async (change: { currentPassword: string; newPassword: st
         :status="false"
       />
       <LandingPageSelect v-model="landingPage" />
-      <PalettePreferences v-model:hidden="paletteHidden" />
+      <PalettePreferences
+        v-model:hidden="paletteHidden"
+        :extensions="searchable"
+      />
       <!-- After every setting of the section, where the eye is; announced once by the shell (AppShell). -->
       <p
         v-if="saveStatus"

@@ -325,3 +325,164 @@ test.describe('command palette, opening an entity', () => {
     await expect(page.getByRole('button', { name: 'New Host' })).toBeFocused();
   });
 });
+
+test.describe('command palette filters', () => {
+  const group = (dialog: ReturnType<Page['getByRole']>, name: string) => dialog.getByRole('group', { name });
+  /** Opens the palette on Traffic and turns "host" into a chip. */
+  const withHostChip = async (page: Page) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('host');
+    await dialog.getByRole('option', { name: /^Filter by Host/ }).click();
+    return dialog;
+  };
+
+  test('typing "host" offers Search “host” then Filter by Host; choosing the filter shows a Host chip, empties the field and keeps the focus there (14, 15)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('host');
+
+    const options = group(dialog, 'Filters').getByRole('option');
+    await expect(options).toHaveText([/^Search “host”/, /^Filter by Host/]);
+    await expect(dialog.getByRole('option').first()).toHaveText(/^Search “host”/);
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+    await expect(dialog.getByText('Host', { exact: true })).toBeVisible();
+    await expect(field).toHaveValue('');
+    await expect(field).toBeFocused();
+    await expect(field).toHaveAccessibleDescription('Filter: Host. Backspace removes it.');
+  });
+
+  test('with a Host chip, typing searches only hosts (entity=host), and lists no pages, workspaces or actions (16)', async ({ page }) => {
+    const dialog = await withHostChip(page);
+    const searched = page.waitForRequest((request) => request.url().includes('/search?'));
+    await page.keyboard.type('203.0.113.10');
+
+    const url = new URL((await searched).url());
+    expect(url.searchParams.get('extension')).toBe('core');
+    expect(url.searchParams.get('entity')).toBe('host');
+    await expect(group(dialog, 'Entities').getByRole('option', { name: /^Edge router/ })).toBeVisible();
+    await expect(group(dialog, 'Entities').getByRole('option')).toHaveCount(1);
+    for (const name of ['Pages', 'Workspaces', 'Actions']) {
+      await expect(group(dialog, name)).toHaveCount(0);
+    }
+  });
+
+  test('with a Pages chip, only pages are listed and no entity is searched (16)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('pages');
+    await dialog.getByRole('option', { name: /^Filter by Page/ }).click();
+    // Counted from the chip on: the word typed before it was searched as any word is.
+    const searches: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/search?')) {
+        searches.push(request.url());
+      }
+    });
+    await page.keyboard.type('trace');
+
+    await expect(group(dialog, 'Pages').getByRole('option', { name: /^Trace/ })).toBeVisible();
+    await expect(dialog.getByRole('group')).toHaveCount(1);
+    expect(searches).toEqual([]);
+  });
+
+  test('Backspace in the empty field removes the chip and gives its word back; the chip\'s remove button does too, the focus in the field (15)', async ({ page }) => {
+    const dialog = await withHostChip(page);
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+
+    await page.keyboard.press('Backspace');
+    await expect(dialog.getByRole('button', { name: 'Remove the Host filter' })).toHaveCount(0);
+    await expect(field).toHaveValue('host');
+
+    await dialog.getByRole('option', { name: /^Filter by Host/ }).click();
+    await dialog.getByRole('button', { name: 'Remove the Host filter' }).click();
+    await expect(dialog.getByRole('button', { name: 'Remove the Host filter' })).toHaveCount(0);
+    await expect(field).toHaveValue('host');
+    await expect(field).toBeFocused();
+  });
+
+  test('with nothing typed, the Filters group comes first; choosing Filter by Page shows its chip, the focus in the field (19)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+
+    await expect(dialog.getByRole('group').first()).toHaveAccessibleName('Filters');
+    await expect(dialog.getByRole('option').first()).toHaveText(/^Filter by Entity/);
+    await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Page/ }).click();
+
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+    await expect(field).toHaveAccessibleDescription('Filter: Page. Backspace removes it.');
+    await expect(field).toBeFocused();
+    await expect(group(dialog, 'Filters')).toHaveCount(0);
+  });
+
+  test('Show extension filters lists the extensions\' and types\' filters, the focus in the field; Back to all filters goes back; closing goes back too (20)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    const field = dialog.getByRole('combobox', { name: 'Search' });
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Filter by Host/ })).toHaveCount(0);
+
+    await group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ }).click();
+    await expect(field).toBeFocused();
+    await expect(dialog.getByRole('group')).toHaveCount(1);
+    await expect(dialog.getByRole('option').first()).toHaveText(/^Back to all filters/);
+    await expect(group(dialog, 'Extension filters').getByRole('option', { name: /^Filter by Host/ })).toBeVisible();
+
+    await group(dialog, 'Extension filters').getByRole('option', { name: /^Back to all filters/ }).click();
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ })).toBeVisible();
+    await expect(group(dialog, 'Pages')).toBeVisible();
+
+    await group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ }).click();
+    await page.keyboard.press('Escape');
+    await page.keyboard.press(SHORTCUT);
+    await expect(group(dialog, 'Filters').getByRole('option', { name: /^Show extension filters/ })).toBeVisible();
+  });
+
+  test('typing "port" offers Filter by Port forward, then the less exact Proxy route, before the results; choosing one shows its chip (14)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('port');
+
+    await expect(group(dialog, 'Filters').getByRole('option'))
+      .toHaveText([/^Search “port”/, /^Filter by Port forward/, /^Filter by Proxy route/]);
+    await expect(dialog.getByRole('group').first()).toHaveAccessibleName('Filters');
+    await group(dialog, 'Filters').getByRole('option', { name: /^Filter by Port forward/ }).click();
+
+    await expect(dialog.getByRole('combobox', { name: 'Search' })).toHaveAccessibleDescription('Filter: Port forward. Backspace removes it.');
+  });
+
+  /** The characters an option shows bold, in order. */
+  const bold = (option: ReturnType<Page['getByRole']>) => option.evaluate((element) => [...element.querySelectorAll('[data-match]')]
+    .filter((match) => Number(getComputedStyle(match).fontWeight) >= 600)
+    .map(({ textContent }) => textContent).join(''));
+
+  test('typing "ofw" shows Filter by Port forward with o, f and w bold (22)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('ofw');
+
+    const option = group(dialog, 'Filters').getByRole('option', { name: /^Filter by Port forward/ });
+    await expect(option).toBeVisible();
+    expect(await bold(option)).toBe('ofw');
+  });
+
+  test('typing "sgo" lists the Sign out action with S, g and o bold (21, 22)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('sgo');
+
+    const option = group(dialog, 'Actions').getByRole('option', { name: /^Sign out/ });
+    await expect(option).toBeVisible();
+    expect(await bold(option)).toBe('Sgo');
+  });
+
+  test('typing "edgrt" finds Edge router among the entities, with nothing bold: the server matched it (21, 22, review)', async ({ page }) => {
+    const dialog = await open(page, '/w/demo/graph');
+    await page.keyboard.type('edgrt');
+
+    const option = group(dialog, 'Entities').getByRole('option', { name: /^Edge router/ });
+    await expect(option).toBeVisible();
+    expect(await bold(option)).toBe('');
+  });
+
+  test('the palette with a chip has no axe violation (15)', async ({ page }) => {
+    await withHostChip(page);
+    await page.keyboard.type('edge');
+
+    await expectNoAxeViolation(page);
+  });
+});

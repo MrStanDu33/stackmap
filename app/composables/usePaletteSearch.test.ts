@@ -9,12 +9,13 @@ const HIT = { extension: 'core', entity: 'host', id: '0199d6a0-0000-7000-8000-00
 const setUp = (workspaceId: string | undefined) => {
   const q = ref('');
   const id = ref(workspaceId);
+  const only = ref<{ extension?: string; entity?: string }>({});
   const scope = effectScope();
-  const entities = scope.run(() => usePaletteSearch(() => id.value, () => q.value));
+  const entities = scope.run(() => usePaletteSearch(() => id.value, () => q.value, () => only.value));
   if (!entities) {
     throw new Error('No search');
   }
-  return { q, id, entities, scope };
+  return { q, id, only, entities, scope };
 };
 
 const flush = async (ms: number) => {
@@ -88,5 +89,23 @@ describe('usePaletteSearch', () => {
 
     expect(fetched).not.toHaveBeenCalled();
     expect(entities.value).toEqual({ state: 'idle', hits: [] });
+  });
+
+  it('given an extension or type filter, searches with extension= and entity=, and again when the filter changes (16)', async () => {
+    const { q, only } = setUp('w1');
+
+    only.value = { extension: 'core', entity: 'host' };
+    q.value = 'edge';
+    await flush(210);
+    expect(fetched).toHaveBeenLastCalledWith('/api/workspaces/w1/search', expect.objectContaining({
+      query: { q: 'edge', limit: 20, extension: 'core', entity: 'host' },
+    }));
+
+    only.value = { extension: 'nat' };
+    await flush(210);
+    expect(fetched).toHaveBeenCalledTimes(2);
+    expect(fetched).toHaveBeenLastCalledWith('/api/workspaces/w1/search', expect.objectContaining({
+      query: { q: 'edge', limit: 20, extension: 'nat' },
+    }));
   });
 });

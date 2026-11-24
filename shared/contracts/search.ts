@@ -37,9 +37,9 @@ export const searchWorkspace = defineContract({
   operationId: 'searchWorkspace',
   summary: 'Search a workspace',
   description: 'The workspace\'s entities whose search fields (a host\'s name and addresses, a DNS record\'s name and '
-    + 'value, a route\'s hostnames…) or tags contain every word of `q`, ignoring case and accents. Titles that start '
-    + 'with `q` come first, then the others, each by title. Entities of extensions turned off in the workspace are '
-    + 'left out.',
+    + 'value, a route\'s hostnames…) or tags contain every word of `q`, ignoring case and accents, then those holding '
+    + 'its letters in that order (the first 32). Those holding every word come first; then titles that start with `q`, '
+    + 'then the others, each by title. Entities of extensions turned off in the workspace are left out.',
   tags: ['Search'],
   requiredRole: 'viewer',
   params: z.object({
@@ -61,7 +61,7 @@ export const searchWorkspace = defineContract({
     200: {
       description: 'The entities found, possibly none',
       schema: z.object({
-        items: z.array(SearchHit).max(MAX_SEARCH_LIMIT).meta({ description: 'Title prefix first, then by title' }),
+        items: z.array(SearchHit).max(MAX_SEARCH_LIMIT).meta({ description: 'Those holding every word first, then titles starting with `q`, then by title' }),
         truncated: z.boolean().meta({ description: 'Whether more entities matched than `limit`', examples: [false] }),
       }).meta({ id: 'SearchResults', description: 'Search results', examples: [{ items: [router], truncated: false }] }),
       examples: {
