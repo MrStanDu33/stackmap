@@ -2,7 +2,7 @@
   "mcpServers": {
     "nuxt": { "type": "http", "url": "https://nuxt.com/mcp" },
     "nuxt-ui": { "type": "http", "url": "https://ui.nuxt.com/mcp" },
-    "playwright": { "type": "stdio", "command": "npx", "args": ["-y", "@playwright/mcp@0.0.86"] },
+    "playwright": { "type": "stdio", "command": "npx", "args": ["-y", "@playwright/mcp@0.0.86", "--browser", "chromium"] },
     "storybook": { "type": "http", "url": "http://localhost:6006/mcp" }
   }
 }
