@@ -18,13 +18,77 @@
       "Bash(git diff *)",
       "Bash(git log *)"
     ],
+    "ask": [
+      "Bash(git commit)",
+      "Bash(git commit *)",
+      "Bash(git push)",
+      "Bash(git push *)",
+      "Bash(git rm *)",
+      "Bash(rm *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr edit *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh pr comment *)",
+      "Bash(gh pr close *)",
+      "Bash(gh issue create *)",
+      "Bash(gh issue edit *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh issue close *)",
+      "Bash(gh label *)",
+      "Bash(gh project *)",
+      "Bash(gh release *)",
+      "Bash(gh workflow run *)",
+      "Bash(gh run rerun *)",
+      "Bash(gh api *-X*)",
+      "Bash(gh api *--method*)",
+      "Bash(gh api *-f *)",
+      "Bash(gh api *-F *)",
+      "Bash(gh api *--field*)",
+      "Bash(gh api *--raw-field*)",
+      "Bash(gh api *--input*)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm remove *)",
+      "Bash(pnpm rm *)",
+      "Bash(pnpm update *)",
+      "Bash(pnpm up *)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm i *)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Edit(/server/database/migrations/**)",
+      "Edit(/extensions/*/server/migrations/**)",
+      "Edit(/server/auth/**)",
+      "Edit(/shared/contracts/auth.ts)",
+      "Edit(/shared/contracts/security.ts)",
+      "Edit(/.github/**)",
+      "Edit(/Dockerfile)",
+      "Edit(/compose*.yaml)",
+      "Edit(/docker/**)",
+      "Edit(/.devcontainer/**)",
+      "Edit(/.husky/**)",
+      "Edit(/.claude/settings.json)",
+      "Edit(/.mcp.json)",
+      "Edit(/**/package.json)",
+      "Edit(/pnpm-workspace.yaml)"
+    ],
     "deny": [
       "Read(./.env)",
       "Read(./.env.local)",
       "Read(./.env.*.local)",
       "Read(./.env.production)",
       "Read(./data/**)",
-      "Read(./.data/**)"
+      "Read(./.data/**)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push * --force)",
+      "Bash(git push * -f)",
+      "Bash(git push * main)",
+      "Bash(git push * develop)",
+      "Bash(git push *:main)",
+      "Bash(git push *:develop)",
+      "Bash(git commit *--no-verify*)",
+      "Bash(git push *--no-verify*)",
+      "mcp__playwright__browser_run_code_unsafe"
     ]
   },
   "hooks": {
@@ -32,7 +96,10 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/agents/tdd-guard.mjs\"" }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/agents/tdd-guard.mjs\""
+          }
         ]
       }
     ],
@@ -40,7 +107,10 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/agents/lint-fix.mjs\"" }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/scripts/agents/lint-fix.mjs\""
+          }
         ]
       }
     ]

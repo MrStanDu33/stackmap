@@ -13,6 +13,14 @@
     { "type": "non_fast_forward" },
     { "type": "required_signatures" },
     {
+      "type": "code_scanning",
+      "parameters": {
+        "code_scanning_tools": [
+          { "tool": "CodeQL", "alerts_threshold": "errors", "security_alerts_threshold": "high_or_higher" }
+        ]
+      }
+    },
+    {
       "type": "pull_request",
       "parameters": {
         "required_approving_review_count": 0,
@@ -34,7 +42,11 @@
           { "context": "Integration tests", "integration_id": 15368 },
           { "context": "Story tests", "integration_id": 15368 },
           { "context": "Build", "integration_id": 15368 },
-          { "context": "Conventions", "integration_id": 15368 }
+          { "context": "Conventions", "integration_id": 15368 },
+          { "context": "End-to-end tests", "integration_id": 15368 },
+          { "context": "Analyze (javascript-typescript)", "integration_id": 15368 },
+          { "context": "Analyze (actions)", "integration_id": 15368 },
+          { "context": "Dependency review", "integration_id": 15368 }
         ]
       }
     }

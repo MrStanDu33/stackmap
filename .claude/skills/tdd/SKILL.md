@@ -12,10 +12,11 @@ argument-hint: <path to .ai/specs/*.md>
    e2e for user journeys. Show them to the user.
 3. **Red**: turn the skeletons into real tests. Run them (`pnpm test:unit`, `pnpm test:stories`…) and confirm each one
    fails for the expected reason, not because of a typo or a missing import.
-   Commit: `🧪 Add failing tests for <feature>`.
+   Propose the commit with `/commit`: `🧪 Add failing tests for <feature>`.
 4. **Green**: write the minimum code to pass. Run the tests until they pass. Never change a test to make it pass; if
    a test is wrong, say so and ask.
 5. **Refactor**: improve names and structure with the tests passing. Run `pnpm lint`, `pnpm typecheck` and the tests.
-6. Commit the implementation (`✨`, `🐛`…), following the commit conventions.
+6. Check the definition of done in `AGENTS.md` (`/verify-ui` for a page or layout change), then propose the
+   implementation commits with `/commit` (`✨`, `🐛`…), one concern each, as a table of titles and contents first.
 
 The TDD guard hook blocks source edits until a matching test exists: write the test first.

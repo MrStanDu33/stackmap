@@ -7,9 +7,10 @@ This is the target architecture. Parts that are not built yet are marked _(plann
 
 Stackmap is one Nuxt 4 application, shipped as one container:
 
-- the **app** (`app/`): Vue 3 pages and components, Nuxt UI, Vue Flow for graphs, Pinia for editor state;
-- the **server** (`server/`): the database layer (`server/database/`), and later Nitro API routes and the domain
-  logic;
+- the **app** (`app/`): Vue 3 pages and components, Nuxt UI, Vue Flow for graphs, and a store for the edit mode's
+  state _(planned)_;
+- the **server** (`server/`): Nitro API routes (`server/api/`), the domain logic (`server/domain/`), the
+  workspace-scoped repositories (`server/repositories/`) and the database layer (`server/database/`);
 - **shared code** (`shared/`): code used by both, such as the API contracts and the design rules;
 - **built-in extensions** (`extensions/<id>/`): Nuxt layers that add entity types and features;
 - the **extension SDK** (`packages/extension-sdk/`).
@@ -42,7 +43,7 @@ Kysely, with one code path for both (`server/database/`):
 | Path                 | Contents                                                                   |
 | -------------------- | -------------------------------------------------------------------------- |
 | `app/`               | Pages, components (atomic design), CSS tokens, app config                  |
-| `server/`            | API routes, database and migrations; later domain logic and repositories   |
+| `server/`            | API routes, domain logic, repositories, database and migrations, auth, CLI |
 | `shared/`            | Code shared by the app and the server: contracts, design rules             |
 | `extensions/`        | Built-in extensions, each a Nuxt layer; `core` is always on, with entities |
 | `packages/`          | The extension SDK: manifests, formats, entity building blocks, server types |
@@ -50,7 +51,7 @@ Kysely, with one code path for both (`server/database/`):
 | `tests/`             | Unit tests that are not next to their code, fixtures, end-to-end tests     |
 | `scripts/`           | Convention rules, release tooling and CI checks                            |
 | `.storybook/`        | Storybook configuration and foundation pages                               |
-| `docs/`              | Roadmap, architecture, CLA, the generated OpenAPI document                 |
+| `docs/`              | Product, roadmap, architecture, decisions, CLA, the generated OpenAPI file |
 
 ## Domain model
 
@@ -394,19 +395,30 @@ with an entity (a host's port forwards) record no event of their own _(planned)_
 `GET /api/health` answers `200` with the app version when the database answers, `503` otherwise; the Docker
 healthcheck calls it. The database error goes to the logs, never to the response.
 
+_(Planned, team-ready milestone.)_ Pipelines (CI jobs, Terraform, Ansible) will write through the same API with
+**scoped API tokens** (a workspace and a role per token, revocable) and an **idempotent apply** operation that
+upserts entities by an external key, so a repeated run creates no duplicates. Both belong to the core, since they
+are authentication and a generic need; mapping a tool's output to entities belongs to one extension per tool, and the
+tools that run in a pipeline live outside the app. If extensions ever contribute routes of their own, an admin
+setting will turn that API off.
+
 ## Interface
 
 - Components follow atomic design: atoms, molecules, organisms, templates; Nuxt pages are the pages level. Each
   component has stories, run as tests in Chromium in every theme, contrast mode and locale. Storybook uses the plain
   Vue + Vite framework with small Nuxt shims, because the Nuxt Storybook framework does not support Nuxt 4.6 yet.
 - Design tokens live in `app/assets/css/tokens.css`: the nebula and midnight palettes and the semantic Nuxt UI tokens
-  for the midnight (default), light and strict themes. `shared/design/contrast.ts` defines the contrast requirements,
-  checked by tests.
+  for the midnight (default) and light themes, each in standard and strict contrast. `shared/design/contrast.ts`
+  defines the contrast requirements, checked by tests.
 - Every string is in English and French (`@nuxtjs/i18n`, no locale in URLs).
 - Icons are Lucide (`i-lucide-…`), bundled with the app (`@iconify-json/lucide`): the Iconify API is never called, so
   the app works offline and tells no third party where it runs.
-- Accessibility targets RGAA 4.1 / WCAG 2.1 AA; the strict mode raises contrast to AAA, removes motion, keeps focus
-  visible and enlarges targets. Asking the system for reduced motion removes motion too. Every graph has an accessible table equivalent.
+- Accessibility targets RGAA 4.1 (based on WCAG 2.1 AA) plus the success criteria WCAG 2.2 AA added: focus not
+  obscured (2.4.11), dragging movements (2.5.7: every drag has a single-pointer alternative, which the edit mode
+  needs), target size of at least 24 px (2.5.8), consistent help (3.2.6), redundant entry (3.3.7) and accessible
+  authentication (3.3.8: sign-in allows pasting and password managers). RGAA 5, based on WCAG 2.2, replaces this
+  when it is published. The strict mode raises contrast to AAA, removes motion, keeps focus visible and enlarges
+  targets. Asking the system for reduced motion removes motion too. Every graph has an accessible table equivalent.
 - Every page sits in the `AppShell` template: a skip link, the `AppSidebar` (only the sections that exist; a drawer
   on narrow screens) with the display preferences (theme, contrast, language), and the main landmark. The shell holds
   the page's one live region and alert, for preference saves and a notice a page leaves for the next one.
@@ -487,6 +499,58 @@ stop a hung story, no story sets a timeout of its own, the browser prefers reduc
 each project opens one page. A nightly flake hunt (`pnpm test:stories:hunt`) runs them 5 times shuffled, overloaded
 and never retried; a story it catches is fixed at its cause, from the seed it prints. See
 [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+| Layer            | What it proves                                                  | Where                                    | Command                                   | Blocks a merge   |
+| ---------------- | --------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------- | ---------------- |
+| Static           | Types, lint rules (including accessibility rules), CSS          | everywhere                               | `pnpm lint`, `pnpm lint:css`, `pnpm typecheck` | yes         |
+| Unit             | Pure logic, contracts, conventions scripts                      | next to the code (`*.test.ts`), `tests/unit/` | `pnpm test:unit`                     | yes              |
+| Integration      | Routes, repositories, migrations on SQLite and Postgres         | `*.integration.test.ts`                  | `pnpm test:integration`                   | yes, with coverage |
+| Stories          | Component behavior (play functions) and axe, per theme × contrast × locale | `*.stories.ts`                | `pnpm test:stories`                       | yes              |
+| End-to-end       | User journeys, keyboard, axe on the built app, with and without the demo | `tests/e2e/`                    | `pnpm build && pnpm test:e2e`             | not yet: see below |
+| Smoke            | The Docker image starts, migrates and becomes healthy           | `tests/smoke/`                           | `pnpm test:smoke`                         | in the Docker workflow |
+| Mutation         | Tests catch changes in the domain, `shared/` and pure DB code   | `stryker.config.*`                       | `pnpm test:mutation`                      | nightly          |
+| Flake hunt       | Stories pass shuffled and under load                            | stories                                  | `pnpm test:stories:hunt`                  | nightly          |
+
+`pnpm test` runs the Vitest projects (unit, integration, stories), not end-to-end or smoke tests. Coverage: 80%
+overall, 90% for domain, database, repository, SDK and extension server and entity code; `vitest.config.ts` is the
+source of truth.
+
+> OPEN: end-to-end tests, CodeQL and dependency review run on every pull request but are not required checks yet;
+> making them required is planned.
+
+A change to a page or a layout is also checked in a browser before it is done: the page opened on the dev server,
+used with the keyboard, in each theme, in strict mode and in French. Stories and end-to-end tests prove behavior; this
+catches what passes but looks wrong.
+
+## Security and privacy
+
+Stackmap stores a map of an organization's attack surface, so it is designed as if its database could leak (see the
+principle in [PRODUCT.md](PRODUCT.md#principles)):
+
+- store the minimum; never store secrets of the documented infrastructure; connector credentials, when they arrive,
+  are encrypted at rest _(planned)_;
+- every query is scoped to a workspace and every route checks the caller's role (see Workspaces and isolation);
+  audit events record field names, never values;
+- the app calls no third-party service (icons and API docs are bundled, fonts are the system's), sends no
+  telemetry, and runs no third-party code in its process or the browser;
+- exports and screenshots can be redacted, and the app warns when it is reachable from the internet _(planned)_.
+
+**Threat model.** What each attacker gets today, and what stops them:
+
+| Threat                                        | What it gets today                         | What stops it                                                        |
+| --------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------- |
+| A stolen database file or backup              | Every workspace, in plain text             | Nothing yet: encryption at rest is to be decided (below)             |
+| A compromised server (remote code execution)  | Everything, including any key it holds     | Nothing at rest; patching, the image's scans, least privilege       |
+| A stolen session                              | The victim's workspaces, at their role     | HTTP-only cookies, expiry, sign-out everywhere; later TOTP and OIDC   |
+| A malicious or careless workspace member      | Their workspace, at their role             | Roles; history and audit _(planned, team-ready)_                     |
+| Another workspace's member probing ids        | Nothing                                    | Workspace-scoped repositories, the same 404 for missing and forbidden |
+| Injection (SQL, markup, headers)              | Nothing known                              | Kysely parameters, bounded and validated input, contract-checked output |
+| A malicious extension                         | What the app process can reach             | Only reviewed built-in extensions run code; third-party ones out of process _(planned)_ |
+| A leaked connector credential                 | The connected tool, at the token's scope   | Read-only, least-privilege tokens, encrypted at rest _(planned)_     |
+
+> OPEN: encryption of the data at rest (the whole database file or volume, or chosen fields decrypted for search in
+> memory) is decided from this table before the team-ready milestone starts. Encrypting fields so the database
+> cannot match them would break partial-match search, which the command palette relies on.
 
 ## Glossary
 

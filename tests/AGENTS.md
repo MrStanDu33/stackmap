@@ -4,7 +4,7 @@
 - Prefer real objects over mocks; mock only the network and the clock.
 - Fixtures come from the factories (`extensions/core/testing`: `buildX` for input, `createX` to store it) and the
   fictional demo stack (`server/demo/`). Never use real IPs, domains or hostnames: documentation or private ranges,
-  `.example` names.
+  `.example` names. The same goes for specs, issues and screenshots, which are public.
 - Repository tests call `useTestWorkspaces(dialect)` (`tests/support/workspaces.ts`): a database migrated like the
   app, with workspaces A and B and their repositories, per test.
 - Unit tests sit next to their code (`*.test.ts`); `tests/unit/` holds tests that span several modules.
