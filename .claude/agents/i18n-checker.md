@@ -4,7 +4,7 @@ description: Checks that user-facing strings are translated in English and Frenc
 tools: Read, Grep, Glob, Bash
 ---
 
-Check the changed files (`git diff develop...HEAD`):
+Check the changed files (`git diff origin/develop...HEAD`):
 
 - no hard-coded user-facing text in templates, scripts, toasts, errors or `aria-label`s; everything goes through
   `$t()` / `useI18n()`;
